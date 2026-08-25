@@ -1,0 +1,94 @@
+@use "variables" as v;
+
+.wrap {
+  display: flex;
+  flex-direction: column;
+  gap: v.$space-3;
+}
+
+.legend {
+  display: flex;
+  gap: v.$space-5;
+}
+
+.legendItem {
+  display: flex;
+  align-items: center;
+  gap: v.$space-2;
+  font-size: v.$font-size-xs;
+  color: v.$color-text-secondary;
+}
+
+.dot {
+  width: 8px;
+  height: 8px;
+  border-radius: v.$radius-full;
+  display: inline-block;
+}
+
+.dotCpl {
+  background: v.$color-accent-alt;
+}
+
+.dotSaleCost {
+  background: v.$color-accent-1;
+}
+
+.chartArea {
+  position: relative;
+  width: 100%;
+}
+
+.svg {
+  width: 100%;
+  height: 260px;
+  display: block;
+  overflow: visible;
+}
+
+.barCpl {
+  fill: v.$color-accent-alt;
+}
+
+.barSaleCost {
+  fill: v.$color-accent-1;
+}
+
+.axis {
+  display: flex;
+  width: 100%;
+}
+
+.axisLabel {
+  font-size: v.$font-size-xs;
+  color: v.$color-text-muted;
+  text-align: center;
+}
+
+.tooltip {
+  position: absolute;
+  top: 0;
+  right: 0;
+  background: v.$color-bg-elevated;
+  border: 1px solid v.$color-border;
+  border-radius: v.$radius-sm;
+  padding: v.$space-3;
+  font-size: v.$font-size-xs;
+  box-shadow: v.$shadow-popover;
+  pointer-events: none;
+  min-width: 160px;
+}
+
+.tooltipDate {
+  font-weight: 600;
+  margin-bottom: v.$space-2;
+  color: v.$color-text-primary;
+}
+
+.tooltipRow {
+  display: flex;
+  align-items: center;
+  gap: v.$space-2;
+  color: v.$color-text-secondary;
+  padding: 2px 0;
+}

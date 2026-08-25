@@ -1,0 +1,105 @@
+@use "variables" as v;
+@use "mixins" as m;
+
+.sidebar {
+  position: fixed;
+  top: 0;
+  left: 0;
+  bottom: 0;
+  width: v.$sidebar-width;
+  display: flex;
+  flex-direction: column;
+  background: v.$color-bg-elevated;
+  border-right: 1px solid v.$color-border-subtle;
+  z-index: v.$z-sidebar;
+  padding: v.$space-5 v.$space-3;
+}
+
+.brand {
+  display: flex;
+  align-items: center;
+  padding: 0 v.$space-3 v.$space-5;
+}
+
+.nav {
+  display: flex;
+  flex-direction: column;
+  gap: v.$space-1;
+  flex: 1;
+}
+
+.navItem {
+  display: flex;
+  align-items: center;
+  gap: v.$space-3;
+  padding: v.$space-3;
+  border-radius: v.$radius-md;
+  color: v.$color-text-secondary;
+  font-size: v.$font-size-sm;
+  font-weight: 500;
+  transition: background v.$transition-fast, color v.$transition-fast;
+
+  &:hover {
+    background: v.$color-bg-hover;
+    color: v.$color-text-primary;
+  }
+}
+
+.navItemActive {
+  background: rgba(v.$color-accent-1, 0.16);
+  color: v.$color-text-primary;
+
+  .navDot {
+    background: v.$color-accent-1;
+    box-shadow: 0 0 0 3px rgba(v.$color-accent-1, 0.25);
+  }
+}
+
+.navDot {
+  width: 6px;
+  height: 6px;
+  border-radius: v.$radius-full;
+  background: v.$color-text-muted;
+  flex-shrink: 0;
+  transition: background v.$transition-fast, box-shadow v.$transition-fast;
+}
+
+.footer {
+  padding: v.$space-3;
+  display: flex;
+  flex-direction: column;
+  gap: v.$space-3;
+}
+
+.badge {
+  display: inline-block;
+  align-self: flex-start;
+  font-size: v.$font-size-xs;
+  color: v.$color-accent-alt;
+  background: rgba(v.$color-accent-alt, 0.12);
+  padding: v.$space-1 v.$space-3;
+  border-radius: v.$radius-full;
+}
+
+.backLink {
+  font-size: v.$font-size-xs;
+  color: v.$color-text-muted;
+  transition: color v.$transition-fast;
+
+  &:hover {
+    color: v.$color-text-primary;
+  }
+}
+
+.logoutButton {
+  padding: 0;
+  border: 0;
+  background: transparent;
+  color: v.$color-text-muted;
+  font: inherit;
+  font-size: v.$font-size-xs;
+  text-align: left;
+  cursor: pointer;
+
+  &:hover { color: v.$color-text-primary; }
+}

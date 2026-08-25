@@ -1,0 +1,19 @@
+services:
+  postgres:
+    image: postgres:17-alpine
+    environment:
+      POSTGRES_DB: peremoney
+      POSTGRES_USER: peremoney
+      POSTGRES_PASSWORD: peremoney
+    ports:
+      - "5433:5432"
+    volumes:
+      - peremoney-postgres:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U peremoney -d peremoney"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+volumes:
+  peremoney-postgres:

@@ -1,0 +1,112 @@
+@use "variables" as v;
+@use "mixins" as m;
+
+.card {
+  @include m.card;
+  overflow: hidden;
+}
+
+.tableWrap {
+  overflow-x: auto;
+  @include m.scrollbar;
+}
+
+.table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: v.$font-size-sm;
+
+  th,
+  td {
+    padding: v.$space-2 v.$space-3;
+    text-align: left;
+    white-space: nowrap;
+  }
+
+  th {
+    color: v.$color-text-muted;
+    font-weight: 500;
+    font-size: v.$font-size-xs;
+    text-transform: uppercase;
+    letter-spacing: 0.03em;
+    border-bottom: 1px solid v.$color-border-subtle;
+    padding-top: v.$space-3;
+    padding-bottom: v.$space-3;
+  }
+
+  tbody tr {
+    border-bottom: 1px solid v.$color-border-subtle;
+    transition: background v.$transition-fast;
+
+    &:last-child {
+      border-bottom: none;
+    }
+
+    &:hover {
+      background: v.$color-bg-hover;
+    }
+  }
+}
+
+.mono {
+  color: v.$color-text-secondary;
+  font-variant-numeric: tabular-nums;
+}
+
+.comment {
+  max-width: 220px;
+  white-space: normal;
+  color: v.$color-text-secondary;
+}
+
+.feedbackInput,
+.amountInput,
+.statusSelect {
+  background: v.$color-bg-card;
+  border: 1px solid v.$color-border;
+  border-radius: v.$radius-sm;
+  padding: v.$space-2;
+  font-size: v.$font-size-sm;
+  color: v.$color-text-primary;
+
+  &:focus-visible {
+    @include m.focus-ring;
+  }
+}
+
+.feedbackInput {
+  width: 200px;
+
+  &::placeholder {
+    color: v.$color-text-muted;
+  }
+}
+
+.statusSelect {
+  cursor: pointer;
+  font-weight: 600;
+
+  &[data-status="not_processed"] { color: #a8adb8; border-color: rgba(168, 173, 184, .35); background: rgba(168, 173, 184, .08); }
+  &[data-status="negotiation"] { color: #71b7ff; border-color: rgba(76, 157, 255, .38); background: rgba(76, 157, 255, .1); }
+  &[data-status="not_relevant"] { color: #f2b95f; border-color: rgba(242, 185, 95, .38); background: rgba(242, 185, 95, .1); }
+  &[data-status="rejected"] { color: #ff777d; border-color: rgba(255, 91, 100, .38); background: rgba(255, 91, 100, .1); }
+  &[data-status="purchased"] { color: #66d6a0; border-color: rgba(68, 205, 139, .4); background: rgba(68, 205, 139, .11); }
+}
+
+.amountInput {
+  width: 100px;
+}
+
+.empty {
+  padding: v.$space-8;
+  text-align: center;
+  color: v.$color-text-muted;
+  font-size: v.$font-size-sm;
+}
+
+.footer {
+  padding: v.$space-3 v.$space-4;
+  border-top: 1px solid v.$color-border-subtle;
+  color: v.$color-text-muted;
+  font-size: v.$font-size-xs;
+}

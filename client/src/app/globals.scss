@@ -1,0 +1,48 @@
+@use "../styles/variables" as v;
+@use "../styles/mixins" as m;
+
+* {
+  box-sizing: border-box;
+}
+
+html,
+body {
+  padding: 0;
+  margin: 0;
+}
+
+html {
+  color-scheme: dark;
+}
+
+body {
+  background: v.$color-bg;
+  color: v.$color-text-primary;
+  font-family: v.$font-family-base;
+  font-size: v.$font-size-md;
+  line-height: 1.45;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+a {
+  color: inherit;
+  text-decoration: none;
+}
+
+button,
+input,
+select,
+textarea {
+  font-family: inherit;
+  color: inherit;
+}
+
+::selection {
+  background: rgba(v.$color-accent-1, 0.4);
+}
+
+#__next,
+body {
+  @include m.scrollbar;
+}

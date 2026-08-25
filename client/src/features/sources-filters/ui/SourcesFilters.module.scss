@@ -1,0 +1,87 @@
+@use "variables" as v;
+@use "mixins" as m;
+
+.row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: v.$space-3;
+  flex-wrap: wrap;
+}
+
+.controls {
+  display: flex;
+  align-items: center;
+  gap: v.$space-3;
+  flex-wrap: wrap;
+}
+
+.searchField {
+  display: flex;
+  align-items: center;
+  gap: v.$space-2;
+  min-width: 240px;
+  padding: v.$space-2 v.$space-3;
+  border: 1px solid v.$color-border;
+  border-radius: v.$radius-sm;
+  background: v.$color-bg-card;
+
+  &:focus-within { border-color: v.$color-accent-2; }
+  input { width: 100%; border: 0; outline: 0; background: transparent; color: v.$color-text-primary; font: inherit; }
+  input::placeholder { color: v.$color-text-muted; }
+}
+
+.searchIcon { color: v.$color-text-muted; font-size: 18px; }
+
+.checkbox {
+  display: flex;
+  align-items: center;
+  gap: v.$space-2;
+  font-size: v.$font-size-sm;
+  color: v.$color-text-secondary;
+  white-space: nowrap;
+  cursor: pointer;
+
+  input {
+    accent-color: v.$color-accent-1;
+    width: 16px;
+    height: 16px;
+    cursor: pointer;
+  }
+}
+
+.statusSelect {
+  @include m.button-reset;
+  background: v.$color-bg-card;
+  border: 1px solid v.$color-border;
+  border-radius: v.$radius-sm;
+  padding: v.$space-2 v.$space-3;
+  font-size: v.$font-size-sm;
+  color: v.$color-text-primary;
+  cursor: pointer;
+  transition: border-color v.$transition-fast;
+
+  &:hover {
+    border-color: v.$color-accent-2;
+  }
+
+  &:focus-visible {
+    @include m.focus-ring;
+  }
+}
+
+.applyBtn {
+  @include m.button-reset;
+  padding: v.$space-2 v.$space-4;
+  background: v.$color-accent-1;
+  color: v.$color-text-on-accent;
+  border-radius: v.$radius-sm;
+  font-size: v.$font-size-sm;
+  font-weight: 600;
+  white-space: nowrap;
+  transition: filter v.$transition-fast;
+
+  &:hover {
+    filter: brightness(1.1);
+  }
+}

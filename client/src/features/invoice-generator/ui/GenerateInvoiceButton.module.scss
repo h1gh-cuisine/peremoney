@@ -1,0 +1,18 @@
+@use "variables" as v;
+@use "mixins" as m;
+
+.button {
+  @include m.button-reset;
+  padding: v.$space-2 v.$space-4;
+  background: v.$color-accent-1;
+  color: v.$color-text-on-accent;
+  border-radius: v.$radius-sm;
+  font-size: v.$font-size-sm;
+  font-weight: 600;
+  white-space: nowrap;
+  transition: filter v.$transition-fast;
+
+  &:hover {
+    filter: brightness(1.1);
+  }
+}

@@ -1,0 +1,62 @@
+@use "variables" as v;
+
+.topbar {
+  position: sticky;
+  top: 0;
+  height: v.$topbar-height;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0 v.$space-8;
+  background: rgba(v.$color-bg, 0.85);
+  backdrop-filter: blur(8px);
+  border-bottom: 1px solid v.$color-border-subtle;
+  z-index: v.$z-topbar;
+}
+
+.title {
+  font-size: v.$font-size-xl;
+  font-weight: 600;
+  letter-spacing: -0.01em;
+  margin: 0;
+}
+
+.controls {
+  display: flex;
+  align-items: center;
+  gap: v.$space-4;
+}
+
+.balance {
+  display: flex;
+  align-items: baseline;
+  gap: v.$space-2;
+  padding: v.$space-2 v.$space-3;
+  border: 1px solid rgba(v.$color-accent-1, .28);
+  border-radius: v.$radius-sm;
+  background: rgba(v.$color-accent-1, .08);
+  white-space: nowrap;
+
+  span { color: v.$color-text-muted; font-size: v.$font-size-xs; }
+  strong { color: v.$color-text-primary; font-size: v.$font-size-sm; }
+  i { width: 74px; height: 5px; overflow: hidden; border-radius: v.$radius-full; background: v.$color-bg-hover; }
+  i b { display: block; height: 100%; border-radius: inherit; background: linear-gradient(90deg, v.$color-accent-1, v.$color-accent-2); }
+}
+
+@media (max-width: 720px) {
+  .topbar { padding: 0 v.$space-4; }
+  .balance span, .balance i { display: none; }
+}
+
+.avatar {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 36px;
+  height: 36px;
+  border-radius: v.$radius-full;
+  background: linear-gradient(135deg, v.$color-accent-1, v.$color-accent-2);
+  color: v.$color-text-on-accent;
+  font-size: v.$font-size-xs;
+  font-weight: 600;
+}

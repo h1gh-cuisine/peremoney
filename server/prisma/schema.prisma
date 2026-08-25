@@ -1,0 +1,440 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum UserRole {
+  MASTER
+  FULL
+  LIMITED
+}
+
+enum ProjectType {
+  VDL
+  PACKAGE
+  NUMBERS
+}
+
+enum LeadSaleStatus {
+  UNPROCESSED
+  NEGOTIATION
+  NOT_TARGET
+  REFUSAL
+  BOUGHT
+}
+
+enum SyncStatus {
+  RUNNING
+  SUCCEEDED
+  FAILED
+}
+
+enum DomainJobStatus {
+  PENDING
+  RUNNING
+  COMPLETED
+  FAILED
+}
+
+enum SchedulePreset {
+  WEEKDAYS
+  WEEKENDS
+  EVERYDAY
+}
+
+enum ScheduledTask {
+  SOURCES_SYNC
+  CONTACTS_SYNC
+  TAG_AUTOMATION
+  APPLY_SCHEDULE
+  SCRIPT_SYNC
+}
+
+enum ScheduledRunStatus {
+  PENDING
+  RUNNING
+  COMPLETED
+  FAILED
+}
+
+enum PaymentStatus {
+  PENDING
+  PAID
+}
+
+enum InvoiceCreationStatus {
+  PENDING
+  SUCCEEDED
+  UNCERTAIN
+  FAILED
+}
+
+enum BalanceEntryType {
+  PAYMENT
+  CONTACT_CHARGE
+  LEAD_CHARGE
+  PAYMENT_REVERSAL
+}
+
+enum FanoutDeliveryStatus {
+  PENDING
+  COMPLETED
+  FAILED
+}
+
+enum RenewalStatus {
+  RENEWED
+  NOT_RENEWED
+}
+
+enum ProviderProjectCreationStatus {
+  PENDING
+  EXTERNAL_CREATED
+  SUCCEEDED
+  UNCERTAIN
+  FAILED
+}
+
+model Cabinet {
+  id              String   @id @default(uuid()) @db.Uuid
+  name            String
+  providerProjectId Int?
+  type            ProjectType
+  price           Decimal  @default(0) @db.Decimal(14, 2)
+  managerName     String?
+  sphere          String?
+  moneyBalance    Decimal  @default(0) @db.Decimal(14, 2)
+  totalUnits      Int      @default(0)
+  usedUnits       Int      @default(0)
+  balanceType     ProjectType?
+  isActive        Boolean  @default(true)
+  renewalStatus   RenewalStatus @default(NOT_RENEWED)
+  hidden          Boolean  @default(false)
+  timezoneOffset  Int      @default(3)
+  uploadsEnabled  Boolean  @default(true)
+  callsEnabled    Boolean  @default(true)
+  crmIntegration  String   @default("")
+  messengerIntegrations String[] @default([])
+  contactsVisible Boolean  @default(true)
+  sourcesVisible  Boolean  @default(true)
+  scriptVisible   Boolean  @default(true)
+  financeVisible  Boolean  @default(true)
+  settingsVisible Boolean  @default(true)
+  autoCleanupEnabled Boolean @default(false)
+  autoManagementEnabled Boolean @default(false)
+  minContactsPerLead Int @default(0)
+  minConversion Decimal @default(0) @db.Decimal(7, 4)
+  schedulePreset SchedulePreset @default(EVERYDAY)
+  scheduleDays   Int[] @default([1, 2, 3, 4, 5, 6, 7])
+  operatorScript String?
+  operatorScriptName String?
+  operatorScriptLevel Int?
+  scriptSyncedAt DateTime?
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+  users           User[]
+  contacts        Contact[]
+  leads           Lead[]
+  syncRuns        AnswerSyncRun[]
+  sourceTags      SourceTag[]
+  domainJobs      DomainSourceJob[]
+  scheduledRuns   ScheduledRun[]
+  payerProfile    PayerProfile?
+  payments        Payment[]
+  balanceEntries  BalanceEntry[]
+  fanoutDestinations FanoutDestination[]
+  fanoutDeliveries FanoutDelivery[]
+  providerCreation ProviderProjectCreation?
+
+  @@index([providerProjectId])
+}
+
+model ProviderProjectCreation {
+  id                String   @id @default(uuid()) @db.Uuid
+  idempotencyKey    String   @unique
+  requestHash       String
+  status            ProviderProjectCreationStatus @default(PENDING)
+  providerProjectId Int?
+  cabinetId         String?  @unique @db.Uuid
+  cabinet           Cabinet? @relation(fields: [cabinetId], references: [id], onDelete: SetNull)
+  error             String?
+  createdAt         DateTime @default(now())
+  updatedAt         DateTime @updatedAt
+}
+
+model PayerProfile {
+  id        String   @id @default(uuid()) @db.Uuid
+  cabinetId String   @unique @db.Uuid
+  cabinet   Cabinet  @relation(fields: [cabinetId], references: [id], onDelete: Cascade)
+  data      Json
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+model Payment {
+  id          String        @id @default(uuid()) @db.Uuid
+  cabinetId   String        @db.Uuid
+  cabinet     Cabinet       @relation(fields: [cabinetId], references: [id], onDelete: Cascade)
+  invoiceNo   String        @unique
+  invoiceIdempotencyKey String? @unique
+  invoiceRequestHash String?
+  invoiceCreationStatus InvoiceCreationStatus @default(PENDING)
+  legalEntity String?
+  payerInn     String?
+  tochkaDocumentId String? @unique
+  bankPaymentId String? @unique
+  quantity    Int
+  unitPrice   Decimal       @db.Decimal(14, 2)
+  amount      Decimal       @db.Decimal(14, 2)
+  projectType ProjectType
+  status      PaymentStatus @default(PENDING)
+  paidAt      DateTime?
+  balanceTypeBefore ProjectType?
+  totalUnitsBefore Int?
+  usedUnitsBefore Int?
+  createdAt   DateTime      @default(now())
+  updatedAt   DateTime      @updatedAt
+  entries     BalanceEntry[]
+  webhookEvents TochkaWebhookEvent[]
+  auditEvents PaymentAudit[]
+
+  @@index([cabinetId, status, createdAt])
+  @@index([paidAt])
+}
+
+model PaymentAudit {
+  id String @id @default(uuid()) @db.Uuid
+  paymentId String? @db.Uuid
+  payment Payment? @relation(fields: [paymentId], references: [id], onDelete: SetNull)
+  actorId String? @db.Uuid
+  actor User? @relation(fields: [actorId], references: [id], onDelete: SetNull)
+  action String
+  before Json?
+  after Json?
+  createdAt DateTime @default(now())
+  @@index([paymentId, createdAt])
+  @@index([actorId, createdAt])
+}
+
+model TochkaWebhookEvent {
+  id          String   @id @default(uuid()) @db.Uuid
+  externalId  String   @unique
+  webhookType String
+  payload     Json
+  status      String
+  paymentId   String?  @db.Uuid
+  payment     Payment? @relation(fields: [paymentId], references: [id], onDelete: SetNull)
+  createdAt   DateTime @default(now())
+
+  @@index([status, createdAt])
+}
+
+model BalanceEntry {
+  id          String           @id @default(uuid()) @db.Uuid
+  cabinetId   String           @db.Uuid
+  cabinet     Cabinet          @relation(fields: [cabinetId], references: [id], onDelete: Cascade)
+  paymentId   String?          @db.Uuid
+  payment     Payment?         @relation(fields: [paymentId], references: [id], onDelete: SetNull)
+  type        BalanceEntryType
+  externalKey String           @unique
+  moneyDelta  Decimal          @db.Decimal(14, 2)
+  unitsDelta  Int
+  createdAt   DateTime         @default(now())
+
+  @@index([cabinetId, createdAt])
+}
+
+model ScheduledRun {
+  id            String             @id @default(uuid()) @db.Uuid
+  cabinetId     String             @db.Uuid
+  cabinet       Cabinet            @relation(fields: [cabinetId], references: [id], onDelete: Cascade)
+  task          ScheduledTask
+  status        ScheduledRunStatus @default(PENDING)
+  scheduledFor  DateTime
+  nextAttemptAt DateTime
+  attempts      Int                @default(0)
+  startedAt     DateTime?
+  finishedAt    DateTime?
+  lastError     String?
+  result        Json?
+  createdAt     DateTime           @default(now())
+  updatedAt     DateTime           @updatedAt
+
+  @@unique([cabinetId, task, scheduledFor])
+  @@index([status, nextAttemptAt])
+  @@index([cabinetId, scheduledFor])
+}
+
+model DomainSourceJob {
+  id          String          @id @default(uuid()) @db.Uuid
+  cabinetId   String          @db.Uuid
+  cabinet     Cabinet         @relation(fields: [cabinetId], references: [id], onDelete: Cascade)
+  status      DomainJobStatus @default(PENDING)
+  attempts    Int             @default(0)
+  scheduledAt DateTime
+  startedAt   DateTime?
+  finishedAt  DateTime?
+  lastError   String?
+  createdAt   DateTime        @default(now())
+  updatedAt   DateTime        @updatedAt
+
+  @@index([status, scheduledAt])
+  @@index([cabinetId, createdAt])
+}
+
+model SourceTag {
+  id            String   @id @default(uuid()) @db.Uuid
+  cabinetId     String   @db.Uuid
+  cabinet       Cabinet  @relation(fields: [cabinetId], references: [id], onDelete: Cascade)
+  providerTagId Int
+  rawName       String
+  name          String
+  operator      String?
+  sourceType    String?
+  newAnswer     Int      @default(0)
+  success       Int      @default(0)
+  conversion    Decimal  @default(0) @db.Decimal(9, 4)
+  sebes         Decimal  @default(0) @db.Decimal(14, 2)
+  normWork      Boolean  @default(false)
+  limit         Int      @default(0)
+  syncedAt      DateTime @default(now())
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  @@unique([cabinetId, providerTagId])
+  @@index([cabinetId, name])
+  @@index([cabinetId, normWork])
+}
+
+model Contact {
+  id               String   @id @default(uuid()) @db.Uuid
+  cabinetId        String   @db.Uuid
+  cabinet          Cabinet  @relation(fields: [cabinetId], references: [id], onDelete: Cascade)
+  providerAnswerId Int?
+  date             DateTime
+  status           String
+  mobileTel        String
+  site             String?
+  mobileOperator   String?
+  createdAt        DateTime @default(now())
+  updatedAt        DateTime @updatedAt
+  lead             Lead?
+  fanoutDelivery   FanoutDelivery?
+
+  @@unique([cabinetId, providerAnswerId])
+  @@index([cabinetId, date])
+  @@index([cabinetId, status])
+}
+
+model FanoutSource {
+  id           String              @id @default(uuid()) @db.Uuid
+  publicId     String              @unique
+  name         String
+  tokenHash    String
+  isActive     Boolean             @default(true)
+  destinations FanoutDestination[]
+  incomingLeads IncomingLead[]
+  createdAt    DateTime            @default(now())
+  updatedAt    DateTime            @updatedAt
+}
+
+model FanoutDestination {
+  sourceId  String       @db.Uuid
+  source    FanoutSource @relation(fields: [sourceId], references: [id], onDelete: Cascade)
+  cabinetId String       @db.Uuid
+  cabinet   Cabinet      @relation(fields: [cabinetId], references: [id], onDelete: Cascade)
+  createdAt DateTime     @default(now())
+
+  @@id([sourceId, cabinetId])
+  @@index([cabinetId])
+}
+
+model IncomingLead {
+  id             String           @id @default(uuid()) @db.Uuid
+  sourceId       String           @db.Uuid
+  source         FanoutSource     @relation(fields: [sourceId], references: [id], onDelete: Cascade)
+  externalId     String
+  date           DateTime
+  mobileTel      String
+  name           String?
+  site           String?
+  mobileOperator String?
+  payload        Json?
+  deliveries     FanoutDelivery[]
+  createdAt      DateTime         @default(now())
+
+  @@unique([sourceId, externalId])
+  @@index([sourceId, createdAt])
+}
+
+model FanoutDelivery {
+  id             String               @id @default(uuid()) @db.Uuid
+  incomingLeadId String               @db.Uuid
+  incomingLead   IncomingLead         @relation(fields: [incomingLeadId], references: [id], onDelete: Cascade)
+  cabinetId      String               @db.Uuid
+  cabinet        Cabinet              @relation(fields: [cabinetId], references: [id], onDelete: Cascade)
+  status         FanoutDeliveryStatus @default(PENDING)
+  attempts       Int                  @default(0)
+  lastError      String?
+  contactId      String?              @unique @db.Uuid
+  contact        Contact?             @relation(fields: [contactId], references: [id], onDelete: SetNull)
+  finishedAt     DateTime?
+  createdAt      DateTime             @default(now())
+  updatedAt      DateTime             @updatedAt
+
+  @@unique([incomingLeadId, cabinetId])
+  @@index([cabinetId, status])
+}
+
+model Lead {
+  id               String         @id @default(uuid()) @db.Uuid
+  cabinetId        String         @db.Uuid
+  cabinet          Cabinet        @relation(fields: [cabinetId], references: [id], onDelete: Cascade)
+  contactId        String         @unique @db.Uuid
+  contact          Contact        @relation(fields: [contactId], references: [id], onDelete: Cascade)
+  successDate      DateTime
+  comment          String?
+  feedback         String         @default("")
+  saleStatus       LeadSaleStatus @default(UNPROCESSED)
+  amount           Decimal        @default(0) @db.Decimal(14, 2)
+  createdAt        DateTime       @default(now())
+  updatedAt        DateTime       @updatedAt
+
+  @@index([cabinetId, successDate])
+  @@index([cabinetId, saleStatus])
+}
+
+model AnswerSyncRun {
+  id            String     @id @default(uuid()) @db.Uuid
+  cabinetId     String     @db.Uuid
+  cabinet       Cabinet    @relation(fields: [cabinetId], references: [id], onDelete: Cascade)
+  status        SyncStatus @default(RUNNING)
+  receivedCount Int        @default(0)
+  contactCount  Int        @default(0)
+  leadCount     Int        @default(0)
+  error         String?
+  startedAt     DateTime   @default(now())
+  finishedAt    DateTime?
+
+  @@index([cabinetId, startedAt])
+}
+
+model User {
+  id           String    @id @default(uuid()) @db.Uuid
+  login        String    @unique
+  passwordHash String
+  role         UserRole
+  cabinetId    String?   @db.Uuid
+  cabinet      Cabinet?  @relation(fields: [cabinetId], references: [id], onDelete: Cascade)
+  isActive     Boolean   @default(true)
+  sessionVersion Int     @default(0)
+  createdAt    DateTime  @default(now())
+  updatedAt    DateTime  @updatedAt
+  paymentAuditEvents PaymentAudit[]
+
+  @@index([cabinetId])
+}

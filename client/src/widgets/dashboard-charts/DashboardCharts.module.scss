@@ -1,0 +1,20 @@
+@use "variables" as v;
+@use "mixins" as m;
+
+.grid {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  gap: v.$space-4;
+
+}
+
+.card {
+  @include m.card;
+  padding: v.$space-5;
+}
+
+.title {
+  font-size: v.$font-size-md;
+  font-weight: 600;
+  margin: 0 0 v.$space-4;
+}

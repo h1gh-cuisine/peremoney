@@ -1,0 +1,54 @@
+@use "variables" as v;
+@use "mixins" as m;
+
+.card {
+  @include m.card;
+  display: flex;
+  align-items: flex-start;
+  gap: v.$space-3;
+  padding: v.$space-5;
+  min-width: 0;
+}
+
+.indicator {
+  width: 8px;
+  height: 8px;
+  border-radius: v.$radius-full;
+  margin-top: 6px;
+  flex-shrink: 0;
+}
+
+.primary {
+  background: v.$color-accent-1;
+  box-shadow: 0 0 0 3px rgba(v.$color-accent-1, 0.2);
+}
+
+.secondary {
+  background: v.$color-accent-2;
+  box-shadow: 0 0 0 3px rgba(v.$color-accent-2, 0.2);
+}
+
+.alt {
+  background: v.$color-accent-alt;
+  box-shadow: 0 0 0 3px rgba(v.$color-accent-alt, 0.2);
+}
+
+.body {
+  display: flex;
+  flex-direction: column;
+  gap: v.$space-2;
+  min-width: 0;
+}
+
+.label {
+  font-size: v.$font-size-xs;
+  color: v.$color-text-secondary;
+  @include m.truncate;
+}
+
+.value {
+  font-size: v.$font-size-xl;
+  font-weight: 600;
+  letter-spacing: -0.01em;
+  @include m.truncate;
+}

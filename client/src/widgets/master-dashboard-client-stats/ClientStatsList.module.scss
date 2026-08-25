@@ -1,0 +1,57 @@
+@use "variables" as v;
+@use "mixins" as m;
+
+.card {
+  @include m.card;
+  padding: v.$space-5;
+}
+
+.title {
+  font-size: v.$font-size-md;
+  font-weight: 600;
+  margin: 0 0 v.$space-4;
+}
+
+.list {
+  display: flex;
+  flex-direction: column;
+  gap: v.$space-1;
+}
+
+.row {
+  display: grid;
+  grid-template-columns: 24px 1fr auto;
+  align-items: center;
+  gap: v.$space-3;
+  padding: v.$space-2;
+  border-radius: v.$radius-sm;
+  font-size: v.$font-size-sm;
+
+  &:hover {
+    background: v.$color-bg-hover;
+  }
+}
+
+.rank {
+  color: v.$color-text-muted;
+  font-variant-numeric: tabular-nums;
+}
+
+.name {
+  color: v.$color-text-primary;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.amount {
+  color: v.$color-accent-2;
+  font-variant-numeric: tabular-nums;
+  font-weight: 600;
+}
+
+.empty {
+  color: v.$color-text-muted;
+  font-size: v.$font-size-sm;
+  margin: 0;
+}

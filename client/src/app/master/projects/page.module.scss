@@ -1,0 +1,7 @@
+@use "variables" as v;
+
+.actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: v.$space-3;
+}

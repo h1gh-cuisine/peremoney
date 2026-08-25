@@ -1,0 +1,6 @@
+ALTER TABLE "Cabinet"
+  ADD COLUMN "timezoneOffset" INTEGER NOT NULL DEFAULT 3,
+  ADD COLUMN "uploadsEnabled" BOOLEAN NOT NULL DEFAULT true,
+  ADD COLUMN "callsEnabled" BOOLEAN NOT NULL DEFAULT true,
+  ADD COLUMN "crmIntegration" TEXT NOT NULL DEFAULT '',
+  ADD COLUMN "messengerIntegrations" TEXT[] NOT NULL DEFAULT ARRAY[]::TEXT[];

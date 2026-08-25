@@ -1,0 +1,1 @@
+export { MasterPaymentsTable } from "./MasterPaymentsTable";

@@ -1,0 +1,55 @@
+@use "variables" as v;
+@use "mixins" as m;
+
+.root {
+  position: relative;
+  display: inline-block;
+}
+
+.trigger {
+  @include m.button-reset;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 28px;
+  height: 28px;
+  border-radius: v.$radius-sm;
+  color: v.$color-text-secondary;
+  font-size: v.$font-size-lg;
+  line-height: 1;
+  transition: background v.$transition-fast, color v.$transition-fast;
+
+  &:hover {
+    background: v.$color-bg-hover;
+    color: v.$color-text-primary;
+  }
+}
+
+.popover {
+  position: absolute;
+  top: calc(100% + v.$space-1);
+  right: 0;
+  z-index: v.$z-popover;
+  background: v.$color-bg-elevated;
+  border: 1px solid v.$color-border;
+  border-radius: v.$radius-sm;
+  box-shadow: v.$shadow-popover;
+  padding: v.$space-1;
+  min-width: 120px;
+}
+
+.item {
+  @include m.button-reset;
+  display: block;
+  width: 100%;
+  padding: v.$space-2;
+  border-radius: v.$radius-sm;
+  font-size: v.$font-size-xs;
+  color: v.$color-text-primary;
+  text-align: left;
+  white-space: nowrap;
+
+  &:hover {
+    background: v.$color-bg-hover;
+  }
+}

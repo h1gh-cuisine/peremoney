@@ -1,0 +1,9 @@
+ALTER TABLE "Cabinet"
+ADD COLUMN "scheduleDays" INTEGER[] NOT NULL DEFAULT ARRAY[1, 2, 3, 4, 5, 6, 7]::INTEGER[];
+
+UPDATE "Cabinet"
+SET "scheduleDays" = CASE "schedulePreset"
+  WHEN 'WEEKDAYS' THEN ARRAY[1, 2, 3, 4, 7]::INTEGER[]
+  WHEN 'WEEKENDS' THEN ARRAY[5, 6]::INTEGER[]
+  ELSE ARRAY[1, 2, 3, 4, 5, 6, 7]::INTEGER[]
+END;

@@ -1,0 +1,80 @@
+@use "variables" as v;
+@use "mixins" as m;
+
+.card {
+  @include m.card;
+  padding: v.$space-5;
+  display: flex;
+  flex-direction: column;
+  gap: v.$space-4;
+}
+
+.title {
+  font-size: v.$font-size-sm;
+  font-weight: 600;
+  color: v.$color-text-secondary;
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+  margin: 0;
+}
+
+.row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: v.$space-4;
+  flex-wrap: wrap;
+}
+
+.rowText {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.rowLabel {
+  font-size: v.$font-size-sm;
+  color: v.$color-text-primary;
+}
+
+.rowHint {
+  font-size: v.$font-size-xs;
+  color: v.$color-text-muted;
+}
+
+.rowControls {
+  display: flex;
+  align-items: center;
+  gap: v.$space-4;
+}
+
+.numberField {
+  display: flex;
+  align-items: center;
+  gap: v.$space-2;
+  font-size: v.$font-size-xs;
+  color: v.$color-text-muted;
+  white-space: nowrap;
+}
+
+.numberInput {
+  width: 64px;
+  background: v.$color-bg-card;
+  border: 1px solid v.$color-border;
+  border-radius: v.$radius-sm;
+  padding: v.$space-1 v.$space-2;
+  font-size: v.$font-size-sm;
+  color: v.$color-text-primary;
+
+  &:focus-visible {
+    @include m.focus-ring;
+  }
+}
+
+.switch {
+  accent-color: v.$color-accent-1;
+  width: 36px;
+  height: 20px;
+  cursor: pointer;
+  flex-shrink: 0;
+}

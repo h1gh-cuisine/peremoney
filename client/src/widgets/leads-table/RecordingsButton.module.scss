@@ -1,0 +1,64 @@
+@use "variables" as v;
+@use "mixins" as m;
+
+.root {
+  position: relative;
+  display: inline-block;
+}
+
+.button {
+  @include m.button-reset;
+  display: inline-flex;
+  align-items: center;
+  gap: v.$space-1;
+  width: 32px;
+  height: 32px;
+  padding: 0 v.$space-2;
+  border-radius: v.$radius-sm;
+  border: 1px solid v.$color-border;
+  color: v.$color-text-secondary;
+  transition: border-color v.$transition-fast, color v.$transition-fast;
+
+  &:not(:disabled):hover {
+    border-color: v.$color-accent-1;
+    color: v.$color-accent-1;
+  }
+
+  &:disabled {
+    opacity: 0.35;
+    cursor: not-allowed;
+  }
+}
+
+.count {
+  font-size: v.$font-size-xs;
+  font-weight: 600;
+}
+
+.popover {
+  position: absolute;
+  top: calc(100% + v.$space-1);
+  left: 0;
+  z-index: v.$z-popover;
+  background: v.$color-bg-elevated;
+  border: 1px solid v.$color-border;
+  border-radius: v.$radius-sm;
+  box-shadow: v.$shadow-popover;
+  padding: v.$space-2;
+  display: flex;
+  flex-direction: column;
+  gap: v.$space-1;
+  min-width: 120px;
+}
+
+.link {
+  padding: v.$space-2;
+  border-radius: v.$radius-sm;
+  font-size: v.$font-size-xs;
+  color: v.$color-text-primary;
+  white-space: nowrap;
+
+  &:hover {
+    background: v.$color-bg-hover;
+  }
+}

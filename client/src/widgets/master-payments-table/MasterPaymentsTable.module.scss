@@ -1,0 +1,87 @@
+@use "variables" as v;
+@use "mixins" as m;
+
+.card {
+  @include m.card;
+  overflow: hidden;
+}
+
+.tableWrap {
+  overflow-x: auto;
+  @include m.scrollbar;
+}
+
+.table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: v.$font-size-sm;
+
+  th,
+  td {
+    padding: v.$space-3 v.$space-4;
+    text-align: left;
+    white-space: nowrap;
+  }
+
+  th {
+    color: v.$color-text-muted;
+    font-weight: 500;
+    font-size: v.$font-size-xs;
+    text-transform: uppercase;
+    letter-spacing: 0.03em;
+    border-bottom: 1px solid v.$color-border-subtle;
+  }
+
+  tbody tr {
+    border-bottom: 1px solid v.$color-border-subtle;
+
+    &:last-child {
+      border-bottom: none;
+    }
+
+    &:hover {
+      background: v.$color-bg-hover;
+    }
+  }
+}
+
+.statusBtn {
+  @include m.button-reset;
+  display: inline-block;
+  padding: 2px v.$space-3;
+  border-radius: v.$radius-full;
+  font-size: v.$font-size-xs;
+  cursor: pointer;
+  transition: filter v.$transition-fast;
+
+  &:hover {
+    filter: brightness(1.15);
+  }
+}
+
+.paid {
+  background: rgba(v.$color-accent-alt, 0.14);
+  color: v.$color-accent-alt;
+}
+
+.pending {
+  background: rgba(v.$color-warning, 0.14);
+  color: v.$color-warning;
+}
+
+.deleteBtn {
+  @include m.button-reset;
+  color: v.$color-danger;
+  font-size: v.$font-size-xs;
+
+  &:hover {
+    text-decoration: underline;
+  }
+}
+
+.empty {
+  padding: v.$space-8;
+  text-align: center;
+  color: v.$color-text-muted;
+  font-size: v.$font-size-sm;
+}

@@ -1,0 +1,145 @@
+@use "variables" as v;
+@use "mixins" as m;
+
+.overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.6);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: v.$z-modal;
+  padding: v.$space-6;
+}
+
+.modal {
+  @include m.card;
+  width: 100%;
+  max-width: 480px;
+  max-height: 85vh;
+  overflow-y: auto;
+  padding: v.$space-6;
+  display: flex;
+  flex-direction: column;
+  gap: v.$space-4;
+  @include m.scrollbar;
+}
+
+.title {
+  font-size: v.$font-size-lg;
+  font-weight: 600;
+  margin: 0;
+}
+
+.list {
+  display: flex;
+  flex-direction: column;
+  gap: v.$space-1;
+}
+
+.row {
+  display: grid;
+  grid-template-columns: auto 1fr auto auto;
+  align-items: center;
+  gap: v.$space-3;
+  padding: v.$space-2;
+  border-radius: v.$radius-sm;
+  font-size: v.$font-size-sm;
+  cursor: pointer;
+
+  &:hover {
+    background: v.$color-bg-hover;
+  }
+
+  input {
+    accent-color: v.$color-accent-1;
+    width: 16px;
+    height: 16px;
+    cursor: pointer;
+  }
+}
+
+.rowDate {
+  color: v.$color-text-secondary;
+}
+
+.rowAmount {
+  color: v.$color-text-primary;
+  font-variant-numeric: tabular-nums;
+}
+
+.paid {
+  color: v.$color-accent-alt;
+  font-size: v.$font-size-xs;
+}
+
+.pending {
+  color: v.$color-warning;
+  font-size: v.$font-size-xs;
+}
+
+.empty {
+  color: v.$color-text-muted;
+  font-size: v.$font-size-sm;
+  margin: 0;
+}
+
+.summary {
+  font-size: v.$font-size-sm;
+  color: v.$color-text-secondary;
+  padding-top: v.$space-3;
+  border-top: 1px solid v.$color-border-subtle;
+}
+
+.actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: v.$space-3;
+}
+
+.cancelBtn {
+  @include m.button-reset;
+  padding: v.$space-2 v.$space-4;
+  border: 1px solid v.$color-border;
+  border-radius: v.$radius-sm;
+  color: v.$color-text-secondary;
+  font-size: v.$font-size-sm;
+  transition: border-color v.$transition-fast;
+
+  &:hover {
+    border-color: v.$color-accent-2;
+  }
+}
+
+.submitBtn {
+  @include m.button-reset;
+  padding: v.$space-2 v.$space-4;
+  background: v.$color-accent-1;
+  color: v.$color-text-on-accent;
+  border-radius: v.$radius-sm;
+  font-size: v.$font-size-sm;
+  font-weight: 600;
+  transition: filter v.$transition-fast, opacity v.$transition-fast;
+
+  &:hover:not(:disabled) {
+    filter: brightness(1.1);
+  }
+
+  &:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+  }
+}
+
+.printTable {
+  width: 100%;
+  border-collapse: collapse;
+  margin: 16px 0;
+
+  th,
+  td {
+    border: 1px solid #000;
+    padding: 8px 12px;
+    text-align: left;
+  }
+}

@@ -1,0 +1,4 @@
+CREATE TYPE "RenewalStatus" AS ENUM ('RENEWED', 'NOT_RENEWED');
+ALTER TABLE "Cabinet"
+  ADD COLUMN "renewalStatus" "RenewalStatus" NOT NULL DEFAULT 'NOT_RENEWED',
+  ADD COLUMN "hidden" BOOLEAN NOT NULL DEFAULT false;

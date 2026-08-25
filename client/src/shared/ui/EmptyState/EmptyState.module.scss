@@ -1,0 +1,28 @@
+@use "variables" as v;
+@use "mixins" as m;
+
+.stub {
+  @include m.card;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: v.$space-2;
+  padding: v.$space-8;
+  min-height: 320px;
+  justify-content: center;
+}
+
+.badge {
+  font-size: v.$font-size-xs;
+  color: v.$color-accent-2;
+  background: rgba(v.$color-accent-2, 0.12);
+  padding: v.$space-1 v.$space-3;
+  border-radius: v.$radius-full;
+  margin-bottom: v.$space-3;
+}
+
+.description {
+  color: v.$color-text-secondary;
+  font-size: v.$font-size-sm;
+  max-width: 520px;
+}

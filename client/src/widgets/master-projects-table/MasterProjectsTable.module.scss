@@ -1,0 +1,228 @@
+@use "variables" as v;
+@use "mixins" as m;
+
+.card {
+  @include m.card;
+  overflow: hidden;
+}
+
+.toolbar {
+  display: flex;
+  justify-content: flex-end;
+  padding: v.$space-3 v.$space-4;
+  border-bottom: 1px solid v.$color-border-subtle;
+}
+
+.toggleHiddenBtn {
+  @include m.button-reset;
+  padding: v.$space-2 v.$space-3;
+  border: 1px solid v.$color-border;
+  border-radius: v.$radius-sm;
+  color: v.$color-text-secondary;
+  font-size: v.$font-size-xs;
+  transition: border-color v.$transition-fast;
+
+  &:hover {
+    border-color: v.$color-accent-2;
+  }
+}
+
+.tableWrap {
+  overflow-x: auto;
+  @include m.scrollbar;
+}
+
+.table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: v.$font-size-sm;
+
+  th,
+  td {
+    padding: v.$space-2 v.$space-3;
+    text-align: left;
+    white-space: nowrap;
+  }
+
+  th {
+    color: v.$color-text-muted;
+    font-weight: 500;
+    font-size: v.$font-size-xs;
+    text-transform: uppercase;
+    letter-spacing: 0.03em;
+    border-bottom: 1px solid v.$color-border-subtle;
+    padding-top: v.$space-3;
+    padding-bottom: v.$space-3;
+  }
+
+  tbody tr {
+    border-bottom: 1px solid v.$color-border-subtle;
+
+    &:last-child {
+      border-bottom: none;
+    }
+
+    &:hover {
+      background: v.$color-bg-hover;
+    }
+  }
+}
+
+.hiddenRow {
+  opacity: 0.45;
+}
+
+.nameCell {
+  width: 220px;
+  min-width: 180px;
+  max-width: 220px;
+  color: v.$color-text-primary;
+}
+
+.projectName {
+  display: -webkit-box;
+  overflow: hidden;
+  overflow-wrap: anywhere;
+  white-space: normal;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
+  line-height: 1.35;
+  max-height: 2.7em;
+}
+
+.mono {
+  color: v.$color-text-secondary;
+  font-variant-numeric: tabular-nums;
+}
+
+.priceInput,
+.passwordInput,
+.statusSelect {
+  background: v.$color-bg-card;
+  border: 1px solid v.$color-border;
+  border-radius: v.$radius-sm;
+  padding: v.$space-2;
+  font-size: v.$font-size-sm;
+  color: v.$color-text-primary;
+
+  &:focus-visible {
+    @include m.focus-ring;
+  }
+}
+
+.priceInput {
+  width: 90px;
+}
+
+.passwordInput {
+  width: 140px;
+}
+
+.passwordError {
+  display: block;
+  width: 180px;
+  margin-top: v.$space-1;
+  color: #ff7474;
+  font-size: 11px;
+  line-height: 1.3;
+  white-space: normal;
+}
+
+.confirmOverlay {
+  position: fixed;
+  inset: 0;
+  z-index: v.$z-modal;
+  display: grid;
+  place-items: center;
+  padding: v.$space-4;
+  background: rgba(0, 0, 0, 0.68);
+  backdrop-filter: blur(6px);
+}
+
+.confirmModal {
+  width: min(460px, 100%);
+  padding: v.$space-5;
+  border: 1px solid v.$color-border;
+  border-radius: v.$radius-md;
+  background: v.$color-bg-card;
+  box-shadow: 0 24px 80px rgba(0, 0, 0, 0.48);
+  white-space: normal;
+
+  h2 {
+    margin: 0 0 v.$space-3;
+    color: v.$color-text-primary;
+    font-size: v.$font-size-lg;
+  }
+
+  p {
+    margin: 0;
+    color: v.$color-text-secondary;
+    line-height: 1.55;
+  }
+}
+
+.confirmActions {
+  display: flex;
+  justify-content: flex-end;
+  gap: v.$space-2;
+  margin-top: v.$space-5;
+}
+
+.cancelButton,
+.confirmButton {
+  @include m.button-reset;
+  padding: v.$space-2 v.$space-4;
+  border-radius: v.$radius-sm;
+  font-size: v.$font-size-sm;
+}
+
+.cancelButton {
+  border: 1px solid v.$color-border;
+  color: v.$color-text-secondary;
+}
+
+.confirmButton {
+  background: v.$color-accent-1;
+  color: v.$color-text-on-accent;
+}
+
+.statusSelect {
+  cursor: pointer;
+}
+
+.rowActions {
+  display: flex;
+  align-items: center;
+  gap: v.$space-2;
+}
+
+.statusBadge {
+  display: inline-block;
+  padding: 2px v.$space-3;
+  border-radius: v.$radius-full;
+  font-size: v.$font-size-xs;
+}
+
+.active {
+  background: rgba(v.$color-accent-alt, 0.14);
+  color: v.$color-accent-alt;
+}
+
+.inactive {
+  background: rgba(v.$color-text-muted, 0.14);
+  color: v.$color-text-muted;
+}
+
+.empty {
+  padding: v.$space-8;
+  text-align: center;
+  color: v.$color-text-muted;
+  font-size: v.$font-size-sm;
+}
+
+.footer {
+  padding: v.$space-3 v.$space-4;
+  border-top: 1px solid v.$color-border-subtle;
+  color: v.$color-text-muted;
+  font-size: v.$font-size-xs;
+}

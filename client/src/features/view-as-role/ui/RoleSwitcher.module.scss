@@ -1,0 +1,27 @@
+@use "variables" as v;
+
+.root {
+  display: flex;
+  align-items: center;
+  gap: v.$space-2;
+}
+
+.label {
+  font-size: v.$font-size-xs;
+  color: v.$color-text-muted;
+  white-space: nowrap;
+}
+
+.select {
+  background: v.$color-bg-card;
+  border: 1px solid v.$color-border;
+  border-radius: v.$radius-sm;
+  padding: v.$space-2 v.$space-3;
+  font-size: v.$font-size-sm;
+  color: v.$color-text-primary;
+  cursor: pointer;
+
+  &:focus-visible {
+    border-color: v.$color-accent-1;
+  }
+}

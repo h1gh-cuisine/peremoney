@@ -1,0 +1,103 @@
+@use "variables" as v;
+@use "mixins" as m;
+
+.card {
+  @include m.card;
+  padding: v.$space-6;
+}
+
+.header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: v.$space-3;
+  margin-bottom: v.$space-5;
+  padding-bottom: v.$space-4;
+  border-bottom: 1px solid v.$color-border-subtle;
+}
+
+.title {
+  font-size: v.$font-size-lg;
+  font-weight: 600;
+  margin: 0;
+}
+
+.meta {
+  display: flex;
+  align-items: center;
+  gap: v.$space-3;
+}
+
+.readonlyBadge {
+  font-size: v.$font-size-xs;
+  color: v.$color-accent-2;
+  background: rgba(v.$color-accent-2, 0.12);
+  padding: v.$space-1 v.$space-3;
+  border-radius: v.$radius-full;
+}
+
+.updatedAt {
+  font-size: v.$font-size-xs;
+  color: v.$color-text-muted;
+}
+
+.content {
+  color: v.$color-text-primary;
+  line-height: 1.7;
+  max-width: 720px;
+
+  :global(h2) {
+    font-size: v.$font-size-md;
+    font-weight: 600;
+    margin: v.$space-6 0 v.$space-3;
+
+    &:first-child {
+      margin-top: 0;
+    }
+  }
+
+  :global(p) {
+    margin: 0 0 v.$space-3;
+    color: v.$color-text-secondary;
+  }
+
+  :global(ul) {
+    margin: 0 0 v.$space-3;
+    padding-left: v.$space-5;
+    color: v.$color-text-secondary;
+  }
+
+  :global(li) {
+    margin-bottom: v.$space-2;
+  }
+
+  :global(strong) {
+    color: v.$color-text-primary;
+  }
+}
+
+.emptyState {
+  display: grid;
+  justify-items: center;
+  gap: v.$space-2;
+  min-height: 220px;
+  padding: v.$space-8;
+  place-content: center;
+  border: 1px dashed v.$color-border;
+  border-radius: v.$radius-md;
+  background: v.$color-bg-hover;
+  text-align: center;
+
+  strong {
+    color: v.$color-text-primary;
+    font-size: v.$font-size-md;
+  }
+
+  span {
+    max-width: 480px;
+    color: v.$color-text-muted;
+    font-size: v.$font-size-sm;
+    line-height: 1.5;
+  }
+}

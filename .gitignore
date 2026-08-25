@@ -1,0 +1,24 @@
+# macOS
+.DS_Store
+
+# Node
+node_modules/
+npm-debug.log*
+
+# Env files (never commit secrets)
+.env
+.env.local
+.env.*.local
+
+# Client (Next.js)
+client/.next/
+client/.next-dev/
+client/out/
+client/build/
+client/coverage/
+client/*.tsbuildinfo
+client/next-env.d.ts
+
+# Server (NestJS)
+server/dist/
+server/coverage/

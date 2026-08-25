@@ -1,0 +1,115 @@
+@use "variables" as v;
+@use "mixins" as m;
+
+.overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.6);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: v.$z-modal;
+  padding: v.$space-6;
+}
+
+.modal {
+  @include m.card;
+  width: 100%;
+  max-width: 420px;
+  padding: v.$space-6;
+  display: flex;
+  flex-direction: column;
+  gap: v.$space-4;
+}
+
+.title {
+  font-size: v.$font-size-lg;
+  font-weight: 600;
+  margin: 0;
+}
+
+.field {
+  display: flex;
+  flex-direction: column;
+  gap: v.$space-2;
+}
+
+.fieldLabel {
+  font-size: v.$font-size-xs;
+  color: v.$color-text-muted;
+}
+
+.payerPreview {
+  margin: 0;
+  font-size: v.$font-size-sm;
+  color: v.$color-text-primary;
+}
+
+.input {
+  background: v.$color-bg-card;
+  border: 1px solid v.$color-border;
+  border-radius: v.$radius-sm;
+  padding: v.$space-2 v.$space-3;
+  font-size: v.$font-size-sm;
+  color: v.$color-text-primary;
+
+  &:focus-visible {
+    @include m.focus-ring;
+  }
+}
+
+.totalRow {
+  display: flex;
+  justify-content: space-between;
+  font-size: v.$font-size-sm;
+  color: v.$color-text-secondary;
+}
+
+.actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: v.$space-3;
+  margin-top: v.$space-2;
+}
+
+.cancelBtn {
+  @include m.button-reset;
+  padding: v.$space-2 v.$space-4;
+  border: 1px solid v.$color-border;
+  border-radius: v.$radius-sm;
+  color: v.$color-text-secondary;
+  font-size: v.$font-size-sm;
+  transition: border-color v.$transition-fast;
+
+  &:hover {
+    border-color: v.$color-accent-2;
+  }
+}
+
+.submitBtn {
+  @include m.button-reset;
+  padding: v.$space-2 v.$space-4;
+  background: v.$color-accent-1;
+  color: v.$color-text-on-accent;
+  border-radius: v.$radius-sm;
+  font-size: v.$font-size-sm;
+  font-weight: 600;
+  transition: filter v.$transition-fast;
+
+  &:hover {
+    filter: brightness(1.1);
+  }
+}
+
+.printTable {
+  width: 100%;
+  border-collapse: collapse;
+  margin-top: 16px;
+
+  th,
+  td {
+    border: 1px solid #000;
+    padding: 8px 12px;
+    text-align: left;
+  }
+}
