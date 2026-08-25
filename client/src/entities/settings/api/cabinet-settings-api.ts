@@ -6,6 +6,7 @@ import type { ProjectType } from '@/shared/lib/projectType';
 type ApiSchedule = 'WEEKDAYS' | 'WEEKENDS' | 'EVERYDAY';
 type ApiProjectType = 'VDL' | 'PACKAGE' | 'NUMBERS';
 const PROJECT_TYPES: Record<ApiProjectType, ProjectType> = { VDL: 'quals', PACKAGE: 'package', NUMBERS: 'numbers' };
+const SUPPORTED_MESSENGERS = new Set(['telegram', 'max', 'email']);
 
 export function mapCabinetSettings(value: { isActive: boolean; schedulePreset: ApiSchedule; type: ApiProjectType;
   timezoneOffset?: number; uploadsEnabled?: boolean; callsEnabled?: boolean; scheduleDays?: number[]; crmIntegration?: string; messengerIntegrations?: string[] }) {
@@ -13,7 +14,7 @@ export function mapCabinetSettings(value: { isActive: boolean; schedulePreset: A
     schedulePreset: value.schedulePreset.toLowerCase() as SchedulePreset, projectType: PROJECT_TYPES[value.type],
     timezoneOffset: value.timezoneOffset ?? 3, uploadsEnabled: value.uploadsEnabled ?? true,
     callsEnabled: value.callsEnabled ?? true, scheduleDays: value.scheduleDays ?? [1, 2, 3, 4, 5, 6, 7], crmIntegration: value.crmIntegration ?? '',
-    messengerIntegrations: value.messengerIntegrations ?? [] };
+    messengerIntegrations: (value.messengerIntegrations ?? []).filter((name) => SUPPORTED_MESSENGERS.has(name)) };
 }
 export function scheduleToApi(schedulePreset: SchedulePreset) { return { schedulePreset: schedulePreset.toUpperCase() as ApiSchedule }; }
 export function visibilityToApi(value: SectionVisibility) { return { contacts: value.contacts, sources: value.sources, script: value.script, finance: value.finance, settings: value.settings }; }
