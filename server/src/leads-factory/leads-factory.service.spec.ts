@@ -23,6 +23,25 @@ describe('LeadsFactoryService contract', () => {
     expect(fetchMock).toHaveBeenCalledTimes(1);
   });
 
+  it('applies the documented default source-cabinet settings', async () => {
+    const fetchMock = jest.spyOn(global, 'fetch').mockResolvedValue(new Response(JSON.stringify('ok'), { status: 200 }));
+    const service = new LeadsFactoryService(config as never);
+    await service.updateProjectInfo(42, {
+      check_domains_in_v_kazakh: false, parse_domains: false, parse_phones: false, parse_ishod: true,
+      parse_ceo: false, parse_google: false, parse_manual: false, parse_maps: false,
+      limit_autochange: false, max_limit: 100, default_limit: 5, ishod_phones_count: 1,
+      vdl_autonorms: true,
+    });
+    expect(fetchMock.mock.calls.at(0)![0].toString()).toContain('/vdl/api/projects/info/42');
+    expect(fetchMock.mock.calls.at(0)![1]?.method).toBe('PATCH');
+    expect(JSON.parse(String(fetchMock.mock.calls.at(0)![1]?.body))).toEqual({
+      check_domains_in_v_kazakh: false, parse_domains: false, parse_phones: false, parse_ishod: true,
+      parse_ceo: false, parse_google: false, parse_manual: false, parse_maps: false,
+      limit_autochange: false, max_limit: 100, default_limit: 5, ishod_phones_count: 1,
+      vdl_autonorms: true,
+    });
+  });
+
   it('loads an existing project by its internal provider ID', async () => {
     const project = { id: 22931, name: 'Проект LF', sphere: 'Медицина', status: 'active', timezone: 3,
       numbers: false, vdl: true, prozvon_base: false };

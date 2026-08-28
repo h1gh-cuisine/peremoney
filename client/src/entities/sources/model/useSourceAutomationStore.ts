@@ -23,7 +23,7 @@ interface SourceAutomationState extends SourceAutomationSettings {
  */
 export const useSourceAutomationStore = create<SourceAutomationState>((set, get) => {
   let committed: SourceAutomationSettings = {
-    autoCleanupEnabled: false, minContactsPerLead: 3, autoManageEnabled: false, minConversion: 25,
+    autoCleanupEnabled: false, minContactsPerLead: 2, autoManageEnabled: false, minConversion: 20,
   };
   const draft = () => ({ autoCleanupEnabled: get().autoCleanupEnabled,
     minContactsPerLead: get().minContactsPerLead, autoManageEnabled: get().autoManageEnabled,
@@ -31,9 +31,9 @@ export const useSourceAutomationStore = create<SourceAutomationState>((set, get)
   return {
   cabinetId: null, error: null, dirty: false, saving: false,
   autoCleanupEnabled: false,
-  minContactsPerLead: 3,
+  minContactsPerLead: 2,
   autoManageEnabled: false,
-  minConversion: 25,
+  minConversion: 20,
   setCabinetId: (cabinetId) => set({ cabinetId }),
   setAutoCleanupEnabled: (autoCleanupEnabled) => set({ autoCleanupEnabled, dirty: true, error: null }),
   setMinContactsPerLead: (minContactsPerLead) => set({ minContactsPerLead, dirty: true, error: null }),

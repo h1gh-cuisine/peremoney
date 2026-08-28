@@ -257,6 +257,7 @@ describe('CabinetsService', () => {
     const provider = {
       getProjectTypes: jest.fn().mockResolvedValue({ items: [{ id: 9, name: 'VDL' }] }),
       createProject: jest.fn().mockResolvedValue({ id: 77 }),
+      updateProjectInfo: jest.fn().mockResolvedValue('ok'),
       updateProjectSettings: jest.fn().mockResolvedValue({}),
     };
     const result = await new CabinetsService(prisma as never, provider as never, config as never).create({
@@ -266,6 +267,12 @@ describe('CabinetsService', () => {
     });
     expect(provider.createProject).toHaveBeenCalledWith({
       name: 'Москва/Peremoney ЛКП VDL/Медицина/Клиент', type: 9, regions: [77], status: 'pause', default_limit: 5,
+    });
+    expect(provider.updateProjectInfo).toHaveBeenCalledWith(77, {
+      check_domains_in_v_kazakh: false, parse_domains: false, parse_phones: false, parse_ishod: true,
+      parse_ceo: false, parse_google: false, parse_manual: false, parse_maps: false,
+      limit_autochange: false, max_limit: 100, default_limit: 5, ishod_phones_count: 1,
+      vdl_autonorms: true,
     });
     expect(createCabinet.mock.calls[0][0].data).toEqual(expect.objectContaining({
       name: 'Москва/Peremoney ЛКП VDL/Медицина/Клиент', providerProjectId: 77, isActive: false,
@@ -297,6 +304,7 @@ describe('CabinetsService', () => {
     const provider = {
       getProjectTypes: jest.fn().mockResolvedValue({ items: [{ id: 9, name: 'VDL' }] }),
       createProject: jest.fn().mockResolvedValue({ id: 77 }),
+      updateProjectInfo: jest.fn().mockResolvedValue('ok'),
       updateProjectSettings: jest.fn().mockRejectedValue(new Error('Leads Factory недоступен')),
     };
 
@@ -328,6 +336,7 @@ describe('CabinetsService', () => {
     const provider = {
       getProjectTypes: jest.fn().mockResolvedValue({ items: [{ id: 9, name: 'VDL' }] }),
       createProject: jest.fn().mockResolvedValue({ id: 88 }),
+      updateProjectInfo: jest.fn().mockResolvedValue('ok'),
       updateProjectSettings: jest.fn().mockResolvedValue({}),
     };
 

@@ -126,8 +126,8 @@ model Cabinet {
   settingsVisible Boolean  @default(true)
   autoCleanupEnabled Boolean @default(false)
   autoManagementEnabled Boolean @default(false)
-  minContactsPerLead Int @default(0)
-  minConversion Decimal @default(0) @db.Decimal(7, 4)
+  minContactsPerLead Int @default(2)
+  minConversion Decimal @default(20) @db.Decimal(7, 4)
   schedulePreset SchedulePreset @default(EVERYDAY)
   scheduleDays   Int[] @default([1, 2, 3, 4, 5, 6, 7])
   operatorScript String?

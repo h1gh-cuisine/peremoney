@@ -1,0 +1,3 @@
+ALTER TABLE "Cabinet"
+ALTER COLUMN "minContactsPerLead" SET DEFAULT 2,
+ALTER COLUMN "minConversion" SET DEFAULT 20;

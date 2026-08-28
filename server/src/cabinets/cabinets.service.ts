@@ -28,6 +28,22 @@ const cabinetSelect = {
 } satisfies Prisma.CabinetSelect;
 type CabinetView = Prisma.CabinetGetPayload<{ select: typeof cabinetSelect }>;
 
+const DEFAULT_PROVIDER_PROJECT_INFO = {
+  check_domains_in_v_kazakh: false,
+  parse_domains: false,
+  parse_phones: false,
+  parse_ishod: true,
+  parse_ceo: false,
+  parse_google: false,
+  parse_manual: false,
+  parse_maps: false,
+  limit_autochange: false,
+  max_limit: 100,
+  default_limit: 5,
+  ishod_phones_count: 1,
+  vdl_autonorms: true,
+} as const;
+
 @Injectable()
 export class CabinetsService {
   constructor(
@@ -154,6 +170,9 @@ export class CabinetsService {
       }
     }
     try {
+      // POST only creates the provider project. Apply the required VDL defaults with
+      // an independently retryable PATCH before exposing the local cabinet as ready.
+      await this.provider.updateProjectInfo(providerProjectId, DEFAULT_PROVIDER_PROJECT_INFO);
       const result = await this.createLocal({ ...dto, name: providerName }, providerProjectId, operation.id, dto.idempotencyKey);
       return result;
     } catch (error) {
