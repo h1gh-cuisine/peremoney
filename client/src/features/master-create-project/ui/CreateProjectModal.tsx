@@ -7,7 +7,7 @@ import { useMasterManagersStore } from "@/entities/master-managers";
 import { fetchProviderRegions, useMasterProjectsStore, type MasterProject, type ProviderRegion } from "@/entities/master-projects";
 import { type LoginResponse, sessionFromLogin, useSessionStore } from "@/entities/session";
 import { ApiError, createApiClient } from "@/shared/api";
-import { generateCredentials } from "@/shared/lib/credentials";
+import { generateProjectLogins } from "@/shared/lib/credentials";
 import styles from "./CreateProjectModal.module.scss";
 
 interface CreateProjectModalProps {
@@ -41,8 +41,6 @@ export function CreateProjectModal({ onClose }: CreateProjectModalProps) {
   const [projectLoginError, setProjectLoginError] = useState<string | null>(null);
   const [openingProject, setOpeningProject] = useState(false);
   const idempotencyKeyRef = useRef(crypto.randomUUID());
-  const employeeCredentialsRef = useRef(generateCredentials("staff"));
-  const clientCredentialsRef = useRef(generateCredentials("client"));
   const submissionLockRef = useRef(false);
   // 2.8.3: ручка создания не идемпотентна — защита от повторной отправки
   const [submitting, setSubmitting] = useState(false);
@@ -66,8 +64,6 @@ export function CreateProjectModal({ onClose }: CreateProjectModalProps) {
   function resetFailedAttempt() {
     if (!creationError) return;
     idempotencyKeyRef.current = crypto.randomUUID();
-    employeeCredentialsRef.current = generateCredentials("staff");
-    clientCredentialsRef.current = generateCredentials("client");
     setCreationError(null);
   }
 
@@ -78,9 +74,10 @@ export function CreateProjectModal({ onClose }: CreateProjectModalProps) {
     setCreationError(null);
     try {
       const managerName = managers.find((manager) => manager.id === managerId)?.name ?? managerId;
+      const logins = generateProjectLogins(clientName.trim(), idempotencyKeyRef.current);
       const project = await createProject({
         clientName: clientName.trim(), type, region, regionId: regionIds[0], regionIds, sphere: sphere.trim(), managerId, managerName, price,
-        employeeLogin: employeeCredentialsRef.current.login, clientLogin: clientCredentialsRef.current.login,
+        employeeLogin: logins.employeeLogin, clientLogin: logins.clientLogin,
         idempotencyKey: idempotencyKeyRef.current,
       });
       setCreated(project);

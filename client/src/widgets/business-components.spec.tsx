@@ -36,11 +36,11 @@ describe('UI-контракты из требований 1.5, 1.8, 1.9', () => 
     expect(html).not.toContain('title="Переключить статус"');
   });
 
-  it('скрипт только читается и рендерит provider HTML', () => {
-    const html = renderToStaticMarkup(<ScriptViewer data={{ projectId: '42', name: 'Скрипт', script: '<p><strong>Привет</strong></p>', updatedAt: '2026-08-20' }} />);
-    expect(html).toContain('<iframe');
-    expect(html).toContain('sandbox=""');
-    expect(html).toContain('srcDoc="&lt;p&gt;&lt;strong&gt;Привет&lt;/strong&gt;&lt;/p&gt;"');
+  it('скрипт только читается и рендерится как обычный текст', () => {
+    const html = renderToStaticMarkup(<ScriptViewer data={{ projectId: '42', name: 'Скрипт', script: 'Привет\nШаг 2', updatedAt: '2026-08-20' }} />);
+    expect(html).toContain('<article');
+    expect(html).toContain('Привет\nШаг 2');
+    expect(html).not.toContain('<iframe');
     expect(html).toContain('Только чтение');
     for (const forbidden of ['Редактировать', 'Сгенерировать AI', 'История']) expect(html).not.toContain(forbidden);
   });
@@ -51,7 +51,7 @@ describe('UI-контракты из требований 1.5, 1.8, 1.9', () => 
     }} />)).not.toThrow();
   });
 
-  it.each(['', 'null'])('показывает пустое состояние вместо iframe для скрипта %p', (script) => {
+  it.each(['', 'null'])('показывает пустое состояние вместо текста для скрипта %p', (script) => {
     const html = renderToStaticMarkup(<ScriptViewer data={{
       projectId: '42', name: 'Пустой проект', script, updatedAt: '2026-08-20',
     }} />);

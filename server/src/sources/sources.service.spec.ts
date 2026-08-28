@@ -5,14 +5,14 @@ describe('источники: бизнес-правила 2.6', () => {
   it('включает тег как norm_work=true, limit=50', async () => {
     const update = jest.fn(); const updateTag = jest.fn();
     const service = new SourcesService({ sourceTag: { findFirst: jest.fn().mockResolvedValue({ id: 'tag', providerTagId: 7 }), update } } as never, { updateTag } as never, {} as never);
-    await service.toggle('cab', 'tag', true);
+    await service.toggle('cab', '7', true);
     expect(updateTag).toHaveBeenCalledWith(7, true);
     expect(update).toHaveBeenCalledWith({ where: { id: 'tag' }, data: { normWork: true, limit: 50 } });
   });
 
   it('считает продажи и долю нецелевых по совпавшему site', async () => {
     const prisma = {
-      sourceTag: { findMany: jest.fn().mockResolvedValue([{ name: 'site', success: 4 }]), count: jest.fn().mockResolvedValue(1) },
+      sourceTag: { findMany: jest.fn().mockResolvedValue([{ id: 'local-uuid', providerTagId: 731, name: 'site', success: 4 }]), count: jest.fn().mockResolvedValue(1) },
       lead: { findMany: jest.fn().mockResolvedValue([
         { saleStatus: LeadSaleStatus.NOT_TARGET, contact: { site: 'site' } },
         { saleStatus: LeadSaleStatus.NOT_TARGET, contact: { site: 'site' } },
@@ -21,7 +21,7 @@ describe('источники: бизнес-правила 2.6', () => {
       ]) },
     };
     const { items: [result], total, hasMore } = await new SourcesService(prisma as never, {} as never, {} as never).list('cab', {});
-    expect(result).toMatchObject({ sales: 1, notTargetShare: 200 });
+    expect(result).toMatchObject({ id: '731', providerTagId: 731, sales: 1, notTargetShare: 200 });
     expect({ total, hasMore }).toEqual({ total: 1, hasMore: false });
   });
 

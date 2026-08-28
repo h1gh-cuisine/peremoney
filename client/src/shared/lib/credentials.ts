@@ -1,6 +1,8 @@
-/** Мок-генерация логина/пароля для нового кабинета (docs-agent.md 2.1, 2.8.3). */
-export function generateCredentials(prefix: string): { login: string; password: string } {
-  const suffix = Math.random().toString(36).slice(2, 8);
-  const password = Math.random().toString(36).slice(2, 10);
-  return { login: `${prefix}_${suffix}`, password };
+/** Клиент входит под названием проекта; технический логин сотрудника остаётся уникальным. */
+export function generateProjectLogins(projectName: string, uniquenessKey: string) {
+  const clientLogin = projectName.normalize("NFKC").trim().replace(/\s+/g, " ");
+  const base = clientLogin.toLocaleLowerCase("ru")
+    .replace(/[^\p{L}\p{N}]+/gu, "-").replace(/^-+|-+$/g, "").slice(0, 40) || "project";
+  const suffix = uniquenessKey.replace(/[^a-z0-9]/gi, "").toLowerCase().slice(-6) || "new";
+  return { clientLogin, employeeLogin: `${base}-staff-${suffix}` };
 }

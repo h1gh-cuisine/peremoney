@@ -44,37 +44,15 @@
 
 .content {
   color: v.$color-text-primary;
-  line-height: 1.7;
-  max-width: 720px;
-
-  :global(h2) {
-    font-size: v.$font-size-md;
-    font-weight: 600;
-    margin: v.$space-6 0 v.$space-3;
-
-    &:first-child {
-      margin-top: 0;
-    }
-  }
-
-  :global(p) {
-    margin: 0 0 v.$space-3;
-    color: v.$color-text-secondary;
-  }
-
-  :global(ul) {
-    margin: 0 0 v.$space-3;
-    padding-left: v.$space-5;
-    color: v.$color-text-secondary;
-  }
-
-  :global(li) {
-    margin-bottom: v.$space-2;
-  }
-
-  :global(strong) {
-    color: v.$color-text-primary;
-  }
+  line-height: 1.65;
+  max-width: 900px;
+  padding: v.$space-5;
+  border: 1px solid v.$color-border-subtle;
+  border-radius: v.$radius-md;
+  background: v.$color-bg-hover;
+  font-size: v.$font-size-sm;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
 }
 
 .emptyState {

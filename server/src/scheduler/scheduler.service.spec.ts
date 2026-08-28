@@ -77,16 +77,16 @@ describe('SchedulerService', () => {
     expect(updateProjectSchedule).toHaveBeenCalledWith(42, false, { uploadsEnabled: undefined, callsEnabled: undefined });
   });
 
-  it('stores the provider HTML script in the cabinet', async () => {
+  it('stores readable provider script text instead of HTML presentation', async () => {
     const update = jest.fn();
     const scheduler = service({ cabinet: {
       findUniqueOrThrow: jest.fn().mockResolvedValue({ id: 'cabinet-id', providerProjectId: 42 }), update,
-    } }, { getProjectScript: jest.fn().mockResolvedValue({ name: 'Main', script: '<p>Hello</p>', script_lvl: 2 }) });
+    } }, { getProjectScript: jest.fn().mockResolvedValue({ name: 'Main', script: '<style>p{color:red}</style><h1>Hello</h1><p>Call&nbsp;me</p>', script_lvl: 2 }) });
     const dispatch = (scheduler as unknown as { dispatch(run: unknown): Promise<unknown> }).dispatch.bind(scheduler);
 
     await dispatch({ task: ScheduledTask.SCRIPT_SYNC, cabinetId: 'cabinet-id', scheduledFor: new Date() });
     expect(update).toHaveBeenCalledWith(expect.objectContaining({
-      data: expect.objectContaining({ operatorScript: '<p>Hello</p>', operatorScriptLevel: 2 }),
+      data: expect.objectContaining({ operatorScript: 'Hello\nCall me', operatorScriptLevel: 2 }),
     }));
   });
 

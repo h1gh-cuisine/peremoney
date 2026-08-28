@@ -62,6 +62,9 @@ export class SourcesService {
       const notTarget = matching.filter((lead) => lead.saleStatus === LeadSaleStatus.NOT_TARGET).length;
       return {
         ...tag,
+        // Public source ID is the internal Leads Factory tag ID. The local UUID
+        // remains an implementation detail and must not leak into the project UI.
+        id: String(tag.providerTagId),
         sales: matching.filter((lead) => lead.saleStatus === LeadSaleStatus.BOUGHT).length,
         notTargetShare: notTarget === 0 ? 0 : Number(tag.success) / notTarget * 100,
       };
@@ -70,7 +73,9 @@ export class SourcesService {
   }
 
   async toggle(cabinetId: string, tagId: string, enabled: boolean) {
-    const tag = await this.prisma.sourceTag.findFirst({ where: { id: tagId, cabinetId } });
+    const providerTagId = Number(tagId);
+    if (!Number.isSafeInteger(providerTagId) || providerTagId <= 0) throw new NotFoundException('Источник не найден');
+    const tag = await this.prisma.sourceTag.findFirst({ where: { providerTagId, cabinetId } });
     if (!tag) throw new NotFoundException('Источник не найден');
     await this.provider.updateTag(tag.providerTagId, enabled);
     return this.prisma.sourceTag.update({ where: { id: tag.id }, data: { normWork: enabled, limit: enabled ? 50 : 0 } });

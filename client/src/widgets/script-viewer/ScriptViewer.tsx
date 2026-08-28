@@ -28,13 +28,7 @@ export function ScriptViewer({ data }: ScriptViewerProps) {
       </div>
 
       {hasScript ? (
-        /* Изоляция в sandbox не позволяет HTML провайдера выполнять скрипты. */
-        <iframe
-          className={styles.content}
-          title="Скрипт оператора"
-          sandbox=""
-          srcDoc={script}
-        />
+        <article className={styles.content}>{script}</article>
       ) : (
         <div className={styles.emptyState}>
           <strong>Скрипт для проекта не настроен</strong>

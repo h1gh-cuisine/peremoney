@@ -8,6 +8,7 @@ import { LeadsFactoryService } from '../leads-factory/leads-factory.service';
 import { PrismaService } from '../prisma/prisma.service';
 import { SourcesService } from '../sources/sources.service';
 import { hasAvailableBalance } from '../finance/balance-availability';
+import { providerScriptToText } from '../leads-factory/script-text';
 
 const MOSCOW_OFFSET_MS = 3 * 60 * 60 * 1000;
 const SLOTS: Array<{ hour: number; task: ScheduledTask }> = [
@@ -161,9 +162,7 @@ export class SchedulerService implements OnApplicationBootstrap, OnApplicationSh
     if (run.task === ScheduledTask.SCRIPT_SYNC) {
       const script = await this.provider.getProjectScript(cabinet.providerProjectId);
       await this.prisma.cabinet.update({ where: { id: cabinet.id }, data: {
-        // Контракт Leads Factory обещает сырой HTML. null и другие типы означают,
-        // что скрипт для проекта не настроен, а не текст для показа клиенту.
-        operatorScript: typeof script.script === 'string' && script.script.trim() ? script.script : null,
+        operatorScript: providerScriptToText(script.script),
         operatorScriptName: script.name,
         operatorScriptLevel: script.script_lvl, scriptSyncedAt: new Date(),
       } });

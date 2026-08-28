@@ -13,7 +13,7 @@ export default function LoginPage() {
   const [intendedScope, setIntendedScope] = useState<SessionScope | null>(null);
   const [login, setLogin] = useState('');
   const [password, setPassword] = useState('');
-  const [privacyAccepted, setPrivacyAccepted] = useState(false);
+  const [offerAccepted, setOfferAccepted] = useState(false);
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
 
@@ -31,8 +31,8 @@ export default function LoginPage() {
 
   async function submit(event: FormEvent) {
     event.preventDefault();
-    if (!privacyAccepted) {
-      setError('Примите условия оферты и политику конфиденциальности');
+    if (!offerAccepted) {
+      setError('Примите условия публичной оферты');
       return;
     }
     setError(''); setLoading(true);
@@ -57,22 +57,20 @@ export default function LoginPage() {
       <label className={styles.consent}>
         <input
           type="checkbox"
-          checked={privacyAccepted}
+          checked={offerAccepted}
           onChange={(event) => {
-            setPrivacyAccepted(event.target.checked);
-            if (event.target.checked && error === 'Примите условия оферты и политику конфиденциальности') setError('');
+            setOfferAccepted(event.target.checked);
+            if (event.target.checked && error === 'Примите условия публичной оферты') setError('');
           }}
           required
         />
         <span>
           Я принимаю условия{' '}
           <a href="/offer" target="_blank" rel="noreferrer">публичной оферты</a>
-          {' '}и соглашаюсь с{' '}
-          <a href="/privacy" target="_blank" rel="noreferrer">политикой конфиденциальности</a>
         </span>
       </label>
       {error && <p role="alert" className={styles.error}>{error}</p>}
-      <button disabled={loading || !privacyAccepted}>{loading ? 'Входим…' : 'Войти'}</button>
+      <button disabled={loading || !offerAccepted}>{loading ? 'Входим…' : 'Войти'}</button>
     </form>
   </main>;
 }
