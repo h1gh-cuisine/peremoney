@@ -1,8 +1,7 @@
 import { BadGatewayException, ConflictException, ForbiddenException, Injectable, NotFoundException } from '@nestjs/common';
-import { Cabinet, Prisma, UserRole } from '@prisma/client';
+import { Cabinet, Prisma, ProjectType, UserRole } from '@prisma/client';
 import { hash } from 'bcryptjs';
-import { createHash } from 'node:crypto';
-import { createHmac } from 'node:crypto';
+import { createCipheriv, createHash, createHmac, randomBytes } from 'node:crypto';
 import { ConfigService } from '@nestjs/config';
 import { AuthUser } from '../common/auth-user';
 import { PrismaService } from '../prisma/prisma.service';
@@ -12,6 +11,10 @@ import { generatePassword } from './password';
 import { LeadsFactoryService } from '../leads-factory/leads-factory.service';
 import { ProviderException } from '../leads-factory/provider.exception';
 import { ProviderIntegrationName } from '../leads-factory/leads-factory.types';
+import { DirectMessengerService } from '../integrations/direct-messenger.service';
+import { AnswerSyncService } from '../crm/answer-sync.service';
+import { SourcesService } from '../sources/sources.service';
+import { hasAvailableBalance } from '../finance/balance-availability';
 
 const cabinetSelect = {
   id: true, name: true, providerProjectId: true, type: true, price: true,
@@ -23,6 +26,7 @@ const cabinetSelect = {
   operatorScriptLevel: true, scriptSyncedAt: true,
   createdAt: true, updatedAt: true,
 } satisfies Prisma.CabinetSelect;
+type CabinetView = Prisma.CabinetGetPayload<{ select: typeof cabinetSelect }>;
 
 @Injectable()
 export class CabinetsService {
@@ -30,13 +34,51 @@ export class CabinetsService {
     private readonly prisma: PrismaService,
     private readonly provider: LeadsFactoryService,
     private readonly config: ConfigService,
+    private readonly directMessenger?: DirectMessengerService,
+    private readonly answers?: AnswerSyncService,
+    private readonly sources?: SourcesService,
   ) {}
 
-  async list() {
+  async listManagers() {
+    const managers = await this.prisma.masterManager.findMany({ orderBy: { createdAt: 'asc' } });
+    return managers.map(({ name }) => ({ id: name, name }));
+  }
+
+  async createManager(rawName: string) {
+    const name = rawName.trim().replace(/\s+/g, ' ');
+    if (!name) throw new ConflictException('Имя сотрудника не может быть пустым');
+    try {
+      await this.prisma.masterManager.create({ data: { name } });
+    } catch (error) {
+      if (error instanceof Prisma.PrismaClientKnownRequestError && error.code === 'P2002') {
+        throw new ConflictException('Сотрудник с таким именем уже существует');
+      }
+      throw error;
+    }
+    return { id: name, name };
+  }
+
+  async removeManager(rawName: string) {
+    const name = rawName.trim();
+    const assigned = await this.prisma.cabinet.count({ where: { managerName: name } });
+    if (assigned > 0) throw new ConflictException('Нельзя удалить сотрудника, пока за ним закреплены проекты');
+    const result = await this.prisma.masterManager.deleteMany({ where: { name } });
+    if (!result.count) throw new NotFoundException('Сотрудник не найден');
+    return { deleted: true };
+  }
+
+  async list(query: { dateFrom?: string; dateTo?: string } = {}) {
+    const range = query.dateFrom || query.dateTo ? {
+      gte: query.dateFrom ? new Date(`${query.dateFrom}T00:00:00.000Z`) : undefined,
+      lte: query.dateTo ? new Date(`${query.dateTo}T23:59:59.999Z`) : undefined,
+    } : undefined;
     const cabinets = await this.prisma.cabinet.findMany({ select: { ...cabinetSelect,
-      users: { select: { login: true, role: true } }, _count: { select: { contacts: true, leads: true } },
-      payments: { where: { status: 'PAID' }, select: { amount: true } },
-      leads: { where: { saleStatus: 'BOUGHT' }, select: { id: true } },
+      users: { select: { login: true, role: true } }, _count: { select: {
+        contacts: range ? { where: { date: range } } : true,
+        leads: range ? { where: { successDate: range } } : true,
+      } },
+      payments: { where: { status: 'PAID', ...(range ? { paidAt: range } : {}) }, select: { amount: true } },
+      leads: { where: { saleStatus: 'BOUGHT', ...(range ? { successDate: range } : {}) }, select: { id: true } },
     }, orderBy: { createdAt: 'desc' } });
     return cabinets.map(({ users, payments, leads, _count, ...cabinet }) => {
       const ltv = payments.reduce((sum, payment) => sum + Number(payment.amount), 0);
@@ -49,11 +91,14 @@ export class CabinetsService {
 
   async create(dto: CreateCabinetDto) {
     if (dto.providerProjectId) return this.createLocal(dto, dto.providerProjectId);
-    if (!dto.region || !dto.regionId || !dto.idempotencyKey) {
-      throw new ConflictException('region, regionId и idempotencyKey обязательны для создания проекта Leads Factory');
+    const providerRegionIds = dto.regionIds?.length ? [...new Set(dto.regionIds)] : dto.regionId ? [dto.regionId] : [];
+    if (!dto.region || !providerRegionIds.length || !dto.idempotencyKey) {
+      throw new ConflictException('region, regionIds и idempotencyKey обязательны для создания проекта Leads Factory');
     }
     const requestHash = createHash('sha256').update(JSON.stringify({
-      name: dto.name, type: dto.type, region: dto.region, regionId: dto.regionId, sphere: dto.sphere, managerName: dto.managerName,
+      name: dto.name, type: dto.type, region: dto.region, regionId: dto.regionId,
+      regionIds: dto.regionIds?.length ? providerRegionIds : undefined,
+      sphere: dto.sphere, managerName: dto.managerName,
       price: dto.price, employeeLogin: dto.employeeLogin, clientLogin: dto.clientLogin,
     })).digest('hex');
     let operation;
@@ -92,7 +137,9 @@ export class CabinetsService {
         const types = await this.provider.getProjectTypes();
         const typeId = this.matchProviderType(dto.type, types.items);
         externalPostStarted = true;
-        const created = await this.provider.createProject({ name: providerName, type: typeId, regions: [dto.regionId], status: 'active' });
+        const created = await this.provider.createProject({
+          name: providerName, type: typeId, regions: providerRegionIds, status: 'pause', default_limit: 5,
+        });
         providerProjectId = created.id;
         await this.prisma.providerProjectCreation.update({
           where: { id: operation.id }, data: { status: 'EXTERNAL_CREATED', providerProjectId },
@@ -119,9 +166,97 @@ export class CabinetsService {
 
   providerProjectTypes() { return this.provider.getProjectTypes(); }
 
+  async linkProviderProject(dto: import('./dto/link-provider-project.dto').LinkProviderProjectDto) {
+    const existing = await this.prisma.cabinet.findFirst({
+      where: { providerProjectId: dto.providerProjectId }, select: { id: true, name: true },
+    });
+    if (existing) throw new ConflictException(`Проект Leads Factory уже связан с кабинетом «${existing.name}»`);
+
+    // GET validates both existence and access before any local records are made.
+    const providerProject = await this.provider.getProject(dto.providerProjectId);
+    if (providerProject.id !== dto.providerProjectId) throw new BadGatewayException('Leads Factory вернул другой ID проекта');
+    const type = providerProject.numbers ? ProjectType.NUMBERS : providerProject.vdl ? ProjectType.VDL : ProjectType.PACKAGE;
+    const suffix = `${dto.providerProjectId}-${Date.now().toString(36)}`;
+    const employeeLogin = `staff-${suffix}`;
+    const clientLogin = `client-${suffix}`;
+    const employeePassword = generatePassword();
+    const clientPassword = generatePassword();
+    const cabinet = await this.prisma.$transaction(async (tx) => {
+      const created = await tx.cabinet.create({ data: {
+        name: providerProject.name?.trim() || `Leads Factory #${dto.providerProjectId}`,
+        type, price: new Prisma.Decimal(dto.price), managerName: dto.managerName,
+        sphere: providerProject.sphere, providerProjectId: dto.providerProjectId,
+        isActive: providerProject.status === 'active', timezoneOffset: providerProject.timezone ?? 3,
+      }, select: cabinetSelect });
+      await tx.user.createMany({ data: [
+        { login: employeeLogin, passwordHash: await hash(employeePassword, 12), role: UserRole.FULL, cabinetId: created.id },
+        { login: clientLogin, passwordHash: await hash(clientPassword, 12), role: UserRole.LIMITED, cabinetId: created.id },
+      ] });
+      return created;
+    });
+    const [answersSync, sourcesSync] = await Promise.allSettled([
+      this.answers?.sync(cabinet.id),
+      this.sources?.sync(cabinet.id, {}),
+    ]);
+    return { cabinet, credentials: {
+      employee: { login: employeeLogin, password: employeePassword },
+      client: { login: clientLogin, password: clientPassword },
+    }, initialSync: {
+      answers: answersSync.status === 'fulfilled' ? 'COMPLETED' : 'FAILED',
+      sources: sourcesSync.status === 'fulfilled' ? 'COMPLETED' : 'FAILED',
+    } };
+  }
+
+  async directIntegration(id: string, channel: string) {
+    this.assertDirectChannel(channel);
+    const value = await this.prisma.directIntegration.findUnique({ where: { cabinetId_channel: { cabinetId: id, channel } } });
+    return value ? { channel, configured: true, enabled: value.enabled, chatId: value.chatId, hasToken: true }
+      : { channel, configured: false, enabled: false, chatId: '', hasToken: false };
+  }
+
+  async updateDirectIntegration(id: string, channel: string, dto: { botToken?: string; chatId: string; enabled: boolean }) {
+    this.assertDirectChannel(channel);
+    const existing = await this.prisma.directIntegration.findUnique({ where: { cabinetId_channel: { cabinetId: id, channel } } });
+    if (!existing && !dto.botToken) throw new ConflictException('Bot token обязателен при первом подключении');
+    const plainToken = dto.botToken ?? (existing && this.directMessenger?.decryptToken(existing.botTokenEncrypted));
+    if (dto.enabled && plainToken && this.directMessenger) {
+      await this.directMessenger.send(channel, plainToken, dto.chatId.trim(), '✅ Peremoney: интеграция подключена');
+    }
+    const botTokenEncrypted = dto.botToken ? this.encryptSecret(dto.botToken) : existing!.botTokenEncrypted;
+    await this.prisma.directIntegration.upsert({
+      where: { cabinetId_channel: { cabinetId: id, channel } },
+      create: { cabinetId: id, channel, botTokenEncrypted, chatId: dto.chatId.trim(), enabled: dto.enabled },
+      update: { botTokenEncrypted, chatId: dto.chatId.trim(), enabled: dto.enabled },
+    });
+    return { channel, configured: true, enabled: dto.enabled, chatId: dto.chatId.trim(), hasToken: true };
+  }
+
+  private assertDirectChannel(channel: string) {
+    if (!['telegram', 'max'].includes(channel)) throw new NotFoundException('Интеграция не поддерживается');
+  }
+
+  private encryptSecret(value: string) {
+    const key = createHash('sha256').update(this.config.get<string>('INTEGRATION_ENCRYPTION_KEY')
+      ?? this.config.get<string>('JWT_SECRET') ?? '').digest();
+    const iv = randomBytes(12);
+    const cipher = createCipheriv('aes-256-gcm', key, iv);
+    const encrypted = Buffer.concat([cipher.update(value, 'utf8'), cipher.final()]);
+    return `${iv.toString('base64url')}.${cipher.getAuthTag().toString('base64url')}.${encrypted.toString('base64url')}`;
+  }
+
+  async providerRegions() {
+    const result = await this.provider.getAvailableRegions();
+    return result.regions
+      .filter((region) => Number.isInteger(region.region_id) && region.region_name.trim())
+      .map((region) => ({ id: region.region_id, name: region.region_name.trim() }))
+      .sort((a, b) => a.name.localeCompare(b.name, 'ru'));
+  }
+
   async providerIntegration(id: string, name: string) {
     if (!['telegram', 'bitrix', 'amocrm', 'email'].includes(name)) throw new NotFoundException('Интеграция не поддерживается');
-    const cabinet = await this.prisma.cabinet.findUnique({ where: { id }, select: { providerProjectId: true } });
+    const cabinet = await this.prisma.cabinet.findUnique({ where: { id }, select: {
+      providerProjectId: true, moneyBalance: true, price: true, totalUnits: true, usedUnits: true,
+    } });
     if (!cabinet?.providerProjectId) throw new NotFoundException('У кабинета не указан providerProjectId');
     const raw = await this.provider.getIntegration(cabinet.providerProjectId, name as ProviderIntegrationName);
     return this.safeIntegrationSummary(raw);
@@ -140,6 +275,7 @@ export class CabinetsService {
           providerProjectId,
           managerName: dto.managerName,
           sphere: dto.sphere,
+          isActive: false,
         },
         select: cabinetSelect,
       });
@@ -154,10 +290,30 @@ export class CabinetsService {
       }
       return created;
     });
+    // Новый кабинет всегда стартует с нулевым балансом (docs-agent.md): проект не должен
+    // работать у провайдера, пока не поступила первая оплата.
+    await this.syncProviderActivity(cabinet, providerProjectId);
     return {
       cabinet,
       credentials,
     };
+  }
+
+  private async syncProviderActivity(cabinet: {
+    id: string; isActive: boolean; timezoneOffset: number; uploadsEnabled: boolean; callsEnabled: boolean;
+    scheduleDays: number[]; moneyBalance: Prisma.Decimal; price: Prisma.Decimal; totalUnits: number; usedUnits: number;
+  }, providerProjectId: number) {
+    try {
+      await this.provider.updateProjectSettings(providerProjectId, {
+        isActive: cabinet.isActive && hasAvailableBalance(cabinet), timezoneOffset: cabinet.timezoneOffset,
+        uploadsEnabled: cabinet.uploadsEnabled, callsEnabled: cabinet.callsEnabled,
+        activeToday: this.isActiveToday(cabinet.scheduleDays),
+      });
+    } catch (error) {
+      const now = new Date();
+      await this.prisma.scheduledRun.create({ data: { cabinetId: cabinet.id, task: 'APPLY_SCHEDULE', scheduledFor: now,
+        nextAttemptAt: now, lastError: error instanceof Error ? error.message.slice(0, 2000) : 'Provider sync failed' } });
+    }
   }
 
   private credentials(dto: Pick<CreateCabinetDto, 'employeeLogin' | 'clientLogin'>, seed?: string) {
@@ -219,9 +375,11 @@ export class CabinetsService {
     const cabinet = await this.prisma.cabinet.findUnique({ where: { id: cabinetId }, select: cabinetSelect });
     if (!cabinet) throw new NotFoundException('Кабинет не найден');
     const visibleSections = this.visibleSections(user.role, cabinet as Cabinet);
-    if (user.role !== UserRole.LIMITED) return { ...cabinet, visibleSections };
+    const sectionVisibility = this.sectionVisibility(cabinet as Cabinet);
+    if (user.role !== UserRole.LIMITED) return { ...cabinet, visibleSections, sectionVisibility };
     const visible = new Set(visibleSections);
-    return { id: cabinet.id, name: cabinet.name, type: cabinet.type, providerProjectId: cabinet.providerProjectId, visibleSections,
+    return { id: cabinet.id, name: cabinet.name, type: cabinet.type, providerProjectId: cabinet.providerProjectId,
+      visibleSections, sectionVisibility,
       ...(visible.has('script') ? { operatorScript: cabinet.operatorScript, operatorScriptName: cabinet.operatorScriptName,
         operatorScriptLevel: cabinet.operatorScriptLevel, scriptSyncedAt: cabinet.scriptSyncedAt } : {}),
       ...(visible.has('finance') ? { moneyBalance: cabinet.moneyBalance, price: cabinet.price, totalUnits: cabinet.totalUnits,
@@ -251,7 +409,10 @@ export class CabinetsService {
   }
 
   async updateSettings(id: string, dto: import('./dto/update-settings.dto').UpdateSettingsDto) {
-    const cabinet = await this.prisma.cabinet.findUnique({ where: { id }, select: { providerProjectId: true } });
+    const cabinet = await this.prisma.cabinet.findUnique({ where: { id }, select: {
+      providerProjectId: true, moneyBalance: true, price: true, totalUnits: true, usedUnits: true,
+      isActive: true, timezoneOffset: true, uploadsEnabled: true, callsEnabled: true, scheduleDays: true,
+    } });
     if (!cabinet) throw new NotFoundException('Кабинет не найден');
     const updated = await this.prisma.cabinet.update({ where: { id }, data: {
       isActive: dto.isActive, timezoneOffset: dto.timezoneOffset, uploadsEnabled: dto.uploadsEnabled,
@@ -262,8 +423,27 @@ export class CabinetsService {
       settingsVisible: dto.settings,
     }, select: cabinetSelect });
     if (!cabinet.providerProjectId) return { ...updated, providerSync: { status: 'SKIPPED' } };
+    const balanceAvailable = hasAvailableBalance(cabinet);
+    const scheduleChanged = cabinet.scheduleDays.length !== dto.scheduleDays.length
+      || cabinet.scheduleDays.some((day, index) => day !== dto.scheduleDays[index]);
+    const generalChanged = cabinet.isActive !== dto.isActive
+      || cabinet.timezoneOffset !== dto.timezoneOffset || scheduleChanged;
+    const uploadsChanged = cabinet.uploadsEnabled !== dto.uploadsEnabled;
+    const callsChanged = cabinet.callsEnabled !== dto.callsEnabled;
+    const operationalNow = dto.isActive && balanceAvailable && this.isActiveToday(dto.scheduleDays);
     try {
-      await this.provider.updateProjectSchedule(cabinet.providerProjectId, dto.isActive);
+      if (!operationalNow || generalChanged) {
+        await this.provider.updateProjectSettings(cabinet.providerProjectId, {
+          isActive: dto.isActive && balanceAvailable, timezoneOffset: dto.timezoneOffset,
+          uploadsEnabled: dto.uploadsEnabled, callsEnabled: dto.callsEnabled,
+          activeToday: this.isActiveToday(dto.scheduleDays),
+        });
+      } else if (uploadsChanged || callsChanged) {
+        await this.provider.updateProjectProcesses(cabinet.providerProjectId, {
+          uploadsEnabled: uploadsChanged ? dto.uploadsEnabled : undefined,
+          callsEnabled: callsChanged ? dto.callsEnabled : undefined,
+        });
+      }
       return { ...updated, providerSync: { status: 'SYNCED' } };
     } catch (error) {
       const now = new Date();
@@ -271,6 +451,12 @@ export class CabinetsService {
         nextAttemptAt: now, lastError: error instanceof Error ? error.message.slice(0, 2000) : 'Provider sync failed' } });
       return { ...updated, providerSync: { status: 'PENDING', message: 'Статус будет повторно передан провайдеру' } };
     }
+  }
+
+  private isActiveToday(days: number[], now = new Date()) {
+    const moscow = new Date(now.getTime() + 3 * 60 * 60 * 1000);
+    const day = moscow.getUTCDay();
+    return days.includes(day === 0 ? 7 : day);
   }
 
   async updateMasterProject(id: string, dto: import('./dto/update-master-project.dto').UpdateMasterProjectDto) {
@@ -284,6 +470,10 @@ export class CabinetsService {
       data: { passwordHash, sessionVersion: { increment: 1 } },
     }));
     const [updated] = await this.prisma.$transaction(operations);
+    if (dto.isActive !== undefined) {
+      const cabinet = updated as CabinetView;
+      if (cabinet.providerProjectId) await this.syncProviderActivity(cabinet, cabinet.providerProjectId);
+    }
     return updated;
   }
 
@@ -325,7 +515,17 @@ export class CabinetsService {
       ...(cabinet.sourcesVisible ? ['sources'] : []),
       ...(cabinet.scriptVisible ? ['script'] : []),
       ...(cabinet.financeVisible ? ['finance'] : []),
-      ...(cabinet.settingsVisible ? ['settings'] : []),
+      // "Настройки" убраны из "Управление доступом" — раздел всегда скрыт для LIMITED, флаг cabinet.settingsVisible игнорируется
     ];
+  }
+
+  private sectionVisibility(cabinet: Cabinet) {
+    return {
+      contacts: cabinet.contactsVisible,
+      sources: cabinet.sourcesVisible,
+      script: cabinet.scriptVisible,
+      finance: cabinet.financeVisible,
+      settings: false,
+    };
   }
 }

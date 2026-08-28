@@ -58,4 +58,20 @@ export interface ProviderProjectCreated {
   id: number;
 }
 
+export interface ProviderProjectDetail {
+  id: number;
+  name: string | null;
+  sphere: string | null;
+  status: string;
+  timezone: number | null;
+  numbers: boolean;
+  vdl: boolean;
+  prozvon_base: boolean;
+}
+
+export interface ProviderRegion {
+  region_id: number;
+  region_name: string;
+}
+
 export type ProviderIntegrationName = 'telegram' | 'bitrix' | 'amocrm' | 'email';

@@ -1,12 +1,13 @@
 services:
   postgres:
     image: postgres:17-alpine
+    restart: unless-stopped
     environment:
       POSTGRES_DB: peremoney
       POSTGRES_USER: peremoney
-      POSTGRES_PASSWORD: peremoney
+      POSTGRES_PASSWORD: vNYhHZz0QPCv4FEeIdNfBrhA
     ports:
-      - "5433:5432"
+      - "127.0.0.1:5433:5432"
     volumes:
       - peremoney-postgres:/var/lib/postgresql/data
     healthcheck:

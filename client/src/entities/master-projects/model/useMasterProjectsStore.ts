@@ -1,10 +1,10 @@
 import { create } from "zustand";
-import { cloneMasterProject, createMasterProject, fetchMasterProjects, patchMasterProject } from '../api/master-projects-api';
+import { createMasterProject, fetchMasterProjects, linkProviderProject, patchMasterProject } from '../api/master-projects-api';
 import type { CreateProjectInput, MasterProject, RenewalStatus } from "./types";
+import type { DateRange } from '@/shared/lib/date';
 
 interface CloneProjectInput {
-  name: string;
-  type: MasterProject["type"];
+  providerProjectId: number;
   price: number;
   managerId: string;
 }
@@ -12,11 +12,11 @@ interface CloneProjectInput {
 interface MasterProjectsState {
   projects: MasterProject[];
   loading: boolean; error: string | null;
-  load: () => Promise<void>;
+  load: (range?: DateRange) => Promise<void>;
   /** "Создать проект" — 2.8.3: имя по шаблону + автогенерация логинов/паролей кабинета */
   createProject: (input: CreateProjectInput) => Promise<MasterProject>;
-  /** "Связать с другим" — 2.8.4: копия кабинета без API-запроса создания проекта у провайдера */
-  cloneProject: (sourceId: string, input: CloneProjectInput) => Promise<MasterProject | null>;
+  /** Создаёт кабинет для уже существующего проекта Leads Factory. */
+  linkProject: (input: CloneProjectInput) => Promise<MasterProject | null>;
   toggleActive: (id: string) => void;
   toggleHidden: (id: string) => void;
   updatePrice: (id: string, price: number) => void;
@@ -27,7 +27,7 @@ interface MasterProjectsState {
 
 export const useMasterProjectsStore = create<MasterProjectsState>((set, get) => ({
   projects: [], loading: false, error: null,
-  load: async () => { set({ loading: true, error: null }); try { set({ projects: await fetchMasterProjects() }); }
+  load: async (range) => { set({ loading: true, error: null }); try { set({ projects: await fetchMasterProjects(range) }); }
     catch (reason) { set({ error: reason instanceof Error ? reason.message : 'Не удалось загрузить проекты' }); } finally { set({ loading: false }); } },
 
   createProject: async (input) => {
@@ -42,12 +42,9 @@ export const useMasterProjectsStore = create<MasterProjectsState>((set, get) => 
     }
   },
 
-  cloneProject: async (sourceId, input) => {
-    const source = get().projects.find((p) => p.id === sourceId);
-    if (!source) return null;
-
-    try { const project = await cloneMasterProject(sourceId, input); set((state) => ({ projects: [project, ...state.projects], error: null })); return project; }
-    catch (reason) { set({ error: reason instanceof Error ? reason.message : 'Не удалось клонировать проект' }); return null; }
+  linkProject: async (input) => {
+    try { const project = await linkProviderProject(input); set((state) => ({ projects: [project, ...state.projects], error: null })); return project; }
+    catch (reason) { set({ error: reason instanceof Error ? reason.message : 'Не удалось подключить проект Leads Factory' }); return null; }
   },
 
   toggleActive: (id) => { const value = !get().projects.find((p) => p.id === id)?.active;

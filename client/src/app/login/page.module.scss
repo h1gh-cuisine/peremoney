@@ -6,6 +6,11 @@
 .card h1 { margin: 0; font-size: 25px; }
 .card label { display: grid; gap: 8px; font-size: 14px; font-weight: 600; }
 .card input { height: 44px; padding: 0 13px; border: 1px solid v.$color-border; border-radius: 10px; background: v.$color-bg-elevated; color: v.$color-text-primary; font: inherit; }
+.card .consent { display: grid; grid-template-columns: 20px 1fr; align-items: start; gap: 10px; color: v.$color-text-secondary; font-size: 13px; font-weight: 400; line-height: 1.45; cursor: pointer; }
+.card .consent input { width: 18px; height: 18px; margin: 1px 0 0; padding: 0; accent-color: v.$color-accent-1; cursor: pointer; }
+.consent a { color: v.$color-accent-1; font-weight: 600; text-underline-offset: 3px; }
+.consent a:hover { text-decoration-thickness: 2px; }
+.consent a:focus-visible, .card input:focus-visible, .card button:focus-visible { outline: 2px solid v.$color-accent-1; outline-offset: 3px; }
 .card button { height: 46px; border: 0; border-radius: 10px; background: v.$color-accent-1; color: v.$color-text-on-accent; font: inherit; font-weight: 700; cursor: pointer; }
-.card button:disabled { opacity: .65; cursor: wait; }
+.card button:disabled { opacity: .55; cursor: not-allowed; }
 .error { margin: 0; color: #b42318; font-size: 14px; }

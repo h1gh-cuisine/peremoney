@@ -1,0 +1,21 @@
+@use "variables" as v;
+
+.page { min-height: 100vh; padding: 48px 24px; background: v.$color-bg; color: v.$color-text-primary; }
+.document { width: min(820px, 100%); margin: 0 auto; padding: 40px; border: 1px solid v.$color-border; border-radius: 20px; background: v.$color-bg-card; box-shadow: v.$shadow-popover; }
+.header { display: flex; align-items: center; justify-content: space-between; gap: 24px; padding-bottom: 24px; border-bottom: 1px solid v.$color-border; }
+.header a { color: v.$color-accent-1; font-size: 14px; font-weight: 600; text-underline-offset: 3px; }
+.document h1 { margin: 32px 0 8px; font-size: clamp(28px, 5vw, 42px); line-height: 1.08; }
+.subtitle { margin: 0 0 12px; color: v.$color-text-primary; font-size: 18px; line-height: 1.5; }
+.updated { margin: 0 0 36px; color: v.$color-text-secondary; font-size: 13px; }
+.document section { padding: 22px 0; border-top: 1px solid v.$color-border; }
+.document section:first-of-type { border-top: 0; }
+.document h2 { margin: 0 0 10px; font-size: 18px; }
+.document p { margin: 0; color: v.$color-text-secondary; line-height: 1.7; }
+.offerContent h2 { margin: 32px 0 12px; padding-top: 24px; border-top: 1px solid v.$color-border; font-size: 18px; }
+.offerContent p + p { margin-top: 12px; }
+
+@media (max-width: 600px) {
+  .page { padding: 16px; }
+  .document { padding: 24px 20px; border-radius: 16px; }
+  .header { align-items: flex-start; flex-direction: column; }
+}

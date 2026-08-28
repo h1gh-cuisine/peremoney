@@ -12,13 +12,27 @@ export function EmployeesModal({ onClose }: EmployeesModalProps) {
   const managers = useMasterManagersStore((s) => s.managers);
   const addManager = useMasterManagersStore((s) => s.addManager);
   const removeManager = useMasterManagersStore((s) => s.removeManager);
+  const error = useMasterManagersStore((s) => s.error);
+  const loading = useMasterManagersStore((s) => s.loading);
   const [name, setName] = useState("");
+  const [saving, setSaving] = useState(false);
 
-  function handleAdd() {
+  async function handleAdd() {
     const trimmed = name.trim();
-    if (!trimmed) return;
-    addManager(trimmed);
-    setName("");
+    if (!trimmed || saving) return;
+    setSaving(true);
+    try {
+      await addManager(trimmed);
+      setName("");
+    } catch {
+      // Сообщение уже сохранено в store и показано ниже.
+    } finally {
+      setSaving(false);
+    }
+  }
+
+  async function handleRemove(id: string) {
+    try { await removeManager(id); } catch { /* Ошибка показана в модалке. */ }
   }
 
   return (
@@ -30,13 +44,15 @@ export function EmployeesModal({ onClose }: EmployeesModalProps) {
           {managers.map((m) => (
             <div key={m.id} className={styles.row}>
               <span>{m.name}</span>
-              <button type="button" className={styles.removeBtn} onClick={() => removeManager(m.id)}>
+              <button type="button" className={styles.removeBtn} onClick={() => void handleRemove(m.id)} disabled={saving}>
                 Удалить
               </button>
             </div>
           ))}
           {managers.length === 0 && <p className={styles.empty}>Сотрудников пока нет</p>}
         </div>
+
+        {error && <p role="alert" className={styles.error}>{error}</p>}
 
         <div className={styles.addRow}>
           <input
@@ -45,10 +61,11 @@ export function EmployeesModal({ onClose }: EmployeesModalProps) {
             placeholder="Имя сотрудника"
             value={name}
             onChange={(e) => setName(e.target.value)}
-            onKeyDown={(e) => e.key === "Enter" && handleAdd()}
+            onKeyDown={(e) => e.key === "Enter" && void handleAdd()}
+            disabled={saving || loading}
           />
-          <button type="button" className={styles.addBtn} onClick={handleAdd}>
-            Добавить
+          <button type="button" className={styles.addBtn} onClick={() => void handleAdd()} disabled={saving || loading || !name.trim()}>
+            {saving ? 'Сохраняем…' : 'Добавить'}
           </button>
         </div>
 

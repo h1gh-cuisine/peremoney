@@ -10,5 +10,6 @@ export interface MasterPayment {
   amount: number;
   managerId: string;
   status: MasterPaymentStatus;
+  invoiceCreationStatus?: "pending" | "succeeded" | "failed" | "uncertain";
   createdAt: string; // ISO date
 }

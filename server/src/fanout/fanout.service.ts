@@ -5,10 +5,11 @@ import { randomBytes, randomUUID } from 'node:crypto';
 import { FinanceService } from '../finance/finance.service';
 import { PrismaService } from '../prisma/prisma.service';
 import { IncomingLeadDto } from './dto/incoming-lead.dto';
+import { DirectMessengerService } from '../integrations/direct-messenger.service';
 
 @Injectable()
 export class FanoutService {
-  constructor(private readonly prisma: PrismaService, private readonly finance: FinanceService) {}
+  constructor(private readonly prisma: PrismaService, private readonly finance: FinanceService, private readonly messenger?: DirectMessengerService) {}
 
   async createSource(name: string) {
     const token = randomBytes(32).toString('base64url');
@@ -115,6 +116,10 @@ export class FanoutService {
         if (created.isNew) {
           await this.finance.chargeUsage(delivery.cabinetId, 'contact', created.contactId);
           await this.finance.chargeUsage(delivery.cabinetId, 'lead', created.leadId);
+          await this.messenger?.notifyLead(delivery.cabinetId, {
+            phone: delivery.incomingLead.mobileTel, name: delivery.incomingLead.name,
+            site: delivery.incomingLead.site, date: delivery.incomingLead.date,
+          });
         }
         await this.prisma.fanoutDelivery.update({ where: { id: delivery.id }, data: {
           status: FanoutDeliveryStatus.COMPLETED, lastError: null, finishedAt: new Date(),

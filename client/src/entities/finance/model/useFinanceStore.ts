@@ -10,6 +10,7 @@ interface FinanceState {
   error: string | null;
   cabinetId: string | null;
   load: (cabinetId: string) => Promise<void>;
+  reset: () => void;
   /** "Сформировать счёт" → создаёт запись "ожидает оплаты" (docs-agent.md 2.7.1 п.4) */
   createPendingInvoice: (quantity: number, idempotencyKey: string) => Promise<Payment | null>;
 }
@@ -17,6 +18,8 @@ interface FinanceState {
 export const useFinanceStore = create<FinanceState>((set, get) => ({
   payments: [], unitBalance: { totalUnits: 0, usedUnits: 0 }, moneyBalance: 0,
   loading: false, error: null, cabinetId: null,
+  reset: () => set({ payments: [], unitBalance: { totalUnits: 0, usedUnits: 0 }, moneyBalance: 0,
+    loading: false, error: null, cabinetId: null }),
   load: async (cabinetId) => {
     set({ cabinetId, loading: true, error: null });
     try { set(await fetchFinance(cabinetId)); }

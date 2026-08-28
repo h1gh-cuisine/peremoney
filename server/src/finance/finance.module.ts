@@ -7,10 +7,11 @@ import { TochkaService } from '../tochka/tochka.service';
 import { TelegramService } from '../tochka/telegram.service';
 import { TochkaWebhookController } from '../tochka/tochka-webhook.controller';
 import { TochkaWebhookService } from '../tochka/tochka-webhook.service';
+import { TochkaInvoicePollerService } from '../tochka/tochka-invoice-poller.service';
 
 @Module({
   controllers: [FinanceController, MasterFinanceController, TochkaWebhookController],
-  providers: [FinanceService, RolesGuard, TochkaService, TochkaWebhookService, TelegramService],
+  providers: [FinanceService, RolesGuard, TochkaService, TochkaWebhookService, TochkaInvoicePollerService, TelegramService],
   exports: [FinanceService],
 })
 export class FinanceModule {}

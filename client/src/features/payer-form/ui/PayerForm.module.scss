@@ -84,3 +84,12 @@
     @include m.focus-ring;
   }
 }
+
+.inputInvalid {
+  border-color: v.$color-danger;
+}
+
+.fieldError {
+  font-size: v.$font-size-xs;
+  color: v.$color-danger;
+}

@@ -3,7 +3,7 @@ import { ConfigService } from '@nestjs/config';
 import { ProviderException } from './provider.exception';
 import {
   ProviderAnswersPage, ProviderCall, ProviderIntegrationName, ProviderProjectCreated,
-  ProviderProjectType, ProviderScript, ProviderSource, ProviderTag,
+  ProviderProjectDetail, ProviderProjectType, ProviderRegion, ProviderScript, ProviderSource, ProviderTag,
 } from './leads-factory.types';
 
 @Injectable()
@@ -72,12 +72,42 @@ export class LeadsFactoryService {
     return this.request<unknown>('/vdl/api/tags/available_tags_types');
   }
 
-  updateProjectSchedule(projectId: number, active: boolean) {
+  updateProjectSchedule(projectId: number, active: boolean, options: { uploadsEnabled?: boolean; callsEnabled?: boolean } = {}) {
     return this.request(`/crm/open-api/projects/${projectId}`, {}, {
       method: 'PATCH',
       body: {
-        work_client_status: active ? 'active' : 'stop',
-        call_center_status: active ? 'active' : 'pause_daily',
+        status: active ? 'active' : 'pause',
+        work_client_status: active && options.uploadsEnabled !== false ? 'active' : 'stop',
+        call_center_status: active && options.callsEnabled !== false ? 'active' : 'pause_daily',
+      },
+    });
+  }
+
+  updateProjectProcesses(projectId: number, processes: { uploadsEnabled?: boolean; callsEnabled?: boolean }) {
+    return this.request(`/crm/open-api/projects/${projectId}`, {}, {
+      method: 'PATCH',
+      body: {
+        ...(processes.uploadsEnabled === undefined ? {} : {
+          work_client_status: processes.uploadsEnabled ? 'active' : 'stop',
+        }),
+        ...(processes.callsEnabled === undefined ? {} : {
+          call_center_status: processes.callsEnabled ? 'active' : 'pause_daily',
+        }),
+      },
+    });
+  }
+
+  updateProjectSettings(projectId: number, settings: {
+    isActive: boolean; timezoneOffset: number; uploadsEnabled: boolean; callsEnabled: boolean; activeToday: boolean;
+  }) {
+    const operational = settings.isActive && settings.activeToday;
+    return this.request(`/crm/open-api/projects/${projectId}`, {}, {
+      method: 'PATCH',
+      body: {
+        status: operational ? 'active' : 'pause',
+        timezone: settings.timezoneOffset,
+        work_client_status: operational && settings.uploadsEnabled ? 'active' : 'stop',
+        call_center_status: operational && settings.callsEnabled ? 'active' : 'pause_daily',
       },
     });
   }
@@ -90,8 +120,16 @@ export class LeadsFactoryService {
     return this.request<{ items: ProviderProjectType[] }>('/crm/open-api/projects/types');
   }
 
-  createProject(body: { name: string; type: number; regions: number[]; status: 'active' }) {
+  getAvailableRegions() {
+    return this.request<{ regions: ProviderRegion[] }>('/vdl/api/regions/avaliable_regions');
+  }
+
+  createProject(body: { name: string; type: number; regions: number[]; status: 'active' | 'pause'; default_limit: number }) {
     return this.request<ProviderProjectCreated>('/crm/open-api/projects', {}, { method: 'POST', body });
+  }
+
+  getProject(projectId: number) {
+    return this.request<ProviderProjectDetail>(`/crm/open-api/projects/${projectId}`);
   }
 
   getIntegration(projectId: number, name: ProviderIntegrationName) {

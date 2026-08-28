@@ -1,6 +1,6 @@
 import { LeadSaleStatus, PaymentStatus, Prisma, ProjectType } from '@prisma/client';
 import { FinanceService } from './finance.service';
-import { TochkaApiException } from '../tochka/tochka.service';
+import { TochkaApiException, TochkaTransportException } from '../tochka/tochka.service';
 
 describe('FinanceService', () => {
   it('creates an invoice using the current tariff price and payer', async () => {
@@ -9,7 +9,7 @@ describe('FinanceService', () => {
     const prisma = {
       cabinet: { findUnique: jest.fn().mockResolvedValue({
         id: 'cab', price: new Prisma.Decimal(125), type: ProjectType.VDL,
-        payerProfile: { data: { organizationName: 'ООО Клиент', inn: '6450000000' } },
+        payerProfile: { data: { organizationName: 'ООО Клиент', inn: '6450000001', kpp: '645001001' } },
       }) },
       payment: { create, update, delete: jest.fn() },
     };
@@ -30,13 +30,13 @@ describe('FinanceService', () => {
     const existing = { id: 'pay', invoiceRequestHash: '', invoiceCreationStatus: 'SUCCEEDED', tochkaDocumentId: 'doc-1' };
     const prisma = {
       cabinet: { findUnique: jest.fn().mockResolvedValue({ id: 'cab', price: new Prisma.Decimal(125), type: ProjectType.VDL,
-        payerProfile: { data: { organizationName: 'ООО Клиент', inn: '6450000000' } } }) },
+        payerProfile: { data: { organizationName: 'ООО Клиент', inn: '6450000001', kpp: '645001001' } } }) },
       payment: { create: jest.fn().mockRejectedValue(new Prisma.PrismaClientKnownRequestError('unique', { code: 'P2002', clientVersion: '6.19.3' })),
         findUniqueOrThrow: jest.fn().mockImplementation(() => existing) },
     };
     const { createHash } = await import('node:crypto');
     existing.invoiceRequestHash = createHash('sha256').update(JSON.stringify({ cabinetId: 'cab', quantity: 10, unitPrice: '125',
-      payer: { organizationName: 'ООО Клиент', inn: '6450000000' } })).digest('hex');
+      payer: { organizationName: 'ООО Клиент', inn: '6450000001', kpp: '645001001' } })).digest('hex');
     const tochka = { createInvoice: jest.fn() };
     const result = await new FinanceService(prisma as never, tochka as never).createInvoice('cab', 10, '0eef9960-16f9-4e80-91c9-fb13f44b4361');
     expect(result.replayed).toBe(true);
@@ -48,7 +48,7 @@ describe('FinanceService', () => {
     const prisma = {
       cabinet: { findUnique: jest.fn().mockResolvedValue({
         id: 'cab', price: new Prisma.Decimal(125), type: ProjectType.VDL,
-        payerProfile: { data: { organizationName: 'Тест', inn: '0000000000' } },
+        payerProfile: { data: { organizationName: 'Тест', inn: '0000000000', kpp: '000000000' } },
       }) },
       payment: { create: jest.fn().mockResolvedValue({ id: 'pay' }), update },
     };
@@ -65,7 +65,7 @@ describe('FinanceService', () => {
     const prisma = {
       cabinet: { findUnique: jest.fn().mockResolvedValue({
         id: 'cab', price: new Prisma.Decimal(125), type: ProjectType.VDL,
-        payerProfile: { data: { organizationName: 'Тест', inn: '0000000000' } },
+        payerProfile: { data: { organizationName: 'Тест', inn: '0000000000', kpp: '000000000' } },
       }) },
       payment: { create: jest.fn().mockResolvedValue({ id: 'pay' }), update },
     };
@@ -75,6 +75,47 @@ describe('FinanceService', () => {
       'cab', 1, '0eef9960-16f9-4e80-91c9-fb13f44b4361',
     )).rejects.toThrow('timeout');
     expect(update).toHaveBeenCalledWith(expect.objectContaining({ data: { invoiceCreationStatus: 'UNCERTAIN' } }));
+  });
+
+  it('marks a certificate failure as FAILED because the invoice was not sent', async () => {
+    const update = jest.fn().mockImplementation(({ data }) => ({ id: 'pay', ...data }));
+    const prisma = {
+      cabinet: { findUnique: jest.fn().mockResolvedValue({
+        id: 'cab', price: new Prisma.Decimal(125), type: ProjectType.VDL,
+        payerProfile: { data: { organizationName: 'Тест', inn: '0000000000', kpp: '000000000' } },
+      }) },
+      payment: { create: jest.fn().mockResolvedValue({ id: 'pay' }), update },
+    };
+    const tochka = { customerCode: () => 'customer', accountId: () => 'account',
+      createInvoice: jest.fn().mockRejectedValue(new TochkaTransportException('SELF_SIGNED_CERT_IN_CHAIN', false)) };
+    await expect(new FinanceService(prisma as never, tochka as never).createInvoice(
+      'cab', 1, '0eef9960-16f9-4e80-91c9-fb13f44b4361',
+    )).rejects.toThrow('TLS-сертификат');
+    expect(update).toHaveBeenCalledWith(expect.objectContaining({ data: { invoiceCreationStatus: 'FAILED' } }));
+  });
+
+  it('rejects incomplete organization details before calling Tochka', async () => {
+    const prisma = { cabinet: { findUnique: jest.fn().mockResolvedValue({
+      id: 'cab', price: new Prisma.Decimal(125), type: ProjectType.VDL,
+      payerProfile: { data: { organizationName: 'ООО Клиент', inn: '6450000001', kpp: '' } },
+    }) } };
+    const tochka = { createInvoice: jest.fn() };
+    await expect(new FinanceService(prisma as never, tochka as never).createInvoice(
+      'cab', 1, '0eef9960-16f9-4e80-91c9-fb13f44b4361',
+    )).rejects.toThrow('КПП');
+    expect(tochka.createInvoice).not.toHaveBeenCalled();
+  });
+
+  it('rejects an INN with an invalid checksum before calling Tochka', async () => {
+    const prisma = { cabinet: { findUnique: jest.fn().mockResolvedValue({
+      id: 'cab', price: new Prisma.Decimal(125), type: ProjectType.VDL,
+      payerProfile: { data: { organizationName: 'ООО Клиент', inn: '6450000000', kpp: '645001001' } },
+    }) } };
+    const tochka = { createInvoice: jest.fn() };
+    await expect(new FinanceService(prisma as never, tochka as never).createInvoice(
+      'cab', 1, '0eef9960-16f9-4e80-91c9-fb13f44b4361',
+    )).rejects.toThrow('контрольную сумму');
+    expect(tochka.createInvoice).not.toHaveBeenCalled();
   });
 
   it('replaces the unit limit and resets usage when the paid tariff type changes', async () => {
@@ -91,6 +132,7 @@ describe('FinanceService', () => {
         update: paymentUpdate,
       },
       cabinet: { update: cabinetUpdate }, balanceEntry: { create: jest.fn() }, paymentAudit: { create: jest.fn() },
+      scheduledRun: { create: jest.fn() },
     };
     const service = new FinanceService({ $transaction: (callback: (value: unknown) => unknown) => callback(tx) } as never);
     await service.setPaymentStatus('pay', PaymentStatus.PAID);
@@ -110,14 +152,33 @@ describe('FinanceService', () => {
   it('charges a qualified lead only for the VDL tariff', async () => {
     const update = jest.fn();
     const tx = {
-      cabinet: { findUniqueOrThrow: jest.fn().mockResolvedValue({ type: ProjectType.VDL, price: new Prisma.Decimal(300) }), update },
+      $executeRaw: jest.fn(),
+      cabinet: { findUniqueOrThrow: jest.fn().mockResolvedValue({
+        type: ProjectType.VDL, price: new Prisma.Decimal(300), moneyBalance: new Prisma.Decimal(3000), totalUnits: 10, usedUnits: 0,
+      }), update },
       balanceEntry: { create: jest.fn() },
+      scheduledRun: { create: jest.fn() },
     };
     const service = new FinanceService({ $transaction: (callback: (value: unknown) => unknown) => callback(tx) } as never);
     expect(await service.chargeUsage('cab', 'lead', 'lead-1')).toBe(true);
     expect(update).toHaveBeenCalledWith(expect.objectContaining({
       data: { moneyBalance: { decrement: new Prisma.Decimal(300) }, usedUnits: { increment: 1 } },
     }));
+  });
+
+  it('does not charge or create a balance entry when the balance is exhausted', async () => {
+    const tx = {
+      $executeRaw: jest.fn(),
+      cabinet: { findUniqueOrThrow: jest.fn().mockResolvedValue({
+        type: ProjectType.VDL, price: new Prisma.Decimal(300), moneyBalance: new Prisma.Decimal(0), totalUnits: 10, usedUnits: 10,
+      }), update: jest.fn() },
+      balanceEntry: { create: jest.fn() }, scheduledRun: { create: jest.fn() },
+    };
+    const service = new FinanceService({ $transaction: (callback: (value: unknown) => unknown) => callback(tx) } as never);
+    expect(await service.chargeUsage('cab', 'lead', 'lead-zero')).toBe(false);
+    expect(tx.balanceEntry.create).not.toHaveBeenCalled();
+    expect(tx.cabinet.update).not.toHaveBeenCalled();
+    expect(tx.scheduledRun.create).toHaveBeenCalled();
   });
 
   it('calculates client dashboard metrics without division by zero', async () => {
@@ -152,5 +213,12 @@ describe('FinanceService', () => {
     expect(prisma.payment.findMany).toHaveBeenCalledWith(expect.objectContaining({ where: expect.objectContaining({
       OR: expect.arrayContaining([{ invoiceCreationStatus: 'SUCCEEDED' }]),
     }) }));
+  });
+
+  it('keeps failed and uncertain invoice attempts visible for diagnostics', async () => {
+    const findMany = jest.fn().mockResolvedValue([]);
+    await new FinanceService({ payment: { findMany } } as never).listPayments('cab');
+    expect(findMany).toHaveBeenCalledWith(expect.objectContaining({ where: { cabinetId: 'cab' } }));
+    expect(findMany.mock.calls[0]![0].where).not.toHaveProperty('OR');
   });
 });

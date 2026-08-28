@@ -8,9 +8,47 @@
 
 .toolbar {
   display: flex;
+  align-items: center;
+  gap: v.$space-3;
   justify-content: flex-end;
   padding: v.$space-3 v.$space-4;
   border-bottom: 1px solid v.$color-border-subtle;
+}
+
+.openError {
+  margin-right: auto;
+  color: #ff7474;
+  font-size: v.$font-size-xs;
+}
+
+.sortButton {
+  @include m.button-reset;
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  color: inherit;
+  font: inherit;
+  letter-spacing: inherit;
+  text-transform: inherit;
+
+  &:hover {
+    color: v.$color-text-secondary;
+  }
+
+  &:focus-visible {
+    @include m.focus-ring;
+    border-radius: 3px;
+  }
+}
+
+.sortActive {
+  color: v.$color-accent-2;
+}
+
+.sortIcon {
+  min-width: 1em;
+  font-size: 12px;
+  line-height: 1;
 }
 
 .toggleHiddenBtn {
@@ -66,6 +104,25 @@
       background: v.$color-bg-hover;
     }
   }
+
+  th:first-child,
+  td:first-child {
+    position: sticky;
+    left: 0;
+    z-index: 2;
+    background: v.$color-bg-card;
+    box-shadow: 10px 0 18px -16px rgba(0, 0, 0, .95);
+  }
+
+  th:first-child {
+    z-index: 3;
+    color: v.$color-text-secondary;
+    font-weight: 700;
+  }
+
+  tbody tr:hover td:first-child {
+    background: v.$color-bg-hover;
+  }
 }
 
 .hiddenRow {
@@ -88,6 +145,8 @@
   -webkit-line-clamp: 2;
   line-height: 1.35;
   max-height: 2.7em;
+  font-weight: 700;
+  color: v.$color-text-primary;
 }
 
 .mono {
@@ -194,6 +253,33 @@
   display: flex;
   align-items: center;
   gap: v.$space-2;
+}
+
+.openProjectButton {
+  @include m.button-reset;
+  min-width: 104px;
+  padding: v.$space-2 v.$space-3;
+  border: 1px solid rgba(v.$color-accent-2, 0.58);
+  border-radius: v.$radius-sm;
+  color: v.$color-accent-2;
+  font-size: v.$font-size-xs;
+  font-weight: 600;
+  transition: background v.$transition-fast, border-color v.$transition-fast, color v.$transition-fast;
+
+  &:hover:not(:disabled) {
+    border-color: v.$color-accent-2;
+    background: rgba(v.$color-accent-2, 0.12);
+    color: v.$color-text-primary;
+  }
+
+  &:focus-visible {
+    @include m.focus-ring;
+  }
+
+  &:disabled {
+    cursor: wait;
+    opacity: 0.55;
+  }
 }
 
 .statusBadge {

@@ -2,24 +2,40 @@
 
 import { FormEvent, useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
-import { LoginResponse, routeForRole, sessionFromLogin, useSessionStore } from '@/entities/session';
+import { LoginResponse, routeForRole, sessionFromLogin, useSessionStore, type SessionScope } from '@/entities/session';
 import { ApiError, createApiClient } from '@/shared/api';
 import styles from './page.module.scss';
 import { BrandLogo } from '@/shared/ui/BrandLogo';
 
 export default function LoginPage() {
   const router = useRouter();
-  const { hydrated, user, hydrate, setSession } = useSessionStore();
+  const { hydrated, masterSession, clientSession, hydrate, setSession } = useSessionStore();
+  const [intendedScope, setIntendedScope] = useState<SessionScope | null>(null);
   const [login, setLogin] = useState('');
   const [password, setPassword] = useState('');
+  const [privacyAccepted, setPrivacyAccepted] = useState(false);
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
 
-  useEffect(() => { if (!hydrated) hydrate(); }, [hydrate, hydrated]);
-  useEffect(() => { if (hydrated && user) router.replace(routeForRole(user.role)); }, [hydrated, router, user]);
+  useEffect(() => {
+    const next = new URLSearchParams(window.location.search).get('next') ?? '';
+    const scope: SessionScope = next.startsWith('/master') ? 'master' : 'client';
+    setIntendedScope(scope);
+    if (!hydrated) hydrate(scope);
+  }, [hydrate, hydrated]);
+  useEffect(() => {
+    if (!hydrated || !intendedScope) return;
+    const session = intendedScope === 'master' ? masterSession : clientSession;
+    if (session) router.replace(routeForRole(session.user.role));
+  }, [clientSession, hydrated, intendedScope, masterSession, router]);
 
   async function submit(event: FormEvent) {
-    event.preventDefault(); setError(''); setLoading(true);
+    event.preventDefault();
+    if (!privacyAccepted) {
+      setError('Примите условия оферты и политику конфиденциальности');
+      return;
+    }
+    setError(''); setLoading(true);
     try {
       const api = createApiClient({
         baseUrl: process.env.NEXT_PUBLIC_API_URL ?? 'http://localhost:4010/api', getToken: () => null,
@@ -38,8 +54,25 @@ export default function LoginPage() {
       <h1>Вход в личный кабинет</h1>
       <label>Логин<input autoComplete="username" value={login} onChange={(event) => setLogin(event.target.value)} required /></label>
       <label>Пароль<input type="password" autoComplete="current-password" value={password} onChange={(event) => setPassword(event.target.value)} required /></label>
+      <label className={styles.consent}>
+        <input
+          type="checkbox"
+          checked={privacyAccepted}
+          onChange={(event) => {
+            setPrivacyAccepted(event.target.checked);
+            if (event.target.checked && error === 'Примите условия оферты и политику конфиденциальности') setError('');
+          }}
+          required
+        />
+        <span>
+          Я принимаю условия{' '}
+          <a href="/offer" target="_blank" rel="noreferrer">публичной оферты</a>
+          {' '}и соглашаюсь с{' '}
+          <a href="/privacy" target="_blank" rel="noreferrer">политикой конфиденциальности</a>
+        </span>
+      </label>
       {error && <p role="alert" className={styles.error}>{error}</p>}
-      <button disabled={loading}>{loading ? 'Входим…' : 'Войти'}</button>
+      <button disabled={loading || !privacyAccepted}>{loading ? 'Входим…' : 'Войти'}</button>
     </form>
   </main>;
 }

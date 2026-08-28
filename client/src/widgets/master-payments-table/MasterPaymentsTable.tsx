@@ -1,18 +1,34 @@
+import { useState } from "react";
 import { formatCurrency, formatShortDate } from "@/shared/lib/format";
 import type { Manager } from "@/entities/master-managers";
-import type { MasterPayment } from "@/entities/master-payments";
+import type { MasterPayment, MasterPaymentStatus } from "@/entities/master-payments";
 import styles from "./MasterPaymentsTable.module.scss";
 
 interface MasterPaymentsTableProps {
   payments: MasterPayment[];
   managers: Manager[];
-  onTogglePaid: (id: string) => void;
+  onStatusChange: (id: string, status: MasterPaymentStatus) => void;
   onDelete: (id: string) => void;
 }
 
 /** Статус переключает менеджер вручную; любой платёж можно удалить (docs-agent.md 1.12.3) */
-export function MasterPaymentsTable({ payments, managers, onTogglePaid, onDelete }: MasterPaymentsTableProps) {
+export function MasterPaymentsTable({ payments, managers, onStatusChange, onDelete }: MasterPaymentsTableProps) {
+  const [pendingChange, setPendingChange] = useState<{ payment: MasterPayment; status: MasterPaymentStatus } | null>(null);
   const managerName = (id: string) => managers.find((m) => m.id === id)?.name ?? "—";
+  const statusLabel = (payment: MasterPayment) => {
+    if (payment.status === "paid") return "Оплачено";
+    if (payment.invoiceCreationStatus === "failed") return "Ошибка создания";
+    if (payment.invoiceCreationStatus === "uncertain") return "Требует сверки";
+    if (payment.invoiceCreationStatus === "pending") return "Создаётся";
+    return "Ожидает";
+  };
+  const creationStatus = (payment: MasterPayment) => payment.invoiceCreationStatus ?? "succeeded";
+
+  const confirmStatusChange = () => {
+    if (!pendingChange) return;
+    onStatusChange(pendingChange.payment.id, pendingChange.status);
+    setPendingChange(null);
+  };
 
   return (
     <div className={styles.card}>
@@ -38,14 +54,25 @@ export function MasterPaymentsTable({ payments, managers, onTogglePaid, onDelete
                 <td>{managerName(p.managerId)}</td>
                 <td>{formatCurrency(p.amount)}</td>
                 <td>
-                  <button
-                    type="button"
-                    className={`${styles.statusBtn} ${p.status === "paid" ? styles.paid : styles.pending}`}
-                    onClick={() => onTogglePaid(p.id)}
-                    title="Переключить статус"
-                  >
-                    {p.status === "paid" ? "Оплачено" : "Ожидает"}
-                  </button>
+                  {p.status === "pending" && creationStatus(p) !== "succeeded" ? (
+                    <span>{statusLabel(p)}</span>
+                  ) : (
+                  <span className={`${styles.statusControl} ${p.status === "paid" ? styles.paid : styles.pending}`}>
+                    <select
+                      className={styles.statusSelect}
+                      value={p.status}
+                      aria-label={`Статус платежа ${p.projectName}`}
+                      onChange={(event) => {
+                        const status = event.target.value as MasterPaymentStatus;
+                        if (status !== p.status) setPendingChange({ payment: p, status });
+                      }}
+                    >
+                      <option value="pending">Ожидает</option>
+                      <option value="paid">Оплачено</option>
+                    </select>
+                    <span className={styles.chevron} aria-hidden="true">⌄</span>
+                  </span>
+                  )}
                 </td>
                 <td>
                   <button type="button" className={styles.deleteBtn} onClick={() => onDelete(p.id)}>
@@ -59,6 +86,31 @@ export function MasterPaymentsTable({ payments, managers, onTogglePaid, onDelete
 
         {payments.length === 0 && <div className={styles.empty}>Платежей нет</div>}
       </div>
+      {pendingChange && (
+        <div className={styles.confirmOverlay} role="presentation" onMouseDown={() => setPendingChange(null)}>
+          <section
+            className={styles.confirmModal}
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="payment-status-confirm-title"
+            onMouseDown={(event) => event.stopPropagation()}
+          >
+            <h2 id="payment-status-confirm-title">Изменить статус платежа?</h2>
+            <p>
+              Платёж проекта <strong>{pendingChange.payment.projectName}</strong> на сумму{" "}
+              <strong>{formatCurrency(pendingChange.payment.amount)}</strong> будет отмечен как{" "}
+              <strong>{pendingChange.status === "paid" ? "«Оплачено»" : "«Ожидает»"}</strong>.
+            </p>
+            <p className={styles.confirmHint}>
+              После изменения строка может переместиться в другую группу таблицы.
+            </p>
+            <div className={styles.confirmActions}>
+              <button type="button" className={styles.cancelButton} onClick={() => setPendingChange(null)}>Отмена</button>
+              <button type="button" className={styles.confirmButton} onClick={confirmStatusChange}>Да, изменить</button>
+            </div>
+          </section>
+        </div>
+      )}
     </div>
   );
 }

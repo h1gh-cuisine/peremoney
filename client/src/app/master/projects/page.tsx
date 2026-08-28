@@ -1,5 +1,5 @@
 "use client";
-import { useEffect } from 'react';
+import { useEffect, useState } from 'react';
 
 import { Topbar } from "@/widgets/topbar";
 import { PageBody } from "@/shared/ui/PageBody";
@@ -10,10 +10,13 @@ import { MasterProjectsTable } from "@/widgets/master-projects-table";
 import { useMasterManagersStore } from "@/entities/master-managers";
 import { useMasterProjectsStore } from "@/entities/master-projects";
 import styles from "./page.module.scss";
+import { DateRangePicker } from '@/shared/ui/DateRangePicker';
+import { lastNDaysRange, type DateRange } from '@/shared/lib/date';
 
 export default function MasterProjectsPage() {
+  const [range, setRange] = useState<DateRange>(() => lastNDaysRange(30));
   const managers = useMasterManagersStore((s) => s.managers);
-  const hydrateManagers = useMasterManagersStore((s) => s.hydrateFromProjectNames);
+  const loadManagers = useMasterManagersStore((s) => s.load);
   const projects = useMasterProjectsStore((s) => s.projects);
   const updatePrice = useMasterProjectsStore((s) => s.updatePrice);
   const updateRenewalStatus = useMasterProjectsStore((s) => s.updateRenewalStatus);
@@ -22,10 +25,8 @@ export default function MasterProjectsPage() {
   const toggleHidden = useMasterProjectsStore((s) => s.toggleHidden);
   const load = useMasterProjectsStore((s) => s.load);
   const error = useMasterProjectsStore((s) => s.error);
-  useEffect(() => { void load(); }, [load]);
-  useEffect(() => {
-    hydrateManagers(projects.map((project) => project.managerId));
-  }, [hydrateManagers, projects]);
+  useEffect(() => { void load(range); }, [load, range]);
+  useEffect(() => { void loadManagers(); }, [loadManagers]);
 
   return (
     <>
@@ -33,9 +34,15 @@ export default function MasterProjectsPage() {
       <PageBody>
         {error && <p role="alert">{error}</p>}
         <div className={styles.actions}>
-          <EmployeesButton />
-          <LinkProjectButton />
-          <CreateProjectButton />
+          <div className={styles.periodFilter}>
+            <span>Аналитика за период</span>
+            <DateRangePicker value={range} onChange={setRange} />
+          </div>
+          <div className={styles.projectActions}>
+            <EmployeesButton />
+            <LinkProjectButton />
+            <CreateProjectButton />
+          </div>
         </div>
 
         <MasterProjectsTable

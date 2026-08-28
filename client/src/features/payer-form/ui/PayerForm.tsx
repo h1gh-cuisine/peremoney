@@ -4,6 +4,14 @@ import { useState } from "react";
 import { usePayerStore, type PayerDetails } from "@/entities/payer";
 import styles from "./PayerForm.module.scss";
 import { useSubmissionLock } from '@/shared/lib/useSubmissionLock';
+import { isValidInn } from '@/shared/lib/inn';
+
+function innErrorMessage(value: string): string | null {
+  if (!value) return null;
+  if (!/^\d+$/.test(value)) return 'ИНН должен содержать только цифры';
+  if (value.length !== 10 && value.length !== 12) return 'ИНН должен содержать 10 или 12 цифр';
+  return isValidInn(value) ? null : 'Неверная контрольная сумма ИНН — проверьте цифры';
+}
 
 const FIELDS: { key: keyof PayerDetails; label: string; placeholder: string }[] = [
   { key: "organizationName", label: "Название организации", placeholder: "ООО «Название»" },
@@ -27,7 +35,9 @@ export function PayerForm() {
   const updateDraft = usePayerStore((s) => s.updateDraft);
   const save = usePayerStore((s) => s.save);
   const [justSaved, setJustSaved] = useState(false);
+  const [innTouched, setInnTouched] = useState(false);
   const { submitting, run } = useSubmissionLock();
+  const innError = innTouched ? innErrorMessage(draft.inn ?? '') : null;
 
   async function handleSave() {
     if (await run(save)) {
@@ -54,11 +64,14 @@ export function PayerForm() {
             <span className={styles.fieldLabel}>{field.label}</span>
             <input
               type="text"
-              className={styles.input}
+              className={`${styles.input} ${field.key === 'inn' && innError ? styles.inputInvalid : ''}`}
               placeholder={field.placeholder}
               value={draft[field.key] ?? ''}
+              aria-invalid={field.key === 'inn' && !!innError}
               onChange={(e) => updateDraft({ [field.key]: e.target.value })}
+              onBlur={field.key === 'inn' ? () => setInnTouched(true) : undefined}
             />
+            {field.key === 'inn' && innError && <span className={styles.fieldError}>{innError}</span>}
           </label>
         ))}
       </div>

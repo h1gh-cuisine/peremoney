@@ -4,9 +4,10 @@ import { useEffect, useState } from "react";
 import {
   useSettingsStore,
   TIMEZONE_OPTIONS,
-  CRM_OPTIONS,
   MESSENGER_OPTIONS,
-  fetchProviderIntegration,
+  fetchDirectIntegration,
+  saveDirectIntegration,
+  type DirectIntegrationConfig,
 } from "@/entities/settings";
 import { useAccessStore, type HideableSection } from "@/entities/access";
 import styles from "./SettingsForm.module.scss";
@@ -17,7 +18,6 @@ const HIDEABLE_SECTIONS: { key: HideableSection; label: string }[] = [
   { key: "sources", label: "Источники" },
   { key: "script", label: "Скрипт" },
   { key: "finance", label: "Финансы" },
-  { key: "settings", label: "Настройки" },
 ];
 
 const WEEK_DAYS = [
@@ -27,29 +27,8 @@ const WEEK_DAYS = [
   { value: 7, short: "Вс", label: "Воскресенье" },
 ];
 
-type IntegrationOption = { value: string; label: string; group: "crm" | "messenger" };
-const PROVIDER_INTEGRATIONS = new Set(["telegram", "bitrix", "amocrm", "email"]);
-
-const INTEGRATION_FIELD_LABELS: Record<string, string> = {
-  is_active: "Активна", active: "Активна", send_call_link: "Отправлять ссылку на звонок",
-  send_deal: "Создавать сделку", domain: "Домен", title: "Название сделки", status_id: "ID статуса",
-  source_id: "ID источника", assigned_by_id: "Ответственный", comment: "Комментарий", pipeline_id: "ID воронки",
-  responsible_user: "Ответственный пользователь", time_delta: "Смещение времени", tags: "Теги",
-  reciever: "Получатель", site: "Сайт", utm_source: "UTM source", utm_campaign: "UTM campaign",
-  utm_medium: "UTM medium", utm_term: "UTM term", utm_content: "UTM content", accounts: "Аккаунтов",
-};
-
-function formatIntegrationValue(value: unknown): string {
-  if (typeof value === "boolean") return value ? "Да" : "Нет";
-  if (value === null || value === "") return "—";
-  if (Array.isArray(value)) {
-    if (value.every((item) => typeof item === "string")) return value.join(", ") || "—";
-    return value.map((item, index) => `Аккаунт ${index + 1}: ${formatIntegrationValue(item)}`).join("\n");
-  }
-  if (typeof value === "object") return Object.entries(value as Record<string, unknown>)
-    .map(([key, field]) => `${INTEGRATION_FIELD_LABELS[key] ?? key}: ${formatIntegrationValue(field)}`).join("; ");
-  return String(value);
-}
+type DirectChannel = "telegram" | "max";
+type IntegrationOption = { value: DirectChannel; label: string };
 
 export function SettingsForm() {
   const accessLevel = useAccessStore((s) => s.accessLevel);
@@ -67,9 +46,13 @@ export function SettingsForm() {
 
   const [justSaved, setJustSaved] = useState(false);
   const [integration, setIntegration] = useState<IntegrationOption | null>(null);
-  const [providerDetails, setProviderDetails] = useState<Record<string, unknown> | null>(null);
-  const [providerLoading, setProviderLoading] = useState(false);
-  const [providerStatuses, setProviderStatuses] = useState<Record<string, boolean | null | undefined>>({});
+  const [integrationConfigs, setIntegrationConfigs] = useState<Partial<Record<DirectChannel, DirectIntegrationConfig>>>({});
+  const [integrationLoading, setIntegrationLoading] = useState(false);
+  const [integrationSaving, setIntegrationSaving] = useState(false);
+  const [integrationError, setIntegrationError] = useState("");
+  const [botToken, setBotToken] = useState("");
+  const [chatId, setChatId] = useState("");
+  const [integrationEnabled, setIntegrationEnabled] = useState(true);
   const { submitting, run } = useSubmissionLock();
 
   // "Обзвон" зафиксирован и недоступен для проектов типа "номера" (docs-agent.md 1.11)
@@ -80,12 +63,11 @@ export function SettingsForm() {
   useEffect(() => {
     if (!cabinetId) return;
     let active = true;
-    for (const name of PROVIDER_INTEGRATIONS) {
-      void fetchProviderIntegration(cabinetId, name).then((result) => {
-        if (active) setProviderStatuses((current) => ({ ...current, [name]: result.configured }));
-      }).catch(() => {
-        if (active) setProviderStatuses((current) => ({ ...current, [name]: null }));
-      });
+    for (const option of MESSENGER_OPTIONS) {
+      const channel = option.value as DirectChannel;
+      void fetchDirectIntegration(cabinetId, channel).then((result) => {
+        if (active) setIntegrationConfigs((current) => ({ ...current, [channel]: result }));
+      }).catch(() => undefined);
     }
     return () => { active = false; };
   }, [cabinetId]);
@@ -111,7 +93,6 @@ export function SettingsForm() {
     const next = draft.scheduleDays.includes(value)
       ? draft.scheduleDays.filter((day) => day !== value)
       : [...draft.scheduleDays, value].sort((a, b) => a - b);
-    if (!next.length) return;
     const schedulePreset = next.length === 7 ? "everyday"
       : next.join(",") === "5,6" ? "weekends" : "weekdays";
     updateDraft({ scheduleDays: next, schedulePreset });
@@ -119,25 +100,40 @@ export function SettingsForm() {
 
   async function openIntegration(option: IntegrationOption) {
     setIntegration(option);
-    setProviderDetails(null);
-    if (!cabinetId || !PROVIDER_INTEGRATIONS.has(option.value)) return;
-    setProviderLoading(true);
+    setBotToken(""); setChatId(""); setIntegrationEnabled(true); setIntegrationError("");
+    if (!cabinetId) return;
+    setIntegrationLoading(true);
     try {
-      const result = await fetchProviderIntegration(cabinetId, option.value);
-      setProviderDetails(result.details);
-      setProviderStatuses((current) => ({ ...current, [option.value]: result.configured }));
-    } catch { setProviderDetails(null); }
-    finally { setProviderLoading(false); }
+      const result = await fetchDirectIntegration(cabinetId, option.value);
+      setIntegrationConfigs((current) => ({ ...current, [option.value]: result }));
+      setChatId(result.chatId); setIntegrationEnabled(result.enabled);
+    } catch (reason) { setIntegrationError(reason instanceof Error ? reason.message : "Не удалось загрузить интеграцию"); }
+    finally { setIntegrationLoading(false); }
   }
 
-  const integrationEnabled = integration ? providerStatuses[integration.value] === true : false;
+  function integrationStatus(value: DirectChannel) {
+    const config = integrationConfigs[value];
+    if (!config) return "Проверяем…";
+    if (!config.configured) return "Не подключено";
+    return config.enabled ? "Подключено" : "Отключено";
+  }
 
-  function integrationStatus(value: string) {
-    if (!PROVIDER_INTEGRATIONS.has(value)) return "Нет во внешнем API";
-    const status = providerStatuses[value];
-    if (status === undefined) return "Проверяем…";
-    if (status === null) return "Не удалось проверить";
-    return status ? "Подключено" : "Не подключено";
+  async function saveIntegration() {
+    if (!cabinetId || !integration || !chatId.trim()) return;
+    const existing = integrationConfigs[integration.value];
+    if (!existing?.hasToken && botToken.trim().length < 10) {
+      setIntegrationError("Укажите bot token"); return;
+    }
+    setIntegrationSaving(true); setIntegrationError("");
+    try {
+      const result = await saveDirectIntegration(cabinetId, integration.value, {
+        ...(botToken.trim() ? { botToken: botToken.trim() } : {}), chatId: chatId.trim(), enabled: integrationEnabled,
+      });
+      setIntegrationConfigs((current) => ({ ...current, [integration.value]: result }));
+      updateDraft({ messengerIntegrations: Array.from(new Set([...draft.messengerIntegrations, integration.value])) });
+      setIntegration(null);
+    } catch (reason) { setIntegrationError(reason instanceof Error ? reason.message : "Не удалось сохранить интеграцию"); }
+    finally { setIntegrationSaving(false); }
   }
 
   async function handleSave() {
@@ -202,7 +198,7 @@ export function SettingsForm() {
 
       <section className={styles.card}>
         <h3 className={styles.cardTitle}>Расписание</h3>
-        <p className={styles.cardHint}>Выберите дни работы и процессы, которые должны запускаться автоматически.</p>
+        <p className={styles.cardHint}>Выберите дни работы и процессы, которые должны запускаться автоматически. Если снять все дни, проект будет ежедневно оставаться на паузе.</p>
 
         <div className={styles.field}>
           <span className={styles.fieldLabel}>Дни работы</span>
@@ -252,29 +248,14 @@ export function SettingsForm() {
 
       <section className={styles.card}>
         <h3 className={styles.cardTitle}>Интеграции</h3>
-
-        <div className={styles.field}>
-          <span className={styles.fieldLabel}>CRM</span>
-          <div className={styles.integrationGrid}>
-            {CRM_OPTIONS.filter((opt) => opt.value).map((opt) => (
-              <button key={opt.value} type="button" className={styles.integrationButton}
-                onClick={() => void openIntegration({ ...opt, group: "crm" })}>
-                <span className={styles.integrationMark}>{opt.label.slice(0, 1)}</span>
-                <span><strong>{opt.label}</strong><small>{integrationStatus(opt.value)}</small></span>
-                <span className={styles.configure}>Настроить</span>
-              </button>
-            ))}
-          </div>
-        </div>
-
         <div className={styles.field}>
           <span className={styles.fieldLabel}>Мессенджеры</span>
           <div className={styles.integrationGrid}>
             {MESSENGER_OPTIONS.map((opt) => (
               <button key={opt.value} type="button" className={styles.integrationButton}
-                onClick={() => void openIntegration({ ...opt, group: "messenger" })}>
+                onClick={() => void openIntegration(opt as IntegrationOption)}>
                 <span className={styles.integrationMark}>{opt.label.slice(0, 1)}</span>
-                <span><strong>{opt.label}</strong><small>{integrationStatus(opt.value)}</small></span>
+                <span><strong>{opt.label}</strong><small>{integrationStatus(opt.value as DirectChannel)}</small></span>
                 <span className={styles.configure}>Настроить</span>
               </button>
             ))}
@@ -290,28 +271,33 @@ export function SettingsForm() {
             <button type="button" className={styles.closeButton} aria-label="Закрыть" onClick={() => setIntegration(null)}>×</button>
           </div>
           <div className={styles.connectionState}>
-            <span className={`${styles.statusDot} ${integrationEnabled ? styles.statusDotActive : ""}`} />
+            <span className={`${styles.statusDot} ${integrationConfigs[integration.value]?.enabled ? styles.statusDotActive : ""}`} />
             <span>{integrationStatus(integration.value)}</span>
           </div>
-          {!PROVIDER_INTEGRATIONS.has(integration.value) ? (
-            <p className={styles.integrationNotice}>
-              Leads Factory не предоставляет эту интеграцию во внешнем API. Подключить её из Peremoney сейчас невозможно.
-            </p>
-          ) : <>
-            {providerLoading && <p className={styles.modalHint}>Получаем настройки из Leads Factory…</p>}
-            {!providerLoading && providerDetails && Object.keys(providerDetails).length > 0 ?
-              <div className={styles.providerDetails}>{Object.entries(providerDetails).map(([key, value]) =>
-                <div key={key}><span>{INTEGRATION_FIELD_LABELS[key] ?? key.replaceAll("_", " ")}</span>
-                  <strong>{formatIntegrationValue(value)}</strong></div>)}</div>
-              : !providerLoading && <p className={styles.integrationNotice}>Настройки интеграции у проекта пока не заполнены.</p>}
-            <p className={styles.modalHint}>Токены, webhook и пароли намеренно не передаются в Peremoney.</p>
+          {integrationLoading ? <p className={styles.modalHint}>Загружаем настройки…</p> : <>
+            <label className={styles.field}>
+              <span className={styles.fieldLabel}>Bot token</span>
+              <input type="password" className={styles.input} autoComplete="new-password"
+                placeholder={integrationConfigs[integration.value]?.hasToken ? "Токен сохранён — оставьте пустым, чтобы не менять" : "Вставьте токен бота"}
+                value={botToken} onChange={(event) => setBotToken(event.target.value)} />
+            </label>
+            <label className={styles.field}>
+              <span className={styles.fieldLabel}>ID чата</span>
+              <input type="text" className={styles.input} placeholder="Например, -1001234567890"
+                value={chatId} onChange={(event) => setChatId(event.target.value)} />
+            </label>
+            <label className={styles.checkboxItem}>
+              <input type="checkbox" checked={integrationEnabled}
+                onChange={(event) => setIntegrationEnabled(event.target.checked)} />
+              Интеграция активна
+            </label>
+            <p className={styles.modalHint}>Подключение выполняется напрямую через Peremoney. Сохранённый токен обратно в браузер не возвращается.</p>
           </>}
+          {integrationError && <p role="alert" className={styles.integrationNotice}>{integrationError}</p>}
           <div className={styles.modalActions}>
             <button type="button" className={styles.secondaryButton} onClick={() => setIntegration(null)}>Закрыть</button>
-            {PROVIDER_INTEGRATIONS.has(integration.value) &&
-              <a className={styles.primaryButton} href="https://lk.leads-factory.ru/" target="_blank" rel="noreferrer">
-                Открыть Leads Factory
-              </a>}
+            <button type="button" className={styles.primaryButton} disabled={integrationLoading || integrationSaving || !chatId.trim()}
+              onClick={() => void saveIntegration()}>{integrationSaving ? "Сохраняем…" : "Сохранить"}</button>
           </div>
         </section>
       </div>}

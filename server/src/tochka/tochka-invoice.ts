@@ -3,7 +3,7 @@ export interface TochkaPayer {
   inn: string;
   kpp?: string;
   legalAddress?: string;
-  checkingAccount?: string;
+  bankName?: string;
 }
 
 interface InvoiceInput {
@@ -28,7 +28,7 @@ export function buildTochkaInvoice(input: InvoiceInput) {
       ...(input.payer.kpp ? { kpp: input.payer.kpp } : {}),
       secondSideName: input.payer.organizationName,
       ...(input.payer.legalAddress ? { legalAddress: input.payer.legalAddress } : {}),
-      ...(input.payer.checkingAccount ? { accountId: input.payer.checkingAccount } : {}),
+      ...(input.payer.bankName ? { bankName: input.payer.bankName } : {}),
     },
     Content: { Invoice: {
       number: input.invoiceNo,

@@ -1,4 +1,4 @@
-import { UnauthorizedException } from '@nestjs/common';
+import { NotFoundException, UnauthorizedException } from '@nestjs/common';
 import { UserRole } from '@prisma/client';
 import { hash } from 'bcryptjs';
 import { AuthService } from './auth.service';
@@ -29,5 +29,27 @@ describe('аутентификация: бизнес-правила 2.1', () => 
     const update = jest.fn().mockResolvedValue({});
     await new AuthService({ user: { update } } as never, {} as never, {} as never).logout('u');
     expect(update).toHaveBeenCalledWith({ where: { id: 'u' }, data: { sessionVersion: { increment: 1 } } });
+  });
+
+  it('выдаёт отдельную FULL-сессию выбранного проекта мастеру', async () => {
+    const findFirst = jest.fn().mockResolvedValue({
+      id: 'full-user', login: 'employee', role: UserRole.FULL, cabinetId: 'cab', isActive: true, sessionVersion: 2,
+    });
+    const jwt = { signAsync: jest.fn().mockResolvedValue('project-token') };
+    const service = new AuthService({ user: { findFirst } } as never, jwt as never, {} as never);
+
+    await expect(service.createProjectSession('cab')).resolves.toEqual({
+      accessToken: 'project-token',
+      user: { id: 'full-user', login: 'employee', role: UserRole.FULL, cabinetId: 'cab' },
+    });
+    expect(findFirst).toHaveBeenCalledWith({
+      where: { cabinetId: 'cab', role: UserRole.FULL, isActive: true },
+      orderBy: { createdAt: 'asc' },
+    });
+  });
+
+  it('не создаёт сессию проекта без активного сотрудника', async () => {
+    const service = new AuthService({ user: { findFirst: jest.fn().mockResolvedValue(null) } } as never, {} as never, {} as never);
+    await expect(service.createProjectSession('cab')).rejects.toBeInstanceOf(NotFoundException);
   });
 });

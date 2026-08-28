@@ -1,13 +1,15 @@
 import { BadRequestException, ConflictException, Injectable, NotFoundException } from '@nestjs/common';
 import { createHash } from 'node:crypto';
 import {
-  BalanceEntryType, LeadSaleStatus, PaymentStatus, Prisma, ProjectType,
+  BalanceEntryType, LeadSaleStatus, PaymentStatus, Prisma, ProjectType, ScheduledTask,
 } from '@prisma/client';
 import { PrismaService } from '../prisma/prisma.service';
 import { AnalyticsQueryDto } from './dto/analytics-query.dto';
 import { TochkaService } from '../tochka/tochka.service';
-import { TochkaApiException } from '../tochka/tochka.service';
+import { TochkaApiException, TochkaTransportException } from '../tochka/tochka.service';
 import { buildTochkaInvoice, TochkaPayer } from '../tochka/tochka-invoice';
+import { hasAvailableBalance } from './balance-availability';
+import { isValidInn } from './inn';
 
 @Injectable()
 export class FinanceService {
@@ -16,11 +18,16 @@ export class FinanceService {
   async chargeUsage(cabinetId: string, kind: 'contact' | 'lead', entityId: string) {
     try {
       return await this.prisma.$transaction(async (tx) => {
+        await tx.$executeRaw`SELECT pg_advisory_xact_lock(hashtext(${cabinetId}))`;
         const cabinet = await tx.cabinet.findUniqueOrThrow({ where: { id: cabinetId } });
         const applicable = kind === 'lead'
           ? cabinet.type === ProjectType.VDL
           : cabinet.type === ProjectType.PACKAGE || cabinet.type === ProjectType.NUMBERS;
         if (!applicable) return false;
+        if (!hasAvailableBalance(cabinet)) {
+          await this.enqueueBalanceReconciliation(tx, cabinetId);
+          return false;
+        }
         const type = kind === 'lead' ? BalanceEntryType.LEAD_CHARGE : BalanceEntryType.CONTACT_CHARGE;
         await tx.balanceEntry.create({ data: {
           cabinetId, type, externalKey: `${type}:${entityId}`,
@@ -29,6 +36,9 @@ export class FinanceService {
         await tx.cabinet.update({ where: { id: cabinetId }, data: {
           moneyBalance: { decrement: cabinet.price }, usedUnits: { increment: 1 },
         } });
+        if (Number(cabinet.moneyBalance) - Number(cabinet.price) <= 0 || cabinet.usedUnits + 1 >= cabinet.totalUnits) {
+          await this.enqueueBalanceReconciliation(tx, cabinetId);
+        }
         return true;
       });
     } catch (error) {
@@ -50,14 +60,9 @@ export class FinanceService {
 
   listPayments(cabinetId?: string) {
     return this.prisma.payment.findMany({
-      where: {
-        ...(cabinetId ? { cabinetId } : {}),
-        OR: [
-          { invoiceIdempotencyKey: null },
-          { invoiceCreationStatus: 'SUCCEEDED' },
-          { status: PaymentStatus.PAID },
-        ],
-      },
+      // Не скрываем неуспешные попытки: клиенту и менеджеру важно видеть,
+      // почему счёт не появился в Точке. Финансовые итоги фильтруются отдельно.
+      where: cabinetId ? { cabinetId } : undefined,
       include: { cabinet: { select: { name: true, managerName: true } } },
       orderBy: [{ status: 'asc' }, { createdAt: 'desc' }],
     });
@@ -73,6 +78,11 @@ export class FinanceService {
     const amount = unitPrice.mul(quantity);
     const payer = cabinet.payerProfile.data as unknown as TochkaPayer;
     if (!payer.organizationName || !payer.inn) throw new BadRequestException('Укажите название и ИНН плательщика');
+    if (!/^\d{10}$|^\d{12}$/.test(payer.inn)) throw new BadRequestException('ИНН плательщика должен содержать 10 или 12 цифр');
+    if (!isValidInn(payer.inn)) throw new BadRequestException('ИНН плательщика указан с ошибкой — проверьте контрольную сумму');
+    if (payer.inn.length === 10 && !/^\d{9}$/.test(payer.kpp ?? '')) {
+      throw new BadRequestException('Для организации укажите КПП из 9 цифр');
+    }
     if (!this.tochka) throw new BadRequestException('Интеграция Точки не настроена');
     const requestHash = createHash('sha256').update(JSON.stringify({ cabinetId, quantity, unitPrice: unitPrice.toString(), payer })).digest('hex');
     // Keep the value digits-only for human/accounting use; Tochka's JSON contract
@@ -109,8 +119,9 @@ export class FinanceService {
       } });
       return { payment: { ...payment, ...completed }, document: { kind: 'tochka-invoice', documentId } };
     } catch (error) {
-      const deterministicRejection = error instanceof TochkaApiException
-        && error.providerStatus >= 400 && error.providerStatus < 500;
+      const deterministicRejection = (error instanceof TochkaApiException
+        && error.providerStatus >= 400 && error.providerStatus < 500)
+        || (error instanceof TochkaTransportException && !error.ambiguous);
       await this.prisma.payment.update({ where: { id: payment.id }, data: {
         invoiceCreationStatus: deterministicRejection ? 'FAILED' : 'UNCERTAIN',
       } });
@@ -125,7 +136,7 @@ export class FinanceService {
     return this.tochka.getInvoicePdf(payment.tochkaDocumentId);
   }
 
-  async setPaymentStatus(paymentId: string, status: PaymentStatus, actorId?: string) {
+  async setPaymentStatus(paymentId: string, status: PaymentStatus, actorId?: string, bankPaymentId?: string) {
     return this.prisma.$transaction(async (tx) => {
       // Serialize transitions for one payment. READ COMMITTED alone allows two
       // concurrent requests to observe PENDING and credit the cabinet twice.
@@ -161,22 +172,30 @@ export class FinanceService {
       await tx.balanceEntry.create({ data: {
         cabinetId: payment.cabinetId, paymentId: payment.id,
         type: paid ? BalanceEntryType.PAYMENT : BalanceEntryType.PAYMENT_REVERSAL,
-        externalKey: `${paid ? 'PAYMENT' : 'REVERSAL'}:${payment.id}:${Date.now()}`,
+        externalKey: bankPaymentId ?? `${paid ? 'PAYMENT' : 'REVERSAL'}:${payment.id}:${Date.now()}`,
         moneyDelta: paid ? payment.amount : payment.amount.negated(), unitsDelta: paid ? payment.quantity : -payment.quantity,
       } });
       const updated = await tx.payment.update({ where: { id: payment.id }, data: {
-        status, paidAt: paid ? new Date() : null,
+        status, paidAt: paid ? new Date() : null, bankPaymentId: paid ? bankPaymentId : null,
         ...(paid ? {
           balanceTypeBefore: payment.cabinet.balanceType,
           totalUnitsBefore: payment.cabinet.totalUnits,
           usedUnitsBefore: payment.cabinet.usedUnits,
         } : {}),
       } });
-      await tx.paymentAudit.create({ data: { paymentId: payment.id, actorId, action: 'STATUS_CHANGED',
+      await tx.paymentAudit.create({ data: { paymentId: payment.id, actorId, action: bankPaymentId ? 'BANK_STATUS_CONFIRMED' : 'STATUS_CHANGED',
         before: { status: payment.status } as Prisma.InputJsonValue,
         after: { status: updated.status } as Prisma.InputJsonValue } });
+      await this.enqueueBalanceReconciliation(tx, payment.cabinetId);
       return updated;
     });
+  }
+
+  private enqueueBalanceReconciliation(tx: Prisma.TransactionClient, cabinetId: string) {
+    const now = new Date();
+    return tx.scheduledRun.create({ data: {
+      cabinetId, task: ScheduledTask.APPLY_SCHEDULE, scheduledFor: now, nextAttemptAt: now,
+    } });
   }
 
   async deletePayment(paymentId: string, actorId?: string) {

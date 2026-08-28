@@ -7,6 +7,7 @@ import { AnswerSyncService } from '../crm/answer-sync.service';
 import { LeadsFactoryService } from '../leads-factory/leads-factory.service';
 import { PrismaService } from '../prisma/prisma.service';
 import { SourcesService } from '../sources/sources.service';
+import { hasAvailableBalance } from '../finance/balance-availability';
 
 const MOSCOW_OFFSET_MS = 3 * 60 * 60 * 1000;
 const SLOTS: Array<{ hour: number; task: ScheduledTask }> = [
@@ -150,8 +151,11 @@ export class SchedulerService implements OnApplicationBootstrap, OnApplicationSh
     const cabinet = await this.prisma.cabinet.findUniqueOrThrow({ where: { id: run.cabinetId } });
     if (!cabinet.providerProjectId) throw new Error('У кабинета не указан providerProjectId');
     if (run.task === ScheduledTask.APPLY_SCHEDULE) {
-      const active = cabinet.isActive && this.isActiveDay(cabinet.scheduleDays, run.scheduledFor);
-      await this.provider.updateProjectSchedule(cabinet.providerProjectId, active);
+      const active = cabinet.isActive && hasAvailableBalance(cabinet)
+        && this.isActiveNextDay(cabinet.scheduleDays, run.scheduledFor);
+      await this.provider.updateProjectSchedule(cabinet.providerProjectId, active, {
+        uploadsEnabled: cabinet.uploadsEnabled, callsEnabled: cabinet.callsEnabled,
+      });
       return { active, scheduleDays: cabinet.scheduleDays };
     }
     if (run.task === ScheduledTask.SCRIPT_SYNC) {
@@ -168,8 +172,8 @@ export class SchedulerService implements OnApplicationBootstrap, OnApplicationSh
     throw new Error(`Unsupported scheduled task: ${run.task}`);
   }
 
-  private isActiveDay(days: number[], scheduledFor: Date) {
-    const jsDay = new Date(scheduledFor.getTime() + MOSCOW_OFFSET_MS).getUTCDay();
+  private isActiveNextDay(days: number[], scheduledFor: Date) {
+    const jsDay = new Date(scheduledFor.getTime() + MOSCOW_OFFSET_MS + 24 * 60 * 60 * 1000).getUTCDay();
     const isoDay = jsDay === 0 ? 7 : jsDay;
     return days.includes(isoDay);
   }

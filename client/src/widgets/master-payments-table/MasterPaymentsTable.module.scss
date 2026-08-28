@@ -45,18 +45,40 @@
   }
 }
 
-.statusBtn {
-  @include m.button-reset;
-  display: inline-block;
+.statusControl {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
   padding: 2px v.$space-3;
   border-radius: v.$radius-full;
   font-size: v.$font-size-xs;
-  cursor: pointer;
   transition: filter v.$transition-fast;
 
   &:hover {
     filter: brightness(1.15);
   }
+}
+
+.statusSelect {
+  appearance: none;
+  min-width: 88px;
+  padding: 0 18px 0 0;
+  border: 0;
+  outline: 0;
+  background: transparent;
+  color: inherit;
+  font: inherit;
+  cursor: pointer;
+}
+
+.chevron {
+  position: absolute;
+  right: 8px;
+  top: 50%;
+  translate: 0 -56%;
+  font-size: 14px;
+  line-height: 1;
+  pointer-events: none;
 }
 
 .paid {
@@ -84,4 +106,68 @@
   text-align: center;
   color: v.$color-text-muted;
   font-size: v.$font-size-sm;
+}
+
+.confirmOverlay {
+  position: fixed;
+  inset: 0;
+  z-index: v.$z-modal;
+  display: grid;
+  place-items: center;
+  padding: v.$space-4;
+  background: rgba(0, 0, 0, 0.68);
+  backdrop-filter: blur(6px);
+}
+
+.confirmModal {
+  width: min(480px, 100%);
+  padding: v.$space-5;
+  border: 1px solid v.$color-border;
+  border-radius: v.$radius-md;
+  background: v.$color-bg-card;
+  box-shadow: 0 24px 80px rgba(0, 0, 0, 0.48);
+  white-space: normal;
+
+  h2 {
+    margin: 0 0 v.$space-3;
+    color: v.$color-text-primary;
+    font-size: v.$font-size-lg;
+  }
+
+  p {
+    margin: 0;
+    color: v.$color-text-secondary;
+    line-height: 1.55;
+  }
+}
+
+.confirmHint {
+  margin-top: v.$space-2 !important;
+  color: v.$color-warning !important;
+  font-size: v.$font-size-xs;
+}
+
+.confirmActions {
+  display: flex;
+  justify-content: flex-end;
+  gap: v.$space-2;
+  margin-top: v.$space-5;
+}
+
+.cancelButton,
+.confirmButton {
+  @include m.button-reset;
+  padding: v.$space-2 v.$space-4;
+  border-radius: v.$radius-sm;
+  font-size: v.$font-size-sm;
+}
+
+.cancelButton {
+  border: 1px solid v.$color-border;
+  color: v.$color-text-secondary;
+}
+
+.confirmButton {
+  background: v.$color-accent-1;
+  color: v.$color-text-on-accent;
 }

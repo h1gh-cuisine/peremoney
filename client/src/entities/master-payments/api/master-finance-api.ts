@@ -4,10 +4,12 @@ import type { ManagerStat } from '../lib/managerStats';
 import { getPeriodRange, type MasterPeriod } from '../lib/period';
 import type { MasterPayment, MasterPaymentStatus } from '../model/types';
 
-export interface ApiMasterPayment { id: string; cabinetId: string; legalEntity: string | null; amount: string | number; status: 'PAID' | 'PENDING'; createdAt: string; cabinet: { name: string; managerName: string | null }; }
+export interface ApiMasterPayment { id: string; cabinetId: string; legalEntity: string | null; amount: string | number; status: 'PAID' | 'PENDING'; invoiceCreationStatus?: 'PENDING' | 'SUCCEEDED' | 'FAILED' | 'UNCERTAIN'; createdAt: string; cabinet: { name: string; managerName: string | null }; }
 export function mapMasterPayment(value: ApiMasterPayment): MasterPayment { return { id: value.id, projectId: value.cabinetId,
   projectName: value.cabinet.name, legalEntity: value.legalEntity ?? '', amount: Number(value.amount),
-  managerId: value.cabinet.managerName ?? 'Без менеджера', status: value.status === 'PAID' ? 'paid' : 'pending', createdAt: value.createdAt.slice(0, 10) }; }
+  managerId: value.cabinet.managerName ?? 'Без менеджера', status: value.status === 'PAID' ? 'paid' : 'pending',
+  invoiceCreationStatus: (value.invoiceCreationStatus ?? 'SUCCEEDED').toLowerCase() as MasterPayment['invoiceCreationStatus'],
+  createdAt: value.createdAt.slice(0, 10) }; }
 export function mapMasterDashboard(value: { managers: Array<{ managerName: string; activeProjects: number; paymentsCount: number; paymentsSum: number; retention: number; bonus: number }>; clients: Array<{ cabinetId: string; name: string; paymentsSum: number }> }) {
   return { managers: value.managers.map((x): ManagerStat => ({ managerId: x.managerName, managerName: x.managerName,
     activeProjectsAtSnapshot: x.activeProjects, paymentsCount: x.paymentsCount, paymentsSum: x.paymentsSum, retention: x.retention, bonus: x.bonus })),

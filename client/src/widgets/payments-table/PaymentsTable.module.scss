@@ -62,6 +62,16 @@
   color: v.$color-warning;
 }
 
+.failed {
+  background: rgba(#ff7474, 0.14);
+  color: #ff7474;
+}
+
+.uncertain {
+  background: rgba(v.$color-accent-2, 0.14);
+  color: v.$color-accent-2;
+}
+
 .empty {
   padding: v.$space-8;
   text-align: center;

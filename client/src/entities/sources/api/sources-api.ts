@@ -35,8 +35,8 @@ export async function fetchSources(cabinetId: string, range: DateRange) {
 export async function toggleSource(cabinetId: string, id: string, enabled: boolean) {
   await apiClient().patch(`/cabinets/${cabinetId}/sources/${id}`, { enabled });
 }
-export async function addSourceValues(cabinetId: string, sources: string[], sourceType: SourceType, tagType?: string) {
-  return apiClient().post(`/cabinets/${cabinetId}/sources`, { sources, sourceType, tagType, activeDuplicateSource: false });
+export async function addSourceValues(cabinetId: string, sources: string[], sourceType: SourceType) {
+  return apiClient().post(`/cabinets/${cabinetId}/sources`, { sources, sourceType, activeDuplicateSource: false });
 }
 export async function saveAutomation(cabinetId: string, settings: SourceAutomationSettings) {
   await apiClient().patch(`/cabinets/${cabinetId}/sources/automation/settings`, automationToApi(settings));

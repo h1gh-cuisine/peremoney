@@ -10,4 +10,9 @@ describe('финансы UI: бизнес-правила 1.9', () => {
   it('LTV суммирует только фактические оплаты', () => expect(computeLtv(payments)).toBe(80));
   it('ожидаемое суммирует только pending', () => expect(computeExpected(payments)).toBe(250));
   it('всего оплат считает весь список', () => expect(computeTotalPayments(payments)).toBe(3));
+  it('не считает несозданный счёт ожидаемой оплатой', () => {
+    const failed: Payment = { id: '4', amount: 500, quantity: 2, status: 'pending', invoiceCreationStatus: 'failed', createdAt: '2026-08-04' };
+    expect(computeExpected([...payments, failed])).toBe(250);
+    expect(computeTotalPayments([...payments, failed])).toBe(3);
+  });
 });

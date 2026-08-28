@@ -143,6 +143,7 @@ model Cabinet {
   sourceTags      SourceTag[]
   domainJobs      DomainSourceJob[]
   scheduledRuns   ScheduledRun[]
+  directIntegrations DirectIntegration[]
   payerProfile    PayerProfile?
   payments        Payment[]
   balanceEntries  BalanceEntry[]
@@ -151,6 +152,26 @@ model Cabinet {
   providerCreation ProviderProjectCreation?
 
   @@index([providerProjectId])
+}
+
+model MasterManager {
+  name      String   @id
+  createdAt DateTime @default(now())
+}
+
+model DirectIntegration {
+  id                String   @id @default(uuid()) @db.Uuid
+  cabinetId         String   @db.Uuid
+  channel           String
+  botTokenEncrypted String
+  chatId            String
+  enabled           Boolean  @default(true)
+  createdAt         DateTime @default(now())
+  updatedAt         DateTime @updatedAt
+  cabinet           Cabinet  @relation(fields: [cabinetId], references: [id], onDelete: Cascade)
+
+  @@unique([cabinetId, channel])
+  @@index([cabinetId])
 }
 
 model ProviderProjectCreation {
@@ -193,6 +214,7 @@ model Payment {
   projectType ProjectType
   status      PaymentStatus @default(PENDING)
   paidAt      DateTime?
+  telegramNotifiedAt DateTime?
   balanceTypeBefore ProjectType?
   totalUnitsBefore Int?
   usedUnitsBefore Int?

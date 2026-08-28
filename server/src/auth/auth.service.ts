@@ -1,4 +1,4 @@
-import { Injectable, OnApplicationBootstrap, UnauthorizedException } from '@nestjs/common';
+import { Injectable, NotFoundException, OnApplicationBootstrap, UnauthorizedException } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { JwtService } from '@nestjs/jwt';
 import { UserRole } from '@prisma/client';
@@ -30,6 +30,18 @@ export class AuthService implements OnApplicationBootstrap {
     if (!user?.isActive || !(await compare(dto.password, user.passwordHash))) {
       throw new UnauthorizedException('Неверный логин или пароль');
     }
+    return {
+      accessToken: await this.jwt.signAsync({ sub: user.id, ver: user.sessionVersion }),
+      user: { id: user.id, login: user.login, role: user.role, cabinetId: user.cabinetId },
+    };
+  }
+
+  async createProjectSession(cabinetId: string) {
+    const user = await this.prisma.user.findFirst({
+      where: { cabinetId, role: UserRole.FULL, isActive: true },
+      orderBy: { createdAt: 'asc' },
+    });
+    if (!user) throw new NotFoundException('Для проекта не найден активный сотрудник');
     return {
       accessToken: await this.jwt.signAsync({ sub: user.id, ver: user.sessionVersion }),
       user: { id: user.id, login: user.login, role: user.role, cabinetId: user.cabinetId },

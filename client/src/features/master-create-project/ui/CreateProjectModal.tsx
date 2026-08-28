@@ -1,10 +1,12 @@
 "use client";
 
-import { useRef, useState } from "react";
-import Link from "next/link";
+import { useEffect, useRef, useState } from "react";
+import { useRouter } from "next/navigation";
 import { PROJECT_TYPE_OPTIONS, type ProjectType } from "@/shared/lib/projectType";
 import { useMasterManagersStore } from "@/entities/master-managers";
-import { useMasterProjectsStore, type MasterProject } from "@/entities/master-projects";
+import { fetchProviderRegions, useMasterProjectsStore, type MasterProject, type ProviderRegion } from "@/entities/master-projects";
+import { type LoginResponse, sessionFromLogin, useSessionStore } from "@/entities/session";
+import { ApiError, createApiClient } from "@/shared/api";
 import { generateCredentials } from "@/shared/lib/credentials";
 import styles from "./CreateProjectModal.module.scss";
 
@@ -12,27 +14,32 @@ interface CreateProjectModalProps {
   onClose: () => void;
 }
 
-const REGION_OPTIONS = [
-  { id: 1, name: "РФ" },
-  { id: 77, name: "Москва" },
-  { id: 78, name: "Санкт-Петербург" },
-  { id: 66, name: "Свердловская область" },
-  { id: 23, name: "Краснодарский край" },
-];
-
 export function CreateProjectModal({ onClose }: CreateProjectModalProps) {
+  const router = useRouter();
   const managers = useMasterManagersStore((s) => s.managers);
   const createProject = useMasterProjectsStore((s) => s.createProject);
+  const setSession = useSessionStore((s) => s.setSession);
 
   const [clientName, setClientName] = useState("");
   const [type, setType] = useState<ProjectType>("quals");
-  const [regionId, setRegionId] = useState(REGION_OPTIONS[0].id);
-  const region = REGION_OPTIONS.find((item) => item.id === regionId)?.name ?? REGION_OPTIONS[0].name;
+  const [regions, setRegions] = useState<ProviderRegion[]>([]);
+  const [regionsError, setRegionsError] = useState("");
+  const [regionsLoading, setRegionsLoading] = useState(true);
+  const [regionIds, setRegionIds] = useState<number[]>([]);
+  const [regionPickerOpen, setRegionPickerOpen] = useState(false);
+  const [regionSearch, setRegionSearch] = useState("");
+  const [regionDraft, setRegionDraft] = useState<number[]>([]);
+  const allRussiaSelected = regions.length > 0 && regionIds.length === regions.length;
+  const region = allRussiaSelected
+    ? "Вся Россия"
+    : regions.filter((item) => regionIds.includes(item.id)).map((item) => item.name).join(", ");
   const [sphere, setSphere] = useState("");
   const [managerId, setManagerId] = useState(managers[0]?.id ?? "");
   const [price, setPrice] = useState(1500);
   const [created, setCreated] = useState<MasterProject | null>(null);
   const [creationError, setCreationError] = useState<string | null>(null);
+  const [projectLoginError, setProjectLoginError] = useState<string | null>(null);
+  const [openingProject, setOpeningProject] = useState(false);
   const idempotencyKeyRef = useRef(crypto.randomUUID());
   const employeeCredentialsRef = useRef(generateCredentials("staff"));
   const clientCredentialsRef = useRef(generateCredentials("client"));
@@ -40,7 +47,21 @@ export function CreateProjectModal({ onClose }: CreateProjectModalProps) {
   // 2.8.3: ручка создания не идемпотентна — защита от повторной отправки
   const [submitting, setSubmitting] = useState(false);
 
-  const canSubmit = clientName.trim() && sphere.trim() && managerId && price > 0;
+  const canSubmit = clientName.trim() && sphere.trim() && managerId && regionIds.length > 0 && price > 0;
+
+  useEffect(() => {
+    let active = true;
+    setRegionsLoading(true);
+    fetchProviderRegions().then((values) => {
+      if (!active) return;
+      setRegions(values);
+      setRegionIds((current) => current.length ? current : values[0] ? [values[0].id] : []);
+      setRegionsError(values.length ? "" : "Leads Factory не вернул доступные регионы");
+    }).catch((error: unknown) => {
+      if (active) setRegionsError(error instanceof Error ? error.message : "Не удалось загрузить регионы");
+    }).finally(() => { if (active) setRegionsLoading(false); });
+    return () => { active = false; };
+  }, []);
 
   function resetFailedAttempt() {
     if (!creationError) return;
@@ -58,7 +79,7 @@ export function CreateProjectModal({ onClose }: CreateProjectModalProps) {
     try {
       const managerName = managers.find((manager) => manager.id === managerId)?.name ?? managerId;
       const project = await createProject({
-        clientName: clientName.trim(), type, region, regionId, sphere: sphere.trim(), managerId, managerName, price,
+        clientName: clientName.trim(), type, region, regionId: regionIds[0], regionIds, sphere: sphere.trim(), managerId, managerName, price,
         employeeLogin: employeeCredentialsRef.current.login, clientLogin: clientCredentialsRef.current.login,
         idempotencyKey: idempotencyKeyRef.current,
       });
@@ -68,6 +89,30 @@ export function CreateProjectModal({ onClose }: CreateProjectModalProps) {
     } finally {
       submissionLockRef.current = false;
       setSubmitting(false);
+    }
+  }
+
+  async function openCreatedProject() {
+    if (!created || openingProject) return;
+    setOpeningProject(true);
+    setProjectLoginError(null);
+    try {
+      const api = createApiClient({
+        baseUrl: process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:4010/api",
+        getToken: () => null,
+      });
+      const response = await api.post<LoginResponse>("/auth/login", {
+        login: created.employeeLogin,
+        password: created.employeePassword,
+      });
+      if (response.user.role === "MASTER" || response.user.cabinetId !== created.id) {
+        throw new Error("Сервер вернул сессию другого проекта");
+      }
+      setSession(sessionFromLogin(response));
+      router.push("/dashboard");
+    } catch (error) {
+      setProjectLoginError(error instanceof ApiError || error instanceof Error ? error.message : "Не удалось открыть проект");
+      setOpeningProject(false);
     }
   }
 
@@ -100,16 +145,32 @@ export function CreateProjectModal({ onClose }: CreateProjectModalProps) {
               </select>
             </label>
 
-            <label className={styles.field}>
+            <div className={styles.field}>
               <span className={styles.fieldLabel}>Регион</span>
-              <select className={styles.select} value={regionId} onChange={(e) => { resetFailedAttempt(); setRegionId(Number(e.target.value)); }}>
-                {REGION_OPTIONS.map((r) => (
-                  <option key={r.id} value={r.id}>
-                    {r.name}
-                  </option>
-                ))}
-              </select>
-            </label>
+              <button
+                type="button"
+                className={styles.regionTrigger}
+                disabled={regionsLoading || !regions.length}
+                onClick={() => {
+                  setRegionDraft(regionIds);
+                  setRegionSearch("");
+                  setRegionPickerOpen(true);
+                }}
+              >
+                <span>{regionsLoading ? "Загружаем регионы…" : region || "Выберите регионы"}</span>
+                <span className={styles.regionTriggerIcon} aria-hidden="true">⌄</span>
+              </button>
+              {!regionsLoading && regions.length > 0 && (
+                <button
+                  type="button"
+                  className={`${styles.allRussiaBtn} ${allRussiaSelected ? styles.allRussiaBtnActive : ""}`}
+                  onClick={() => { resetFailedAttempt(); setRegionIds(regions.map((item) => item.id)); }}
+                >
+                  Вся Россия
+                </button>
+              )}
+              {regionsError && <span className={styles.fieldError} role="alert">{regionsError}</span>}
+            </div>
 
             <label className={styles.field}>
               <span className={styles.fieldLabel}>Сфера</span>
@@ -158,6 +219,80 @@ export function CreateProjectModal({ onClose }: CreateProjectModalProps) {
               </button>
             </div>
             {creationError && <p role="alert" className={styles.error}>{creationError}</p>}
+            {regionPickerOpen && (
+              <div className={styles.regionOverlay} role="presentation" onMouseDown={() => setRegionPickerOpen(false)}>
+                <section
+                  className={styles.regionDialog}
+                  role="dialog"
+                  aria-modal="true"
+                  aria-labelledby="region-picker-title"
+                  onMouseDown={(event) => event.stopPropagation()}
+                >
+                  <div className={styles.regionDialogHeader}>
+                    <div>
+                      <h3 id="region-picker-title">Выберите регионы</h3>
+                      <p>Можно выбрать один, несколько или всю Россию.</p>
+                    </div>
+                    <button type="button" className={styles.closeBtn} aria-label="Закрыть" onClick={() => setRegionPickerOpen(false)}>×</button>
+                  </div>
+                  <input
+                    autoFocus
+                    type="search"
+                    className={styles.regionSearch}
+                    placeholder="Начните вводить название региона"
+                    value={regionSearch}
+                    onChange={(event) => setRegionSearch(event.target.value)}
+                  />
+                  <button
+                    type="button"
+                    className={`${styles.allRussiaOption} ${regionDraft.length === regions.length ? styles.regionOptionSelected : ""}`}
+                    onClick={() => setRegionDraft(regions.map((item) => item.id))}
+                  >
+                    <span className={styles.checkMark}>{regionDraft.length === regions.length ? "✓" : ""}</span>
+                    <span><strong>Вся Россия</strong><small>{regions.length} регионов</small></span>
+                  </button>
+                  <div className={styles.regionList}>
+                    {regions
+                      .filter((item) => item.name.toLocaleLowerCase("ru").includes(regionSearch.trim().toLocaleLowerCase("ru")))
+                      .map((item) => {
+                        const checked = regionDraft.includes(item.id);
+                        return (
+                          <label key={item.id} className={`${styles.regionOption} ${checked ? styles.regionOptionSelected : ""}`}>
+                            <input
+                              type="checkbox"
+                              checked={checked}
+                              onChange={() => setRegionDraft((current) => checked
+                                ? current.filter((id) => id !== item.id)
+                                : [...current, item.id])}
+                            />
+                            <span className={styles.checkMark}>{checked ? "✓" : ""}</span>
+                            <span>{item.name}</span>
+                          </label>
+                        );
+                      })}
+                    {regions.every((item) => !item.name.toLocaleLowerCase("ru").includes(regionSearch.trim().toLocaleLowerCase("ru"))) && (
+                      <p className={styles.regionEmpty}>Регион не найден</p>
+                    )}
+                  </div>
+                  <div className={styles.regionActions}>
+                    <span>Выбрано: {regionDraft.length}</span>
+                    <button type="button" className={styles.cancelBtn} onClick={() => setRegionPickerOpen(false)}>Отмена</button>
+                    <button
+                      type="button"
+                      className={styles.submitBtn}
+                      disabled={!regionDraft.length}
+                      onClick={() => {
+                        resetFailedAttempt();
+                        setRegionIds(regionDraft);
+                        setRegionPickerOpen(false);
+                      }}
+                    >
+                      Применить
+                    </button>
+                  </div>
+                </section>
+              </div>
+            )}
           </>
         ) : (
           <>
@@ -184,10 +319,11 @@ export function CreateProjectModal({ onClose }: CreateProjectModalProps) {
               <button type="button" className={styles.cancelBtn} onClick={onClose}>
                 Готово
               </button>
-              <Link href="/dashboard" className={styles.submitBtn}>
-                Перейти
-              </Link>
+              <button type="button" className={styles.submitBtn} disabled={openingProject} onClick={() => void openCreatedProject()}>
+                {openingProject ? "Открываем…" : "Перейти в проект"}
+              </button>
             </div>
+            {projectLoginError && <p role="alert" className={styles.error}>{projectLoginError}</p>}
           </>
         )}
       </div>

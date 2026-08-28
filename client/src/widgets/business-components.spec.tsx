@@ -2,6 +2,7 @@ import { renderToStaticMarkup } from 'react-dom/server';
 import { ContactsTable } from './contacts-table/ContactsTable';
 import { PaymentsTable } from './payments-table/PaymentsTable';
 import { ScriptViewer } from './script-viewer/ScriptViewer';
+import { MasterPaymentsTable } from './master-payments-table/MasterPaymentsTable';
 
 describe('UI-контракты из требований 1.5, 1.8, 1.9', () => {
   it('таблица контактов имеет ровно нужные бизнес-колонки', () => {
@@ -15,6 +16,24 @@ describe('UI-контракты из требований 1.5, 1.8, 1.9', () => 
     const html = renderToStaticMarkup(<PaymentsTable payments={[{ id: 'p', amount: 1500, quantity: 1, status: 'pending', createdAt: '2026-08-20' }]} />);
     expect(html).toContain('Ожидает');
     expect(html).not.toContain('<button');
+  });
+
+  it('статус мастер-платежа меняется через явный выпадающий список, а не одним кликом по бейджу', () => {
+    const html = renderToStaticMarkup(<MasterPaymentsTable
+      payments={[{
+        id: 'p', projectId: 'project', projectName: 'Тестовый проект', legalEntity: 'ООО Тест',
+        amount: 1500, managerId: 'manager', status: 'pending', createdAt: '2026-08-20',
+      }]}
+      managers={[]}
+      onStatusChange={() => undefined}
+      onDelete={() => undefined}
+    />);
+
+    expect(html).toContain('<select');
+    expect(html).toContain('aria-label="Статус платежа Тестовый проект"');
+    expect(html).toContain('<option value="pending" selected="">Ожидает</option>');
+    expect(html).toContain('<option value="paid">Оплачено</option>');
+    expect(html).not.toContain('title="Переключить статус"');
   });
 
   it('скрипт только читается и рендерит provider HTML', () => {

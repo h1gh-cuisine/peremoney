@@ -16,7 +16,7 @@ interface SourcesState {
   /** "Три точки" → вкл/выкл источника (PATCH .../tags/update/{tag_id}, docs-agent.md 2.6.3). */
   toggleActive: (id: string) => Promise<void>;
   /** Массовое добавление источников (docs-agent.md 1.7, "Добавить источник"). */
-  addSources: (values: string[], sourceType: SourceType, tagType?: string) => Promise<boolean>;
+  addSources: (values: string[], sourceType: SourceType) => Promise<boolean>;
 }
 
 const initialRange = defaultSourcesRange();
@@ -42,10 +42,10 @@ export const useSourcesStore = create<SourcesState>((set, get) => ({
     try { await toggleSource(cabinetId, id, !previous.active); }
     catch (reason) { set((state) => ({ sources: state.sources.map((source) => source.id === id ? previous : source), error: reason instanceof Error ? reason.message : 'Не удалось изменить источник' })); }
   },
-  addSources: async (values, sourceType, tagType) => {
+  addSources: async (values, sourceType) => {
     const cabinetId = get().cabinetId;
     if (!cabinetId) return false;
-    try { await addSourceValues(cabinetId, values, sourceType, tagType); await get().loadSources(get().range); return true; }
+    try { await addSourceValues(cabinetId, values, sourceType); await get().loadSources(get().range); return true; }
     catch (reason) { set({ error: reason instanceof Error ? reason.message : 'Не удалось добавить источники' }); return false; }
   },
 }));

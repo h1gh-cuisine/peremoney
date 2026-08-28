@@ -317,3 +317,9 @@
 - Добавлен `server/scripts/provider-readonly-smoke.mjs`: только GET, выводит HTTP status и форму JSON без значений integration fields, токена и webhook URL.
 - Из среды агента read-only smoke остановлен после `project-types` и `answers`: пять попыток каждого завершились сетевым `fetch failed`; мутаций провайдера не выполнялось.
 - Проверки: Leads Factory/Sources 15/15 tests PASS, Nest build PASS; frontend 26 suites / 80 tests PASS, Next build PASS.
+### 2026-08-26 — Дополнительный regression backlog
+
+- В `TEST_CASES.md` добавлены кейсы независимых MASTER/проектной сессий, постоянного переключателя кабинетов, автоматического входа в только что созданный проект и отсутствия утечки прав при смене роли.
+- Добавлены проверки сохранения FULL-настроек видимости и фактического ограничения LIMITED одновременно в меню, прямых маршрутах и API.
+- Добавлены сценарии поиска/множественного выбора регионов, «Вся Россия» с полным массивом provider ID и безопасного подтверждаемого изменения статуса платежа.
+- В `docs-testing.md` описаны подробные E2E-011–E2E-015; browser regression checklist в `docs/09-testing.md` расширен соответствующими пунктами.

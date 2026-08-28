@@ -4,6 +4,8 @@ import type { AccessLevel, HideableSection, SectionVisibility } from "./types";
 interface AccessState {
   /** Уровень доступа текущего пользователя кабинета (docs-agent.md 2.1) */
   accessLevel: AccessLevel;
+  /** Полное название текущего проекта (Topbar показывает только последний сегмент) */
+  cabinetName: string;
   /** Применённые флаги видимости — то, что реально влияет на сайдбар */
   sectionVisibility: SectionVisibility;
   /** Черновик из формы "Настройки" — вступает в силу только по кнопке "СОХРАНИТЬ НАСТРОЙКИ" (docs-agent.md 1.11) */
@@ -26,6 +28,7 @@ const DEFAULT_VISIBILITY: SectionVisibility = {
 
 export const useAccessStore = create<AccessState>((set, get) => ({
   accessLevel: "full",
+  cabinetName: "",
   sectionVisibility: DEFAULT_VISIBILITY,
   draftSectionVisibility: DEFAULT_VISIBILITY,
   setAccessLevel: (level) => set({ accessLevel: level }),

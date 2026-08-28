@@ -13,6 +13,7 @@
 
 .table {
   width: 100%;
+  table-layout: fixed;
   border-collapse: collapse;
   font-size: v.$font-size-sm;
 
@@ -20,8 +21,29 @@
   td {
     padding: v.$space-2 v.$space-3;
     text-align: left;
-    white-space: nowrap;
+    vertical-align: top;
+    white-space: normal;
+    overflow-wrap: anywhere;
   }
+
+  // ID лида
+  th:nth-child(1), td:nth-child(1) { width: 90px; }
+  // Дата
+  th:nth-child(2), td:nth-child(2) { width: 90px; }
+  // Телефон
+  th:nth-child(3), td:nth-child(3) { width: 120px; }
+  // Комментарий
+  th:nth-child(4), td:nth-child(4) { width: 200px; }
+  // Источник
+  th:nth-child(5), td:nth-child(5) { width: 170px; }
+  // Запись
+  th:nth-child(6), td:nth-child(6) { width: 70px; white-space: nowrap; }
+  // Обратная связь
+  th:nth-child(7), td:nth-child(7) { width: 220px; }
+  // Статус
+  th:nth-child(8), td:nth-child(8) { width: 150px; }
+  // Сумма сделки
+  th:nth-child(9), td:nth-child(9) { width: 120px; }
 
   th {
     color: v.$color-text-muted;

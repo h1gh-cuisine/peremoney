@@ -10,6 +10,74 @@ describe('CabinetsService', () => {
     createdAt: new Date(), updatedAt: new Date(),
   };
 
+  it('persists master employees and returns stable name-based IDs', async () => {
+    const prisma = { masterManager: {
+      create: jest.fn().mockResolvedValue({ name: 'Анна Иванова' }),
+      findMany: jest.fn().mockResolvedValue([{ name: 'Анна Иванова', createdAt: new Date() }]),
+    } };
+    const service = new CabinetsService(prisma as never, {} as never, config as never);
+
+    await expect(service.createManager('  Анна   Иванова  ')).resolves.toEqual({ id: 'Анна Иванова', name: 'Анна Иванова' });
+    await expect(service.listManagers()).resolves.toEqual([{ id: 'Анна Иванова', name: 'Анна Иванова' }]);
+    expect(prisma.masterManager.create).toHaveBeenCalledWith({ data: { name: 'Анна Иванова' } });
+  });
+
+  it('does not delete an employee assigned to a project', async () => {
+    const prisma = {
+      cabinet: { count: jest.fn().mockResolvedValue(1) },
+      masterManager: { deleteMany: jest.fn() },
+    };
+    const service = new CabinetsService(prisma as never, {} as never, config as never);
+
+    await expect(service.removeManager('Анна')).rejects.toThrow('закреплены проекты');
+    expect(prisma.masterManager.deleteMany).not.toHaveBeenCalled();
+  });
+
+  it('filters project analytics by an inclusive calendar period', async () => {
+    const findMany = jest.fn().mockResolvedValue([]);
+    const service = new CabinetsService({ cabinet: { findMany } } as never, {} as never, config as never);
+
+    await service.list({ dateFrom: '2026-08-01', dateTo: '2026-08-25' });
+
+    const select = findMany.mock.calls[0][0].select;
+    const range = { gte: new Date('2026-08-01T00:00:00.000Z'), lte: new Date('2026-08-25T23:59:59.999Z') };
+    expect(select._count.select.contacts.where.date).toEqual(range);
+    expect(select._count.select.leads.where.successDate).toEqual(range);
+    expect(select.leads.where.successDate).toEqual(range);
+    expect(select.payments.where.paidAt).toEqual(range);
+  });
+
+  it('maps and sorts the live region dictionary', async () => {
+    const provider = { getAvailableRegions: jest.fn().mockResolvedValue({ regions: [
+      { region_id: 78, region_name: ' Санкт-Петербург ' }, { region_id: 77, region_name: 'Москва' },
+    ] }) };
+    const service = new CabinetsService({} as never, provider as never, config as never);
+    await expect(service.providerRegions()).resolves.toEqual([
+      { id: 77, name: 'Москва' }, { id: 78, name: 'Санкт-Петербург' },
+    ]);
+  });
+
+  it('stores direct Telegram credentials encrypted and never returns the token', async () => {
+    const upsert = jest.fn().mockResolvedValue({});
+    const prisma = { directIntegration: { findUnique: jest.fn().mockResolvedValue(null), upsert } };
+    const service = new CabinetsService(prisma as never, {} as never, config as never);
+
+    const result = await service.updateDirectIntegration(cabinet.id, 'telegram', {
+      botToken: '123456789:telegram-secret-token', chatId: '-1001234567890', enabled: true,
+    });
+
+    const encrypted = upsert.mock.calls[0][0].create.botTokenEncrypted as string;
+    expect(encrypted).not.toContain('telegram-secret-token');
+    expect(encrypted.split('.')).toHaveLength(3);
+    expect(result).toEqual({ channel: 'telegram', configured: true, enabled: true, chatId: '-1001234567890', hasToken: true });
+    expect(JSON.stringify(result)).not.toContain('telegram-secret-token');
+  });
+
+  it('supports only direct Telegram and MAX integrations', async () => {
+    const service = new CabinetsService({ directIntegration: {} } as never, {} as never, config as never);
+    await expect(service.directIntegration(cabinet.id, 'email')).rejects.toThrow('не поддерживается');
+  });
+
   it('never hides dashboard and leads from a limited user', async () => {
     const prisma = { cabinet: { findUnique: jest.fn().mockResolvedValue(cabinet) } };
     const service = new CabinetsService(prisma as never, {} as never, config as never);
@@ -17,6 +85,7 @@ describe('CabinetsService', () => {
       id: 'user-id', login: 'client', role: UserRole.LIMITED, cabinetId: cabinet.id,
     });
     expect(result.visibleSections).toEqual(['dashboard', 'leads', 'payer', 'sources', 'finance']);
+    expect(result.sectionVisibility).toEqual({ contacts: false, sources: true, script: false, finance: true, settings: false });
   });
 
   it('returns every client section to a full user', async () => {
@@ -27,13 +96,18 @@ describe('CabinetsService', () => {
     });
     expect(result.visibleSections).toContain('settings');
     expect(result.visibleSections).toContain('contacts');
+    expect(result.sectionVisibility).toEqual({ contacts: false, sources: true, script: false, finance: true, settings: false });
   });
 
   it('saves the complete settings form in one cabinet update', async () => {
     const update = jest.fn().mockResolvedValue(cabinet);
-    const updateProjectSchedule = jest.fn();
-    const service = new CabinetsService({ cabinet: { update, findUnique: jest.fn().mockResolvedValue({ providerProjectId: 42 }) } } as never,
-      { updateProjectSchedule } as never, config as never);
+    const updateProjectSettings = jest.fn();
+    const service = new CabinetsService({ cabinet: { update, findUnique: jest.fn().mockResolvedValue({
+      providerProjectId: 42, moneyBalance: 1000, price: 100, totalUnits: 20, usedUnits: 1,
+      isActive: true, timezoneOffset: 3, uploadsEnabled: true, callsEnabled: true,
+      scheduleDays: [1, 2, 3, 4, 5, 6, 7],
+    }) } } as never,
+      { updateProjectSettings } as never, config as never);
     await service.updateSettings(cabinet.id, {
       isActive: false, timezoneOffset: 4, uploadsEnabled: false, callsEnabled: true,
       schedulePreset: 'WEEKENDS' as never, scheduleDays: [5, 6], crmIntegration: 'bitrix',
@@ -45,18 +119,81 @@ describe('CabinetsService', () => {
       schedulePreset: 'WEEKENDS', scheduleDays: [5, 6], crmIntegration: 'bitrix', messengerIntegrations: ['telegram', 'max'],
       contactsVisible: true, sourcesVisible: false, financeVisible: false,
     }));
-    expect(updateProjectSchedule).toHaveBeenCalledWith(42, false);
+    expect(updateProjectSettings).toHaveBeenCalledWith(42, expect.objectContaining({
+      isActive: false, timezoneOffset: 4, uploadsEnabled: false, callsEnabled: true,
+    }));
+  });
+
+  it('changes only calls at Leads Factory when only the calls checkbox changes', async () => {
+    const update = jest.fn().mockResolvedValue(cabinet);
+    const updateProjectProcesses = jest.fn();
+    const service = new CabinetsService({ cabinet: { update, findUnique: jest.fn().mockResolvedValue({
+      providerProjectId: 42, moneyBalance: 1000, price: 100, totalUnits: 20, usedUnits: 1,
+      isActive: true, timezoneOffset: 3, uploadsEnabled: true, callsEnabled: true,
+      scheduleDays: [1, 2, 3, 4, 5, 6, 7],
+    }) } } as never, { updateProjectProcesses } as never, config as never);
+
+    await service.updateSettings(cabinet.id, {
+      isActive: true, timezoneOffset: 3, uploadsEnabled: true, callsEnabled: false,
+      schedulePreset: 'EVERYDAY' as never, scheduleDays: [1, 2, 3, 4, 5, 6, 7],
+      crmIntegration: '', messengerIntegrations: [], contacts: true, sources: true,
+      script: true, finance: true, settings: true,
+    });
+
+    expect(updateProjectProcesses).toHaveBeenCalledWith(42, { uploadsEnabled: undefined, callsEnabled: false });
+  });
+
+  it('always sends a global stop when the balance is zero', async () => {
+    const update = jest.fn().mockResolvedValue(cabinet);
+    const updateProjectSettings = jest.fn();
+    const service = new CabinetsService({ cabinet: { update, findUnique: jest.fn().mockResolvedValue({
+      providerProjectId: 42, moneyBalance: 0, price: 100, totalUnits: 10, usedUnits: 10,
+      isActive: true, timezoneOffset: 3, uploadsEnabled: true, callsEnabled: true,
+      scheduleDays: [1, 2, 3, 4, 5, 6, 7],
+    }) } } as never, { updateProjectSettings } as never, config as never);
+
+    await service.updateSettings(cabinet.id, {
+      isActive: true, timezoneOffset: 3, uploadsEnabled: true, callsEnabled: true,
+      schedulePreset: 'EVERYDAY' as never, scheduleDays: [1, 2, 3, 4, 5, 6, 7],
+      crmIntegration: '', messengerIntegrations: [], contacts: true, sources: true,
+      script: true, finance: true, settings: true,
+    });
+
+    expect(updateProjectSettings).toHaveBeenCalledWith(42, expect.objectContaining({ isActive: false }));
+  });
+
+  it('allows an empty work-week and pauses the provider project', async () => {
+    const update = jest.fn().mockResolvedValue(cabinet);
+    const updateProjectSettings = jest.fn();
+    const service = new CabinetsService({ cabinet: { update, findUnique: jest.fn().mockResolvedValue({
+      providerProjectId: 42, moneyBalance: 1000, price: 100, totalUnits: 20, usedUnits: 1,
+      isActive: true, timezoneOffset: 3, uploadsEnabled: true, callsEnabled: true,
+      scheduleDays: [1, 2, 3, 4, 5, 6, 7],
+    }) } } as never,
+      { updateProjectSettings } as never, config as never);
+    await service.updateSettings(cabinet.id, {
+      isActive: true, timezoneOffset: 3, uploadsEnabled: true, callsEnabled: true,
+      schedulePreset: 'WEEKDAYS' as never, scheduleDays: [], crmIntegration: '', messengerIntegrations: [],
+      contacts: true, sources: true, script: true, finance: true, settings: true,
+    });
+    expect(update).toHaveBeenCalledWith(expect.objectContaining({ data: expect.objectContaining({ scheduleDays: [] }) }));
+    expect(updateProjectSettings).toHaveBeenCalledWith(42, expect.objectContaining({ activeToday: false }));
   });
 
   it('updates master project fields and hashes a changed client password', async () => {
-    const cabinetUpdate = jest.fn().mockResolvedValue(cabinet);
+    const cabinetUpdate = jest.fn().mockResolvedValue({ ...cabinet, isActive: false, timezoneOffset: 3,
+      uploadsEnabled: true, callsEnabled: true, scheduleDays: [1, 2, 3, 4, 5, 6, 7],
+      moneyBalance: 1000, totalUnits: 10, usedUnits: 0 });
     const userUpdateMany = jest.fn().mockResolvedValue({ count: 1 });
     const transaction = jest.fn().mockImplementation(async (operations) => Promise.all(operations));
-    const service = new CabinetsService({ cabinet: { update: cabinetUpdate }, user: { updateMany: userUpdateMany }, $transaction: transaction } as never, {} as never, config as never);
+    const updateProjectSettings = jest.fn();
+    const service = new CabinetsService({ cabinet: { update: cabinetUpdate }, user: { updateMany: userUpdateMany }, $transaction: transaction } as never,
+      { updateProjectSettings } as never, config as never);
     await service.updateMasterProject(cabinet.id, { price: 250, renewalStatus: 'RENEWED' as never, isActive: false, hidden: true, clientPassword: 'NewSecret123!' });
     expect(cabinetUpdate.mock.calls[0][0].data).toEqual(expect.objectContaining({ price: expect.anything(), renewalStatus: 'RENEWED', isActive: false, hidden: true }));
     expect(userUpdateMany.mock.calls[0][0].where).toEqual({ cabinetId: cabinet.id, role: UserRole.LIMITED });
     expect(userUpdateMany.mock.calls[0][0].data.passwordHash).not.toBe('NewSecret123!');
+    expect(updateProjectSettings).toHaveBeenCalledWith(1, expect.objectContaining({ isActive: false }));
   });
 
   it('clones internally with fresh users and no copied business metrics', async () => {
@@ -71,9 +208,41 @@ describe('CabinetsService', () => {
     expect(result.credentials.client.password).toBeTruthy();
   });
 
+  it('links a local cabinet to an existing Leads Factory project by provider ID', async () => {
+    const create = jest.fn().mockImplementation(({ data }) => ({ ...cabinet, ...data, id: 'linked' }));
+    const createMany = jest.fn().mockResolvedValue({ count: 2 });
+    const prisma = { cabinet: { findFirst: jest.fn().mockResolvedValue(null) },
+      $transaction: (callback: (tx: unknown) => unknown) => callback({ cabinet: { create }, user: { createMany } }) };
+    const provider = { getProject: jest.fn().mockResolvedValue({ id: 22931, name: 'Живой проект', sphere: 'Медицина',
+      status: 'active', timezone: 4, numbers: false, vdl: true, prozvon_base: false }) };
+    const answers = { sync: jest.fn().mockResolvedValue({ contactCount: 12, leadCount: 3 }) };
+    const sources = { sync: jest.fn().mockResolvedValue({ items: [] }) };
+    const result = await new CabinetsService(prisma as never, provider as never, config as never, undefined, answers as never, sources as never)
+      .linkProviderProject({ providerProjectId: 22931, price: 250, managerName: 'Анна' });
+    expect(provider.getProject).toHaveBeenCalledWith(22931);
+    expect(create).toHaveBeenCalledWith(expect.objectContaining({ data: expect.objectContaining({
+      name: 'Живой проект', providerProjectId: 22931, type: 'VDL', sphere: 'Медицина', timezoneOffset: 4,
+    }) }));
+    expect(createMany.mock.calls[0][0].data).toHaveLength(2);
+    expect(answers.sync).toHaveBeenCalledWith('linked');
+    expect(sources.sync).toHaveBeenCalledWith('linked', {});
+    expect(result.initialSync).toEqual({ answers: 'COMPLETED', sources: 'COMPLETED' });
+    expect(result.credentials.client.password).toBeTruthy();
+  });
+
+  it('does not link the same Leads Factory project twice', async () => {
+    const provider = { getProject: jest.fn() };
+    const prisma = { cabinet: { findFirst: jest.fn().mockResolvedValue({ id: 'existing', name: 'Уже подключён' }) } };
+    await expect(new CabinetsService(prisma as never, provider as never, config as never)
+      .linkProviderProject({ providerProjectId: 22931, price: 250 })).rejects.toThrow('уже связан');
+    expect(provider.getProject).not.toHaveBeenCalled();
+  });
+
   it('creates one Leads Factory project and records the idempotent operation', async () => {
     const operationUpdate = jest.fn().mockResolvedValue({});
-    const createCabinet = jest.fn().mockResolvedValue({ ...cabinet, id: 'created-cabinet', providerProjectId: 77 });
+    const createCabinet = jest.fn().mockResolvedValue({ ...cabinet, id: 'created-cabinet', providerProjectId: 77,
+      uploadsEnabled: true, callsEnabled: true, timezoneOffset: 3, scheduleDays: [1, 2, 3, 4, 5, 6, 7],
+      moneyBalance: 0, totalUnits: 0, usedUnits: 0 });
     const prisma = {
       providerProjectCreation: {
         create: jest.fn().mockImplementation(({ data }) => Promise.resolve({ ...data, id: 'operation', providerProjectId: null, status: 'PENDING' })),
@@ -87,6 +256,7 @@ describe('CabinetsService', () => {
     const provider = {
       getProjectTypes: jest.fn().mockResolvedValue({ items: [{ id: 9, name: 'VDL' }] }),
       createProject: jest.fn().mockResolvedValue({ id: 77 }),
+      updateProjectSettings: jest.fn().mockResolvedValue({}),
     };
     const result = await new CabinetsService(prisma as never, provider as never, config as never).create({
       name: 'Клиент', type: 'VDL' as never, price: 100, region: 'Москва', regionId: 77, sphere: 'Медицина',
@@ -94,15 +264,81 @@ describe('CabinetsService', () => {
       idempotencyKey: '7d3920e4-32ca-4c92-a8d4-218fe4ecbc35',
     });
     expect(provider.createProject).toHaveBeenCalledWith({
-      name: 'Москва/Peremoney ЛКП VDL/Медицина/Клиент', type: 9, regions: [77], status: 'active',
+      name: 'Москва/Peremoney ЛКП VDL/Медицина/Клиент', type: 9, regions: [77], status: 'pause', default_limit: 5,
     });
     expect(createCabinet.mock.calls[0][0].data).toEqual(expect.objectContaining({
-      name: 'Москва/Peremoney ЛКП VDL/Медицина/Клиент', providerProjectId: 77,
+      name: 'Москва/Peremoney ЛКП VDL/Медицина/Клиент', providerProjectId: 77, isActive: false,
     }));
     expect(operationUpdate).toHaveBeenLastCalledWith(expect.objectContaining({
       data: expect.objectContaining({ status: 'SUCCEEDED', cabinetId: 'created-cabinet' }),
     }));
     expect(result.cabinet.id).toBe('created-cabinet');
+    // Баланс нового кабинета всегда нулевой — провайдеру сразу сообщаем, что проект приостановлен
+    expect(provider.updateProjectSettings).toHaveBeenCalledWith(77, expect.objectContaining({ isActive: false }));
+  });
+
+  it('schedules a retry when the provider pause call fails right after creation', async () => {
+    const operationUpdate = jest.fn().mockResolvedValue({});
+    const scheduledRunCreate = jest.fn().mockResolvedValue({});
+    const prisma = {
+      providerProjectCreation: {
+        create: jest.fn().mockImplementation(({ data }) => Promise.resolve({ ...data, id: 'operation', providerProjectId: null, status: 'PENDING' })),
+        update: operationUpdate,
+      },
+      scheduledRun: { create: scheduledRunCreate },
+      $transaction: (callback: (tx: unknown) => unknown) => callback({
+        cabinet: { create: jest.fn().mockResolvedValue({ ...cabinet, id: 'created-cabinet', providerProjectId: 77,
+          uploadsEnabled: true, callsEnabled: true, timezoneOffset: 3, scheduleDays: [1, 2, 3, 4, 5, 6, 7],
+          moneyBalance: 0, totalUnits: 0, usedUnits: 0 }) },
+        user: { createMany: jest.fn().mockResolvedValue({ count: 2 }) }, providerProjectCreation: { update: operationUpdate },
+      }),
+    };
+    const provider = {
+      getProjectTypes: jest.fn().mockResolvedValue({ items: [{ id: 9, name: 'VDL' }] }),
+      createProject: jest.fn().mockResolvedValue({ id: 77 }),
+      updateProjectSettings: jest.fn().mockRejectedValue(new Error('Leads Factory недоступен')),
+    };
+
+    await new CabinetsService(prisma as never, provider as never, config as never).create({
+      name: 'Клиент', type: 'VDL' as never, price: 100, region: 'Москва', regionId: 77, sphere: 'Медицина',
+      managerName: 'Анна', employeeLogin: 'staff-new', clientLogin: 'client-new',
+      idempotencyKey: '7d3920e4-32ca-4c92-a8d4-218fe4ecbc35',
+    });
+
+    expect(scheduledRunCreate).toHaveBeenCalledWith(expect.objectContaining({
+      data: expect.objectContaining({ cabinetId: 'created-cabinet', task: 'APPLY_SCHEDULE' }),
+    }));
+  });
+
+  it('passes every selected region to Leads Factory for a nationwide project', async () => {
+    const operationUpdate = jest.fn().mockResolvedValue({});
+    const prisma = {
+      providerProjectCreation: {
+        create: jest.fn().mockImplementation(({ data }) => Promise.resolve({ ...data, id: 'operation', providerProjectId: null, status: 'PENDING' })),
+        update: operationUpdate,
+      },
+      $transaction: (callback: (tx: unknown) => unknown) => callback({
+        cabinet: { create: jest.fn().mockResolvedValue({ ...cabinet, id: 'all-russia', providerProjectId: 88,
+          uploadsEnabled: true, callsEnabled: true, timezoneOffset: 3, scheduleDays: [1, 2, 3, 4, 5, 6, 7],
+          moneyBalance: 0, totalUnits: 0, usedUnits: 0 }) },
+        user: { createMany: jest.fn().mockResolvedValue({ count: 2 }) }, providerProjectCreation: { update: operationUpdate },
+      }),
+    };
+    const provider = {
+      getProjectTypes: jest.fn().mockResolvedValue({ items: [{ id: 9, name: 'VDL' }] }),
+      createProject: jest.fn().mockResolvedValue({ id: 88 }),
+      updateProjectSettings: jest.fn().mockResolvedValue({}),
+    };
+
+    await new CabinetsService(prisma as never, provider as never, config as never).create({
+      name: 'Клиент', type: 'VDL' as never, price: 100, region: 'Вся Россия', regionId: 1, regionIds: [1, 2, 3],
+      sphere: 'Медицина', managerName: 'Анна', employeeLogin: 'staff-new', clientLogin: 'client-new',
+      idempotencyKey: '7d3920e4-32ca-4c92-a8d4-218fe4ecbc35',
+    });
+
+    expect(provider.createProject).toHaveBeenCalledWith({
+      name: 'Вся Россия/Peremoney ЛКП VDL/Медицина/Клиент', type: 9, regions: [1, 2, 3], status: 'pause', default_limit: 5,
+    });
   });
 
   it('returns the existing cabinet without a second provider POST for the same successful key', async () => {

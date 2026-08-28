@@ -51,7 +51,13 @@ export const useSettingsStore = create<SettingsState>((set, get) => ({
   save: async (visibility) => {
     const { cabinetId, draft } = get();
     if (!cabinetId) return false;
-    try { await saveCabinetSettings(cabinetId, draft, visibility); set({ saved: draft, error: null }); return true; }
+    try {
+      const result = await saveCabinetSettings(cabinetId, draft, visibility);
+      const sync = result.providerSync;
+      set({ saved: draft, error: sync?.status === 'PENDING'
+        ? (sync.message ?? 'Настройки сохранены, но Leads Factory пока не подтвердил изменения') : null });
+      return true;
+    }
     catch (reason) { set({ error: reason instanceof Error ? reason.message : 'Не удалось сохранить настройки' }); return false; }
   },
   resetDraft: () => set((state) => ({ draft: state.saved })),

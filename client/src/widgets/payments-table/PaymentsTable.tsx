@@ -8,6 +8,13 @@ interface PaymentsTableProps {
 
 /** Список платежей — только на чтение, заполняется мастер-кабинетом (docs-agent.md 1.9). */
 export function PaymentsTable({ payments }: PaymentsTableProps) {
+  const status = (payment: Payment) => {
+    if (payment.status === "paid") return { label: "Оплачено", className: styles.paid };
+    if (payment.invoiceCreationStatus === "failed") return { label: "Ошибка создания", className: styles.failed };
+    if (payment.invoiceCreationStatus === "uncertain") return { label: "Требует сверки", className: styles.uncertain };
+    if (payment.invoiceCreationStatus === "pending") return { label: "Создаётся", className: styles.pending };
+    return { label: "Ожидает оплаты", className: styles.pending };
+  };
   return (
     <div className={styles.card}>
       <div className={styles.tableWrap}>
@@ -27,8 +34,8 @@ export function PaymentsTable({ payments }: PaymentsTableProps) {
                 <td>{p.quantity}</td>
                 <td>{formatCurrency(p.amount)}</td>
                 <td>
-                  <span className={`${styles.badge} ${p.status === "paid" ? styles.paid : styles.pending}`}>
-                    {p.status === "paid" ? "Оплачено" : "Ожидает"}
+                  <span className={`${styles.badge} ${status(p).className}`}>
+                    {status(p).label}
                   </span>
                 </td>
               </tr>

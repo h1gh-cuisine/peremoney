@@ -1,5 +1,6 @@
 "use client";
 
+import { useEffect, useState } from "react";
 import { useSourceAutomationStore } from "@/entities/sources";
 import styles from "./SourceAutomationPanel.module.scss";
 
@@ -13,6 +14,28 @@ export function SourceAutomationPanel() {
   const setAutoManageEnabled = useSourceAutomationStore((s) => s.setAutoManageEnabled);
   const minConversion = useSourceAutomationStore((s) => s.minConversion);
   const setMinConversion = useSourceAutomationStore((s) => s.setMinConversion);
+  const dirty = useSourceAutomationStore((s) => s.dirty);
+  const saving = useSourceAutomationStore((s) => s.saving);
+  const error = useSourceAutomationStore((s) => s.error);
+  const save = useSourceAutomationStore((s) => s.save);
+  const discard = useSourceAutomationStore((s) => s.discard);
+  const [confirming, setConfirming] = useState(false);
+
+  useEffect(() => {
+    if (!dirty) return;
+    setConfirming(false);
+    const timer = window.setTimeout(() => setConfirming(true), 2000);
+    return () => window.clearTimeout(timer);
+  }, [dirty, autoCleanupEnabled, minContactsPerLead, autoManageEnabled, minConversion]);
+
+  const cancelChanges = () => {
+    discard();
+    setConfirming(false);
+  };
+
+  const confirmChanges = async () => {
+    if (await save()) setConfirming(false);
+  };
 
   return (
     <div className={styles.card}>
@@ -71,6 +94,29 @@ export function SourceAutomationPanel() {
           />
         </div>
       </div>
+
+      {dirty && !confirming && <p className={styles.pendingHint}>Ожидаем завершения изменений…</p>}
+      {error && <p className={styles.error} role="alert">{error}</p>}
+
+      {confirming && (
+        <div className={styles.confirmOverlay} role="presentation" onMouseDown={cancelChanges}>
+          <section className={styles.confirmModal} role="dialog" aria-modal="true" aria-labelledby="automation-confirm-title" onMouseDown={(event) => event.stopPropagation()}>
+            <span className={styles.eyebrow}>Настройки автоматизации</span>
+            <h2 id="automation-confirm-title">Сохранить изменения?</h2>
+            <p>Новые правила будут отправлены на сервер и применятся к ежедневной автоматизации источников.</p>
+            <dl className={styles.summary}>
+              <div><dt>Автоматическая чистка</dt><dd>{autoCleanupEnabled ? "Включена" : "Выключена"}</dd></div>
+              <div><dt>Мин. контактов на 1 лид</dt><dd>{minContactsPerLead}</dd></div>
+              <div><dt>Автоматическое управление</dt><dd>{autoManageEnabled ? "Включено" : "Выключено"}</dd></div>
+              <div><dt>Мин. конверсия</dt><dd>{minConversion}%</dd></div>
+            </dl>
+            <div className={styles.confirmActions}>
+              <button type="button" className={styles.cancelButton} disabled={saving} onClick={cancelChanges}>Отменить</button>
+              <button type="button" className={styles.saveButton} disabled={saving} onClick={() => void confirmChanges()}>{saving ? "Сохраняем…" : "Сохранить"}</button>
+            </div>
+          </section>
+        </div>
+      )}
     </div>
   );
 }

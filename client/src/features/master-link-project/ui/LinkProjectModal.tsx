@@ -1,7 +1,6 @@
 "use client";
 
 import { useState } from "react";
-import { PROJECT_TYPE_OPTIONS, type ProjectType } from "@/shared/lib/projectType";
 import { useMasterManagersStore } from "@/entities/master-managers";
 import { useMasterProjectsStore } from "@/entities/master-projects";
 import styles from "./LinkProjectModal.module.scss";
@@ -11,78 +10,49 @@ interface LinkProjectModalProps {
   onClose: () => void;
 }
 
-/** Та же форма, что "Создать проект", но без API-запроса — копия кабинета (docs-agent.md 2.8.4) */
+/** Подключает к Peremoney уже существующий проект Leads Factory по его внутреннему ID. */
 export function LinkProjectModal({ onClose }: LinkProjectModalProps) {
-  const projects = useMasterProjectsStore((s) => s.projects);
   const managers = useMasterManagersStore((s) => s.managers);
-  const cloneProject = useMasterProjectsStore((s) => s.cloneProject);
+  const linkProject = useMasterProjectsStore((s) => s.linkProject);
 
-  const [sourceId, setSourceId] = useState(projects[0]?.id ?? "");
-  const source = projects.find((p) => p.id === sourceId);
-
-  const [name, setName] = useState("");
-  const [type, setType] = useState<ProjectType>("quals");
+  const [providerProjectId, setProviderProjectId] = useState("");
   const [managerId, setManagerId] = useState(managers[0]?.id ?? "");
   const [price, setPrice] = useState(1500);
   const [error, setError] = useState("");
   const { submitting, run } = useSubmissionLock();
 
   async function handleSubmit() {
-    const trimmed = name.trim();
-    if (!trimmed) {
-      setError("Название обязательно");
+    const projectId = Number(providerProjectId);
+    if (!Number.isInteger(projectId) || projectId < 1) {
+      setError("Укажите числовой ID проекта Leads Factory");
       return;
     }
-    if (source && trimmed === source.name) {
-      setError("Название должно отличаться от исходного проекта");
-      return;
-    }
-    const result = await run(() => cloneProject(sourceId, { name: trimmed, type, price, managerId }));
+    const result = await run(() => linkProject({ providerProjectId: projectId, price, managerId }));
     if (result) onClose();
   }
 
   return (
     <div className={styles.overlay} onMouseDown={onClose}>
       <div className={styles.modal} onMouseDown={(e) => e.stopPropagation()}>
-        <h2 className={styles.title}>Связать с другим</h2>
+        <h2 className={styles.title}>Подключить проект Leads Factory</h2>
         <p className={styles.hint}>
-          Копия существующего кабинета — без запроса на создание проекта у провайдера.
+          Укажите внутренний ID уже существующего проекта. Название, тип и сфера будут получены из Leads Factory.
         </p>
 
         <label className={styles.field}>
-          <span className={styles.fieldLabel}>Исходный проект</span>
-          <select className={styles.select} value={sourceId} onChange={(e) => setSourceId(e.target.value)}>
-            {projects.map((p) => (
-              <option key={p.id} value={p.id}>
-                {p.name}
-              </option>
-            ))}
-          </select>
-        </label>
-
-        <label className={styles.field}>
-          <span className={styles.fieldLabel}>Новое название</span>
+          <span className={styles.fieldLabel}>ID проекта Leads Factory</span>
           <input
-            type="text"
+            type="number"
+            min={1}
             className={styles.input}
-            value={name}
+            value={providerProjectId}
             onChange={(e) => {
-              setName(e.target.value);
+              setProviderProjectId(e.target.value);
               setError("");
             }}
+            placeholder="Например, 22931"
           />
           {error && <span className={styles.error}>{error}</span>}
-        </label>
-
-        <label className={styles.field}>
-          <span className={styles.fieldLabel}>Тип</span>
-          <select className={styles.select} value={type} onChange={(e) => setType(e.target.value as ProjectType)}>
-            {PROJECT_TYPE_OPTIONS.map((opt) => (
-              <option key={opt.value} value={opt.value}>
-                {opt.label}
-              </option>
-            ))}
-          </select>
         </label>
 
         <label className={styles.field}>
@@ -111,8 +81,8 @@ export function LinkProjectModal({ onClose }: LinkProjectModalProps) {
           <button type="button" className={styles.cancelBtn} onClick={onClose}>
             Отмена
           </button>
-          <button type="button" className={styles.submitBtn} disabled={!source || submitting} onClick={() => void handleSubmit()}>
-            {submitting ? 'Создаём…' : 'Связать'}
+          <button type="button" className={styles.submitBtn} disabled={submitting} onClick={() => void handleSubmit()}>
+            {submitting ? 'Подключаем…' : 'Подключить'}
           </button>
         </div>
       </div>

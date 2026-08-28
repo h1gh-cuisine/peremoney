@@ -9,18 +9,62 @@ describe('LeadsFactoryService contract', () => {
   it('creates a project with the documented body and does not retry POST', async () => {
     const fetchMock = jest.spyOn(global, 'fetch').mockResolvedValue(new Response(JSON.stringify({ id: 42 }), { status: 200 }));
     const service = new LeadsFactoryService(config as never);
-    await expect(service.createProject({ name: 'Москва/Project', type: 7, regions: [77], status: 'active' })).resolves.toEqual({ id: 42 });
+    await expect(service.createProject({ name: 'Москва/Project', type: 7, regions: [77], status: 'pause', default_limit: 5 })).resolves.toEqual({ id: 42 });
     expect(fetchMock).toHaveBeenCalledTimes(1);
     const call = fetchMock.mock.calls.at(0)!;
     expect(call[0].toString()).toContain('/crm/open-api/projects');
-    expect(JSON.parse(String(call[1]?.body))).toEqual({ name: 'Москва/Project', type: 7, regions: [77], status: 'active' });
+    expect(JSON.parse(String(call[1]?.body))).toEqual({ name: 'Москва/Project', type: 7, regions: [77], status: 'pause', default_limit: 5 });
   });
 
   it('never blindly retries project creation after a 504', async () => {
     const fetchMock = jest.spyOn(global, 'fetch').mockResolvedValue(new Response('{}', { status: 504 }));
     const service = new LeadsFactoryService(config as never);
-    await expect(service.createProject({ name: 'X', type: 1, regions: [1], status: 'active' })).rejects.toBeInstanceOf(ProviderException);
+    await expect(service.createProject({ name: 'X', type: 1, regions: [1], status: 'pause', default_limit: 5 })).rejects.toBeInstanceOf(ProviderException);
     expect(fetchMock).toHaveBeenCalledTimes(1);
+  });
+
+  it('loads an existing project by its internal provider ID', async () => {
+    const project = { id: 22931, name: 'Проект LF', sphere: 'Медицина', status: 'active', timezone: 3,
+      numbers: false, vdl: true, prozvon_base: false };
+    const fetchMock = jest.spyOn(global, 'fetch').mockResolvedValue(new Response(JSON.stringify(project), { status: 200 }));
+    await expect(new LeadsFactoryService(config as never).getProject(22931)).resolves.toEqual(project);
+    expect(fetchMock.mock.calls.at(0)![0].toString()).toContain('/crm/open-api/projects/22931');
+    expect(fetchMock.mock.calls.at(0)![1]?.method).toBe('GET');
+  });
+
+  it('updates every provider-backed project setting with documented fields', async () => {
+    const fetchMock = jest.spyOn(global, 'fetch').mockResolvedValue(new Response('{}', { status: 200 }));
+    await new LeadsFactoryService(config as never).updateProjectSettings(42, {
+      isActive: true, timezoneOffset: 4, uploadsEnabled: false, callsEnabled: true, activeToday: true,
+    });
+    expect(fetchMock.mock.calls.at(0)![0].toString()).toContain('/crm/open-api/projects/42');
+    expect(JSON.parse(String(fetchMock.mock.calls.at(0)![1]?.body))).toEqual({
+      status: 'active', timezone: 4, work_client_status: 'stop', call_center_status: 'active',
+    });
+  });
+
+  it('globally pauses both procurement and calls when the project cannot operate', async () => {
+    const fetchMock = jest.spyOn(global, 'fetch').mockResolvedValue(new Response('{}', { status: 200 }));
+    await new LeadsFactoryService(config as never).updateProjectSettings(42, {
+      isActive: true, timezoneOffset: 3, uploadsEnabled: true, callsEnabled: true, activeToday: false,
+    });
+    expect(JSON.parse(String(fetchMock.mock.calls.at(0)![1]?.body))).toEqual({
+      status: 'pause', timezone: 3, work_client_status: 'stop', call_center_status: 'pause_daily',
+    });
+  });
+
+  it('changes only the explicitly toggled provider process', async () => {
+    const fetchMock = jest.spyOn(global, 'fetch').mockResolvedValue(new Response('{}', { status: 200 }));
+    await new LeadsFactoryService(config as never).updateProjectProcesses(42, { callsEnabled: false });
+    expect(JSON.parse(String(fetchMock.mock.calls.at(0)![1]?.body))).toEqual({ call_center_status: 'pause_daily' });
+  });
+
+  it('includes the global provider status in a scheduled shutdown', async () => {
+    const fetchMock = jest.spyOn(global, 'fetch').mockResolvedValue(new Response('{}', { status: 200 }));
+    await new LeadsFactoryService(config as never).updateProjectSchedule(42, false, { uploadsEnabled: true, callsEnabled: true });
+    expect(JSON.parse(String(fetchMock.mock.calls.at(0)![1]?.body))).toEqual({
+      status: 'pause', work_client_status: 'stop', call_center_status: 'pause_daily',
+    });
   });
 
   it('retries safe GET requests and strips provider input from 422 details', async () => {
@@ -63,5 +107,14 @@ describe('LeadsFactoryService contract', () => {
     const fetchMock = jest.spyOn(global, 'fetch').mockResolvedValue(new Response('{}', { status: 200 }));
     await new LeadsFactoryService(config as never).getIntegration(55, name);
     expect(fetchMock.mock.calls.at(0)![0].toString()).toContain(`/projects/55/integrations/${name}`);
+  });
+
+  it('loads the complete provider region dictionary', async () => {
+    const fetchMock = jest.spyOn(global, 'fetch').mockResolvedValue(new Response(JSON.stringify({
+      regions: [{ region_id: 77, region_name: 'Москва' }],
+    }), { status: 200 }));
+    await expect(new LeadsFactoryService(config as never).getAvailableRegions())
+      .resolves.toEqual({ regions: [{ region_id: 77, region_name: 'Москва' }] });
+    expect(fetchMock.mock.calls.at(0)![0].toString()).toContain('/vdl/api/regions/avaliable_regions');
   });
 });

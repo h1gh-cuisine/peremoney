@@ -34,6 +34,7 @@ export interface CreateProjectInput {
   type: ProjectType;
   region: string;
   regionId: number;
+  regionIds?: number[];
   sphere: string;
   managerId: string;
   managerName: string;

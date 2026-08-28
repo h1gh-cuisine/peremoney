@@ -20,7 +20,13 @@ export default function FinancePage() {
   const error = useFinanceStore((s) => s.error);
   const cabinetId = useSessionStore((s) => s.user?.cabinetId);
   const loadPayer = usePayerStore((s) => s.load);
-  useEffect(() => { if (cabinetId) { void load(cabinetId); void loadPayer(cabinetId); } }, [cabinetId, load, loadPayer]);
+  useEffect(() => {
+    if (!cabinetId) return;
+    void load(cabinetId);
+    void loadPayer(cabinetId);
+    const refresh = window.setInterval(() => void load(cabinetId), 60_000);
+    return () => window.clearInterval(refresh);
+  }, [cabinetId, load, loadPayer]);
 
   return (
     <>

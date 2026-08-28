@@ -6,14 +6,14 @@ import type { ProjectType } from '@/shared/lib/projectType';
 type ApiSchedule = 'WEEKDAYS' | 'WEEKENDS' | 'EVERYDAY';
 type ApiProjectType = 'VDL' | 'PACKAGE' | 'NUMBERS';
 const PROJECT_TYPES: Record<ApiProjectType, ProjectType> = { VDL: 'quals', PACKAGE: 'package', NUMBERS: 'numbers' };
-const SUPPORTED_MESSENGERS = new Set(['telegram', 'max', 'email']);
+const SUPPORTED_MESSENGERS = new Set(['telegram', 'max']);
 
 export function mapCabinetSettings(value: { isActive: boolean; schedulePreset: ApiSchedule; type: ApiProjectType;
   timezoneOffset?: number; uploadsEnabled?: boolean; callsEnabled?: boolean; scheduleDays?: number[]; crmIntegration?: string; messengerIntegrations?: string[] }) {
   return { status: (value.isActive ? 'active' : 'paused') as ProjectStatus,
     schedulePreset: value.schedulePreset.toLowerCase() as SchedulePreset, projectType: PROJECT_TYPES[value.type],
     timezoneOffset: value.timezoneOffset ?? 3, uploadsEnabled: value.uploadsEnabled ?? true,
-    callsEnabled: value.callsEnabled ?? true, scheduleDays: value.scheduleDays ?? [1, 2, 3, 4, 5, 6, 7], crmIntegration: value.crmIntegration ?? '',
+    callsEnabled: value.callsEnabled ?? true, scheduleDays: value.scheduleDays ?? [1, 2, 3, 4, 5, 6, 7], crmIntegration: '',
     messengerIntegrations: (value.messengerIntegrations ?? []).filter((name) => SUPPORTED_MESSENGERS.has(name)) };
 }
 export function scheduleToApi(schedulePreset: SchedulePreset) { return { schedulePreset: schedulePreset.toUpperCase() as ApiSchedule }; }
@@ -24,7 +24,7 @@ export async function fetchCabinetSettings() {
   return { cabinetId: value.id, ...mapCabinetSettings(value) };
 }
 export async function saveCabinetSettings(cabinetId: string, settings: import('../model/types').ProjectSettings, visibility: SectionVisibility) {
-  await apiClient().patch(`/cabinets/${cabinetId}/settings`, {
+  return apiClient().patch<{ providerSync?: { status: 'SYNCED' | 'PENDING' | 'SKIPPED'; message?: string } }>(`/cabinets/${cabinetId}/settings`, {
     isActive: settings.status === 'active', timezoneOffset: settings.timezoneOffset,
     uploadsEnabled: settings.uploadsEnabled, callsEnabled: settings.callsEnabled, scheduleDays: settings.scheduleDays,
     ...scheduleToApi(settings.schedulePreset), crmIntegration: settings.crmIntegration,
@@ -36,4 +36,16 @@ export async function fetchProviderIntegration(cabinetId: string, name: string) 
   return apiClient().get<{ configured: boolean; details: Record<string, unknown> }>(
     `/cabinets/${cabinetId}/provider/integrations/${name}`,
   );
+}
+
+export interface DirectIntegrationConfig {
+  channel: 'telegram' | 'max'; configured: boolean; enabled: boolean; chatId: string; hasToken: boolean;
+}
+export async function fetchDirectIntegration(cabinetId: string, channel: 'telegram' | 'max') {
+  return apiClient().get<DirectIntegrationConfig>(`/cabinets/${cabinetId}/integrations/${channel}`);
+}
+export async function saveDirectIntegration(cabinetId: string, channel: 'telegram' | 'max', input: {
+  botToken?: string; chatId: string; enabled: boolean;
+}) {
+  return apiClient().patch<DirectIntegrationConfig>(`/cabinets/${cabinetId}/integrations/${channel}`, input);
 }

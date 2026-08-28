@@ -5,11 +5,11 @@ import { Topbar } from "@/widgets/topbar";
 import { PageBody } from "@/shared/ui/PageBody";
 import { MasterPaymentsTable } from "@/widgets/master-payments-table";
 import { useMasterManagersStore } from "@/entities/master-managers";
-import { useMasterPaymentsStore, sortMasterPayments } from "@/entities/master-payments";
+import { useMasterPaymentsStore, sortMasterPayments, type MasterPaymentStatus } from "@/entities/master-payments";
 
 export default function MasterPaymentsPage() {
   const managers = useMasterManagersStore((s) => s.managers);
-  const hydrateManagers = useMasterManagersStore((s) => s.hydrateFromProjectNames);
+  const loadManagers = useMasterManagersStore((s) => s.load);
   const payments = useMasterPaymentsStore((s) => s.payments);
   const markPaid = useMasterPaymentsStore((s) => s.markPaid);
   const markPending = useMasterPaymentsStore((s) => s.markPending);
@@ -17,17 +17,13 @@ export default function MasterPaymentsPage() {
   const load = useMasterPaymentsStore((s) => s.load);
   const error = useMasterPaymentsStore((s) => s.error);
   useEffect(() => { void load(); }, [load]);
-  useEffect(() => {
-    hydrateManagers(payments.map((payment) => payment.managerId));
-  }, [hydrateManagers, payments]);
+  useEffect(() => { void loadManagers(); }, [loadManagers]);
 
   const sorted = useMemo(() => sortMasterPayments(payments), [payments]);
 
-  function handleTogglePaid(id: string) {
-    const payment = payments.find((p) => p.id === id);
-    if (!payment) return;
-    if (payment.status === "paid") void markPending(id);
-    else void markPaid(id);
+  function handleStatusChange(id: string, status: MasterPaymentStatus) {
+    if (status === "paid") void markPaid(id);
+    else void markPending(id);
   }
 
   return (
@@ -38,7 +34,7 @@ export default function MasterPaymentsPage() {
         <MasterPaymentsTable
           payments={sorted}
           managers={managers}
-          onTogglePaid={handleTogglePaid}
+          onStatusChange={handleStatusChange}
           onDelete={(id) => void remove(id)}
         />
       </PageBody>

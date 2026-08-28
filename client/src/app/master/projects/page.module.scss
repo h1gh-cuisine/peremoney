@@ -2,6 +2,37 @@
 
 .actions {
   display: flex;
-  justify-content: flex-end;
+  align-items: center;
+  justify-content: space-between;
   gap: v.$space-3;
+  flex-wrap: wrap;
+}
+
+.periodFilter,
+.projectActions {
+  display: flex;
+  align-items: center;
+  gap: v.$space-3;
+}
+
+.periodFilter > span {
+  color: v.$color-text-muted;
+  font-size: v.$font-size-xs;
+  text-transform: uppercase;
+  letter-spacing: .04em;
+}
+
+@media (max-width: 760px) {
+  .actions,
+  .projectActions {
+    align-items: stretch;
+  }
+
+  .actions {
+    flex-direction: column;
+  }
+
+  .projectActions {
+    flex-wrap: wrap;
+  }
 }

@@ -38,4 +38,21 @@ describe('TochkaService', () => {
       expect(JSON.stringify(response)).not.toContain('must-not-leak');
     }
   });
+
+  it('reports a TLS interception error without hiding its actionable cause', async () => {
+    const failure = new TypeError('fetch failed', { cause: Object.assign(new Error('private certificate data'), {
+      code: 'SELF_SIGNED_CERT_IN_CHAIN',
+    }) });
+    jest.spyOn(global, 'fetch').mockRejectedValue(failure);
+    try {
+      await new TochkaService(config).createInvoice({ Data: {} });
+      throw new Error('expected rejection');
+    } catch (error) {
+      const response = (error as { getResponse(): unknown }).getResponse();
+      expect(response).toEqual(expect.objectContaining({
+        transportCode: 'SELF_SIGNED_CERT_IN_CHAIN', retrySafe: true,
+      }));
+      expect(JSON.stringify(response)).not.toContain('private certificate data');
+    }
+  });
 });

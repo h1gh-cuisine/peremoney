@@ -36,7 +36,22 @@ describe('SchedulerService', () => {
     const dispatch = (scheduler as unknown as { dispatch(run: unknown): Promise<unknown> }).dispatch.bind(scheduler);
 
     await dispatch({ task: ScheduledTask.APPLY_SCHEDULE, cabinetId: 'cabinet-id', scheduledFor: new Date('2026-08-21T17:00:00Z') });
-    expect(updateProjectSchedule).toHaveBeenCalledWith(42, false);
+    expect(updateProjectSchedule).toHaveBeenCalledWith(42, false, { uploadsEnabled: undefined, callsEnabled: undefined });
+  });
+
+  it('at 20:00 checks the next Moscow calendar day', async () => {
+    const updateProjectSchedule = jest.fn();
+    const prisma = { cabinet: { findUniqueOrThrow: jest.fn().mockResolvedValue({
+      id: 'cabinet-id', providerProjectId: 42, scheduleDays: [6], isActive: true,
+      moneyBalance: 1000, price: 250, totalUnits: 10, usedUnits: 0,
+      uploadsEnabled: true, callsEnabled: true,
+    }) } };
+    const scheduler = service(prisma, { updateProjectSchedule });
+    const dispatch = (scheduler as unknown as { dispatch(run: unknown): Promise<unknown> }).dispatch.bind(scheduler);
+
+    // 21 августа — пятница. В 20:00 МСК применяется расписание субботы (ISO 6).
+    await dispatch({ task: ScheduledTask.APPLY_SCHEDULE, cabinetId: 'cabinet-id', scheduledFor: new Date('2026-08-21T17:00:00Z') });
+    expect(updateProjectSchedule).toHaveBeenCalledWith(42, true, { uploadsEnabled: true, callsEnabled: true });
   });
 
   it('never reactivates a project that is locally paused', async () => {
@@ -47,7 +62,19 @@ describe('SchedulerService', () => {
     const scheduler = service(prisma, { updateProjectSchedule });
     const dispatch = (scheduler as unknown as { dispatch(run: unknown): Promise<unknown> }).dispatch.bind(scheduler);
     await dispatch({ task: ScheduledTask.APPLY_SCHEDULE, cabinetId: 'cabinet-id', scheduledFor: new Date('2026-08-20T17:00:00Z') });
-    expect(updateProjectSchedule).toHaveBeenCalledWith(42, false);
+    expect(updateProjectSchedule).toHaveBeenCalledWith(42, false, { uploadsEnabled: undefined, callsEnabled: undefined });
+  });
+
+  it('pauses an active project when its balance is exhausted', async () => {
+    const updateProjectSchedule = jest.fn();
+    const prisma = { cabinet: { findUniqueOrThrow: jest.fn().mockResolvedValue({
+      id: 'cabinet-id', providerProjectId: 42, scheduleDays: [1, 2, 3, 4, 5, 6, 7], isActive: true,
+      moneyBalance: 0, price: 250, totalUnits: 10, usedUnits: 10,
+    }) } };
+    const scheduler = service(prisma, { updateProjectSchedule });
+    const dispatch = (scheduler as unknown as { dispatch(run: unknown): Promise<unknown> }).dispatch.bind(scheduler);
+    await dispatch({ task: ScheduledTask.APPLY_SCHEDULE, cabinetId: 'cabinet-id', scheduledFor: new Date('2026-08-20T17:00:00Z') });
+    expect(updateProjectSchedule).toHaveBeenCalledWith(42, false, { uploadsEnabled: undefined, callsEnabled: undefined });
   });
 
   it('stores the provider HTML script in the cabinet', async () => {

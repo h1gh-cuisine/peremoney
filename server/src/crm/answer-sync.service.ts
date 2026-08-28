@@ -5,6 +5,7 @@ import { ProviderAnswer } from '../leads-factory/leads-factory.types';
 import { PrismaService } from '../prisma/prisma.service';
 import { parseProviderDate } from './provider-date';
 import { FinanceService } from '../finance/finance.service';
+import { DirectMessengerService } from '../integrations/direct-messenger.service';
 
 @Injectable()
 export class AnswerSyncService {
@@ -12,12 +13,17 @@ export class AnswerSyncService {
     private readonly prisma: PrismaService,
     private readonly provider: LeadsFactoryService,
     private readonly finance: FinanceService,
+    private readonly messenger?: DirectMessengerService,
   ) {}
 
   async sync(cabinetId: string) {
-    const cabinet = await this.prisma.cabinet.findUnique({ where: { id: cabinetId } });
+    const cabinet = await this.prisma.cabinet.findUnique({
+      where: { id: cabinetId }, include: { providerCreation: { select: { id: true } } },
+    });
     if (!cabinet) throw new NotFoundException('Кабинет не найден');
     if (!cabinet.providerProjectId) throw new NotFoundException('У кабинета не указан providerProjectId');
+    const hasImportedContacts = await this.prisma.contact.count({ where: { cabinetId } }) > 0;
+    const historicalImport = !hasImportedContacts && !cabinet.providerCreation;
     const run = await this.prisma.answerSyncRun.create({ data: { cabinetId } });
     let receivedCount = 0;
     let contactCount = 0;
@@ -26,12 +32,12 @@ export class AnswerSyncService {
       let page = 1;
       do {
         const result = await this.provider.getAnswers(cabinet.providerProjectId, {
-          page, limit: 200, dateFrom: cabinet.createdAt, dateTo: new Date(),
+          page, limit: 200, dateFrom: hasImportedContacts ? cabinet.createdAt : undefined, dateTo: new Date(),
         });
         receivedCount += result.items.length;
         for (const answer of result.items) {
           if (answer.status === 'repeat') continue;
-          const saved = await this.saveAnswer(cabinetId, answer);
+          const saved = await this.saveAnswer(cabinetId, answer, historicalImport);
           contactCount += 1;
           if (saved) leadCount += 1;
         }
@@ -54,7 +60,7 @@ export class AnswerSyncService {
     }
   }
 
-  private async saveAnswer(cabinetId: string, answer: ProviderAnswer): Promise<boolean> {
+  private async saveAnswer(cabinetId: string, answer: ProviderAnswer, historicalImport = false): Promise<boolean> {
     const existingContact = await this.prisma.contact.findUnique({
       where: { cabinetId_providerAnswerId: { cabinetId, providerAnswerId: answer.id } },
       select: { id: true },
@@ -71,7 +77,7 @@ export class AnswerSyncService {
         site: answer.site, mobileOperator: answer.mobile_operator,
       },
     });
-    if (!existingContact) await this.finance.chargeUsage(cabinetId, 'contact', contact.id);
+    if (!existingContact && !historicalImport) await this.finance.chargeUsage(cabinetId, 'contact', contact.id);
     if (answer.status !== 'success') return false;
     const existingLead = await this.prisma.lead.findUnique({ where: { contactId: contact.id }, select: { id: true } });
     await this.prisma.lead.upsert({
@@ -84,7 +90,11 @@ export class AnswerSyncService {
         successDate: parseProviderDate(answer.success_date ?? answer.date), comment: answer.name,
       },
     });
-    if (!existingLead) await this.finance.chargeUsage(cabinetId, 'lead', contact.id);
+    if (!existingLead && !historicalImport) await this.finance.chargeUsage(cabinetId, 'lead', contact.id);
+    if (!existingLead && !historicalImport) await this.messenger?.notifyLead(cabinetId, {
+      providerAnswerId: answer.id, phone: answer.mobile_tel, name: answer.name,
+      site: answer.site, date: parseProviderDate(answer.success_date ?? answer.date),
+    });
     return true;
   }
 }

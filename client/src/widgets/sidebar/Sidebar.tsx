@@ -18,6 +18,8 @@ export function Sidebar() {
   const sectionVisibility = useAccessStore((s) => s.sectionVisibility);
 
   const items = CLIENT_NAV_ITEMS.filter((item) => {
+    // "Настройки" убраны из "Управление доступом" — раздел всегда скрыт для клиента (docs-agent.md 1.3)
+    if (item.id === "settings") return accessLevel === "full";
     if (item.alwaysVisible || accessLevel === "full") return true;
     return sectionVisibility[item.id as HideableSection];
   });

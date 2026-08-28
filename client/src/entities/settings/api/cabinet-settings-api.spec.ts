@@ -9,7 +9,7 @@ describe('cabinet settings API contract', () => {
   it('drops integrations that Peremoney no longer supports', () => {
     expect(mapCabinetSettings({ isActive: true, schedulePreset: 'EVERYDAY', type: 'VDL',
       messengerIntegrations: ['telegram', 'whatsapp', 'viber', 'max', 'email'] }).messengerIntegrations)
-      .toEqual(['telegram', 'max', 'email']);
+      .toEqual(['telegram', 'max']);
   });
   it('maps schedule and visibility to backend DTO enums/keys', () => {
     expect(scheduleToApi('weekdays')).toEqual({ schedulePreset: 'WEEKDAYS' });

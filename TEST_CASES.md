@@ -141,3 +141,18 @@
 | UI-13 | Script не падает на ISO datetime и повреждённой/пустой дате | Component/browser | AUTO |
 | UI-14 | Меню проекта и длинное имя не выходят за границы узкого viewport | Frontend component/browser | AUTO component / MANUAL browser |
 | OPS-07 | Dev frontend по умолчанию обращается к QA API `localhost:4010/api` | Browser/config | AUTO |
+| AUTH-14 | Мастерская и проектная сессии хранятся независимо; вход/logout/401 одного контура не удаляет второй токен | Frontend store/API/browser | AUTO store / MANUAL browser |
+| AUTH-15 | При активной мастер-сессии переключатель «Мастер-кабинет / Кабинет проекта» виден в обоих кабинетах и использует токен выбранного контура | Frontend/browser | AUTO store / MANUAL browser |
+| AUTH-16 | «Перейти в проект» после создания выполняет login сотрудника, проверяет `cabinetId`, сохраняет вторую сессию и не завершает MASTER | Frontend/API/browser | AUTO session contract / MANUAL E2E |
+| AUTH-17 | Сохранённые FULL флаги видимости восстанавливаются без подмены на «всё включено»; LIMITED теряет меню, прямой URL и API скрытого раздела | Backend+Frontend/API/browser | AUTO backend/UI guard / MANUAL E2E |
+| AUTH-18 | Переключение FULL↔LIMITED не показывает на промежуточном кадре права и данные предыдущей сессии | Frontend/browser/security | MANUAL |
+| CAB-06 | Окно регионов ищет по вводу, допускает один/несколько регионов и показывает число выбранных | Frontend component/browser | MANUAL |
+| CAB-07 | «Вся Россия» выбирает все реальные provider region IDs и backend передаёт весь массив в Leads Factory без фиктивного ID | Frontend+Backend/provider | AUTO contract / MANUAL live |
+| MASTER-12 | Статус платежа меняется только через раскрывающийся список и отдельное подтверждение; отмена не отправляет PATCH | Frontend component/browser | AUTO markup / MANUAL interaction |
+| MASTER-13 | Подтверждение статуса показывает проект, сумму и предупреждает о перемещении строки; после изменения платёж можно найти в нужной статусной группе | Frontend/browser | MANUAL |
+| UI-15 | Новые модальные окна выбора регионов и подтверждения платежа не выходят за viewport и управляются мышью/клавиатурой | Frontend/browser/accessibility | MANUAL |
+| INT-01 | В Settings отображаются только Telegram и MAX; Bitrix24/AmoCRM/Email отсутствуют | Frontend component/browser | AUTO component / MANUAL browser |
+| INT-02 | Telegram и MAX сохраняются напрямую в Peremoney без вызова Leads Factory | Frontend+Backend/API | AUTO contract / MANUAL HTTP |
+| INT-03 | Bot token Telegram/MAX хранится только шифрованно и не возвращается через GET, ошибки или журналы | Backend/security | AUTO unit / MANUAL audit |
+| INT-04 | Первый save требует token и chat ID; повторный save может не менять token; enabled корректно включается и выключается | Backend+Frontend/browser | AUTO validation / MANUAL browser |
+| UI-16 | Проектный баланс не отображается на `/master/*`; при переходе в MASTER finance-store очищается и не раскрывает данные последнего проекта | Frontend unit/browser/security | AUTO store / MANUAL browser |

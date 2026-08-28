@@ -1,6 +1,9 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
+import { useRouter } from "next/navigation";
+import { type LoginResponse, sessionFromLogin, useSessionStore } from "@/entities/session";
+import { apiClient } from "@/shared/api/client";
 import { formatCurrency, formatNumber } from "@/shared/lib/format";
 import { getProjectTypeLabel } from "@/shared/lib/projectType";
 import type { Manager } from "@/entities/master-managers";
@@ -22,6 +25,16 @@ interface PasswordResetCellProps {
   projectId: string;
   projectName: string;
   onConfirm: (id: string, password: string) => void;
+}
+
+type SortKey = "name" | "manager" | "type" | "contacts" | "leads" | "sales" | "sphere" | "price"
+  | "renewalStatus" | "ltv" | "paymentsCount" | "avgCheck" | "clientLogin" | "active";
+type SortDirection = "asc" | "desc";
+
+const collator = new Intl.Collator("ru", { numeric: true, sensitivity: "base" });
+
+export function projectDisplayName(name: string) {
+  return name.split("/").map((part) => part.trim()).filter(Boolean).at(-1) ?? name;
 }
 
 function PasswordResetCell({ projectId, projectName, onConfirm }: PasswordResetCellProps) {
@@ -96,17 +109,81 @@ export function MasterProjectsTable({
   onToggleHidden,
 }: MasterProjectsTableProps) {
   const [showHidden, setShowHidden] = useState(false);
+  const [sort, setSort] = useState<{ key: SortKey; direction: SortDirection }>({ key: "name", direction: "asc" });
+  const [openingId, setOpeningId] = useState<string | null>(null);
+  const [openError, setOpenError] = useState("");
+  const router = useRouter();
+  const setSession = useSessionStore((state) => state.setSession);
+
+  const managerNames = useMemo(
+    () => new Map(managers.map((manager) => [manager.id, manager.name])),
+    [managers],
+  );
+
+  const managerName = (id: string) => managerNames.get(id) ?? "—";
 
   const visible = useMemo(
     () => (showHidden ? projects : projects.filter((p) => !p.hidden)),
     [projects, showHidden],
   );
 
-  const managerName = (id: string) => managers.find((m) => m.id === id)?.name ?? "—";
+  const sortedProjects = useMemo(() => {
+    const value = (project: MasterProject): string | number | boolean => {
+      switch (sort.key) {
+        case "manager": return managerNames.get(project.managerId) ?? "";
+        case "type": return getProjectTypeLabel(project.type);
+        case "contacts": return project.contactsExported;
+        case "leads": return project.leadsExported;
+        case "renewalStatus": return project.renewalStatus === "renewed" ? "Продлился" : "Не продлился";
+        default: return project[sort.key];
+      }
+    };
+    const direction = sort.direction === "asc" ? 1 : -1;
+    return visible.map((project, index) => ({ project, index })).sort((a, b) => {
+      const left = value(a.project);
+      const right = value(b.project);
+      const comparison = typeof left === "number" && typeof right === "number"
+        ? left - right
+        : collator.compare(String(left), String(right));
+      return comparison === 0 ? a.index - b.index : comparison * direction;
+    }).map(({ project }) => project);
+  }, [managerNames, sort, visible]);
+
+  const changeSort = (key: SortKey) => setSort((current) => ({
+    key,
+    direction: current.key === key && current.direction === "asc" ? "desc" : "asc",
+  }));
+
+  const sortHeader = (label: string, key: SortKey) => {
+    const active = sort.key === key;
+    return (
+      <th aria-sort={active ? (sort.direction === "asc" ? "ascending" : "descending") : "none"}>
+        <button type="button" className={`${styles.sortButton} ${active ? styles.sortActive : ""}`} onClick={() => changeSort(key)}>
+          <span>{label}</span>
+          <span className={styles.sortIcon} aria-hidden="true">{active ? (sort.direction === "asc" ? "↑" : "↓") : "↕"}</span>
+        </button>
+      </th>
+    );
+  };
+
+  const openProject = async (project: MasterProject) => {
+    setOpeningId(project.id);
+    setOpenError("");
+    try {
+      const response = await apiClient().post<LoginResponse>(`/auth/project-session/${project.id}`);
+      setSession(sessionFromLogin(response));
+      router.push("/dashboard");
+    } catch (error) {
+      setOpenError(error instanceof Error ? error.message : "Не удалось перейти в проект");
+    } finally {
+      setOpeningId(null);
+    }
+  };
 
   return (
     <div className={styles.card}>
       <div className={styles.toolbar}>
+        {openError && <span className={styles.openError} role="alert">{openError}</span>}
         <button type="button" className={styles.toggleHiddenBtn} onClick={() => setShowHidden((v) => !v)}>
           {showHidden ? "Скрыть спрятанные" : "Показать скрытые"}
         </button>
@@ -116,28 +193,29 @@ export function MasterProjectsTable({
         <table className={styles.table}>
           <thead>
             <tr>
-              <th>Название</th>
-              <th>Менеджер</th>
-              <th>Тип</th>
-              <th>Контактов</th>
-              <th>Лидов</th>
-              <th>Продаж</th>
-              <th>Сфера</th>
-              <th>Цена</th>
-              <th>Статус</th>
-              <th>LTV</th>
-              <th>Платежей</th>
-              <th>Средний чек</th>
-              <th>Логин</th>
+              {sortHeader("Название", "name")}
+              {sortHeader("Менеджер", "manager")}
+              {sortHeader("Тип", "type")}
+              {sortHeader("Контактов", "contacts")}
+              {sortHeader("Лидов", "leads")}
+              {sortHeader("Продаж", "sales")}
+              {sortHeader("Сфера", "sphere")}
+              {sortHeader("Цена", "price")}
+              {sortHeader("Статус", "renewalStatus")}
+              {sortHeader("LTV", "ltv")}
+              {sortHeader("Платежей", "paymentsCount")}
+              {sortHeader("Средний чек", "avgCheck")}
+              {sortHeader("Логин", "clientLogin")}
               <th>Пароль</th>
-              <th />
+              {sortHeader("Доступ", "active")}
+              <th>Проект</th>
             </tr>
           </thead>
           <tbody>
-            {visible.map((p) => (
+            {sortedProjects.map((p) => (
               <tr key={p.id} className={p.hidden ? styles.hiddenRow : undefined}>
                 <td className={styles.nameCell}>
-                  <span className={styles.projectName} title={p.name}>{p.name}</span>
+                  <span className={styles.projectName} title={p.name}>{projectDisplayName(p.name)}</span>
                 </td>
                 <td>{managerName(p.managerId)}</td>
                 <td>{getProjectTypeLabel(p.type)}</td>
@@ -186,6 +264,16 @@ export function MasterProjectsTable({
                       onHide={() => onToggleHidden(p.id)}
                     />
                   </div>
+                </td>
+                <td>
+                  <button
+                    type="button"
+                    className={styles.openProjectButton}
+                    disabled={openingId !== null}
+                    onClick={() => void openProject(p)}
+                  >
+                    {openingId === p.id ? "Переходим…" : "Перейти →"}
+                  </button>
                 </td>
               </tr>
             ))}
