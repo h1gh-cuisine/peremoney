@@ -414,6 +414,17 @@ export class CabinetsService {
       isActive: true, timezoneOffset: true, uploadsEnabled: true, callsEnabled: true, scheduleDays: true,
     } });
     if (!cabinet) throw new NotFoundException('Кабинет не найден');
+    const balanceAvailable = hasAvailableBalance(cabinet);
+    if (dto.isActive && !balanceAvailable) {
+      // Legacy versions could persist the desired local state as active while sending
+      // pause to Leads Factory. Heal such records before rejecting another activation.
+      if (cabinet.isActive) {
+        await this.prisma.cabinet.update({ where: { id }, data: { isActive: false } });
+      }
+      throw new ConflictException(
+        'Проект нельзя активировать: недостаточно средств или оплаченных единиц',
+      );
+    }
     const updated = await this.prisma.cabinet.update({ where: { id }, data: {
       isActive: dto.isActive, timezoneOffset: dto.timezoneOffset, uploadsEnabled: dto.uploadsEnabled,
       callsEnabled: dto.callsEnabled, schedulePreset: dto.schedulePreset, scheduleDays: dto.scheduleDays,
@@ -423,7 +434,6 @@ export class CabinetsService {
       settingsVisible: dto.settings,
     }, select: cabinetSelect });
     if (!cabinet.providerProjectId) return { ...updated, providerSync: { status: 'SKIPPED' } };
-    const balanceAvailable = hasAvailableBalance(cabinet);
     const scheduleChanged = cabinet.scheduleDays.length !== dto.scheduleDays.length
       || cabinet.scheduleDays.some((day, index) => day !== dto.scheduleDays[index]);
     const generalChanged = cabinet.isActive !== dto.isActive

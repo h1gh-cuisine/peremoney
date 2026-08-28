@@ -143,23 +143,24 @@ describe('CabinetsService', () => {
     expect(updateProjectProcesses).toHaveBeenCalledWith(42, { uploadsEnabled: undefined, callsEnabled: false });
   });
 
-  it('always sends a global stop when the balance is zero', async () => {
+  it('rejects activation with zero balance instead of creating a local/provider desync', async () => {
     const update = jest.fn().mockResolvedValue(cabinet);
     const updateProjectSettings = jest.fn();
     const service = new CabinetsService({ cabinet: { update, findUnique: jest.fn().mockResolvedValue({
       providerProjectId: 42, moneyBalance: 0, price: 100, totalUnits: 10, usedUnits: 10,
-      isActive: true, timezoneOffset: 3, uploadsEnabled: true, callsEnabled: true,
+      isActive: false, timezoneOffset: 3, uploadsEnabled: true, callsEnabled: true,
       scheduleDays: [1, 2, 3, 4, 5, 6, 7],
     }) } } as never, { updateProjectSettings } as never, config as never);
 
-    await service.updateSettings(cabinet.id, {
+    await expect(service.updateSettings(cabinet.id, {
       isActive: true, timezoneOffset: 3, uploadsEnabled: true, callsEnabled: true,
       schedulePreset: 'EVERYDAY' as never, scheduleDays: [1, 2, 3, 4, 5, 6, 7],
       crmIntegration: '', messengerIntegrations: [], contacts: true, sources: true,
       script: true, finance: true, settings: true,
-    });
+    })).rejects.toThrow('Проект нельзя активировать');
 
-    expect(updateProjectSettings).toHaveBeenCalledWith(42, expect.objectContaining({ isActive: false }));
+    expect(update).not.toHaveBeenCalled();
+    expect(updateProjectSettings).not.toHaveBeenCalled();
   });
 
   it('allows an empty work-week and pauses the provider project', async () => {
