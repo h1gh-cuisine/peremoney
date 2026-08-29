@@ -1,5 +1,5 @@
 import { create } from "zustand";
-import { createMasterProject, fetchMasterProjects, linkProviderProject, patchMasterProject } from '../api/master-projects-api';
+import { createMasterProject, fetchMasterProjects, linkProviderProject, patchMasterBalance, patchMasterProject } from '../api/master-projects-api';
 import type { CreateProjectInput, MasterProject, RenewalStatus } from "./types";
 import type { DateRange } from '@/shared/lib/date';
 
@@ -20,6 +20,7 @@ interface MasterProjectsState {
   toggleActive: (id: string) => void;
   toggleHidden: (id: string) => void;
   updatePrice: (id: string, price: number) => void;
+  updateBalance: (id: string, moneyBalance: number) => Promise<void>;
   updateRenewalStatus: (id: string, status: RenewalStatus) => void;
   /** Пароль клиента изменяемый, в отличие от логина (docs-agent.md 1.12.2) */
   updateClientPassword: (id: string, password: string) => Promise<void>;
@@ -55,6 +56,16 @@ export const useMasterProjectsStore = create<MasterProjectsState>((set, get) => 
     void patchMasterProject(id, { hidden: value }).catch((e: unknown) => set({ error: e instanceof Error ? e.message : 'Ошибка обновления' })); },
   updatePrice: (id, price) => { set((state) => ({ projects: state.projects.map((p) => p.id === id ? { ...p, price } : p) }));
     void patchMasterProject(id, { price }).catch((e: unknown) => set({ error: e instanceof Error ? e.message : 'Ошибка обновления' })); },
+  updateBalance: async (id, moneyBalance) => {
+    try {
+      const updated = await patchMasterBalance(id, moneyBalance);
+      set((state) => ({ projects: state.projects.map((p) => p.id === id
+        ? { ...p, moneyBalance: Number(updated.moneyBalance) } : p), error: null }));
+    } catch (reason) {
+      set({ error: reason instanceof Error ? reason.message : 'Не удалось изменить баланс' });
+      throw reason;
+    }
+  },
   updateRenewalStatus: (id, status) => { set((state) => ({ projects: state.projects.map((p) => p.id === id ? { ...p, renewalStatus: status } : p) }));
     void patchMasterProject(id, { renewalStatus: status }).catch((e: unknown) => set({ error: e instanceof Error ? e.message : 'Ошибка обновления' })); },
   updateClientPassword: async (id, password) => {

@@ -15,6 +15,7 @@ interface MasterProjectsTableProps {
   projects: MasterProject[];
   managers: Manager[];
   onUpdatePrice: (id: string, price: number) => void;
+  onUpdateBalance: (id: string, moneyBalance: number) => Promise<void>;
   onUpdateRenewalStatus: (id: string, status: RenewalStatus) => void;
   onUpdateClientPassword: (id: string, password: string) => Promise<void> | void;
   onToggleActive: (id: string) => void;
@@ -27,7 +28,7 @@ interface PasswordResetCellProps {
   onConfirm: (id: string, password: string) => Promise<void> | void;
 }
 
-type SortKey = "name" | "manager" | "type" | "contacts" | "leads" | "sales" | "sphere" | "price"
+type SortKey = "name" | "manager" | "type" | "contacts" | "leads" | "sales" | "sphere" | "price" | "moneyBalance"
   | "renewalStatus" | "ltv" | "paymentsCount" | "avgCheck" | "clientLogin" | "active";
 type SortDirection = "asc" | "desc";
 
@@ -103,10 +104,38 @@ function PasswordResetCell({ projectId, projectName, onConfirm }: PasswordResetC
   );
 }
 
+function BalanceCell({ project, onSave }: { project: MasterProject; onSave: (id: string, value: number) => Promise<void> }) {
+  const [value, setValue] = useState(String(project.moneyBalance));
+  const [saving, setSaving] = useState(false);
+  useEffect(() => setValue(String(project.moneyBalance)), [project.moneyBalance]);
+  const parsed = Number(value);
+  const valid = Number.isFinite(parsed) && parsed >= 0 && parsed <= 99_999_999_999.99;
+  const changed = valid && parsed !== project.moneyBalance;
+
+  async function save() {
+    if (!changed || saving) return;
+    if (!window.confirm(`Установить баланс проекта «${projectDisplayName(project.name)}» равным ${formatCurrency(parsed)}?`)) return;
+    setSaving(true);
+    try { await onSave(project.id, parsed); }
+    catch { setValue(String(project.moneyBalance)); }
+    finally { setSaving(false); }
+  }
+
+  return <div className={styles.balanceControl}>
+    <input type="number" min={0} step="0.01" className={styles.balanceInput} value={value}
+      aria-label={`Баланс проекта ${projectDisplayName(project.name)}`}
+      onChange={(event) => setValue(event.target.value)} />
+    <button type="button" className={styles.balanceSave} disabled={!changed || saving} onClick={() => void save()}>
+      {saving ? "…" : "Сохранить"}
+    </button>
+  </div>;
+}
+
 export function MasterProjectsTable({
   projects,
   managers,
   onUpdatePrice,
+  onUpdateBalance,
   onUpdateRenewalStatus,
   onUpdateClientPassword,
   onToggleActive,
@@ -205,6 +234,7 @@ export function MasterProjectsTable({
               {sortHeader("Продаж", "sales")}
               {sortHeader("Сфера", "sphere")}
               {sortHeader("Цена", "price")}
+              {sortHeader("Баланс", "moneyBalance")}
               {sortHeader("Статус", "renewalStatus")}
               {sortHeader("LTV", "ltv")}
               {sortHeader("Платежей", "paymentsCount")}
@@ -236,6 +266,7 @@ export function MasterProjectsTable({
                     onChange={(e) => onUpdatePrice(p.id, Math.max(0, Number(e.target.value) || 0))}
                   />
                 </td>
+                <td><BalanceCell project={p} onSave={onUpdateBalance} /></td>
                 <td>
                   <select
                     className={styles.statusSelect}

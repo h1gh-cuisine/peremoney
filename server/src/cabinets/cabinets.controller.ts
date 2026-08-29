@@ -17,6 +17,7 @@ import { CloneCabinetDto } from './dto/clone-cabinet.dto';
 import { ListCabinetsDto } from './dto/list-cabinets.dto';
 import { UpdateDirectIntegrationDto } from './dto/update-direct-integration.dto';
 import { LinkProviderProjectDto } from './dto/link-provider-project.dto';
+import { UpdateMasterBalanceDto } from './dto/update-master-balance.dto';
 
 @ApiTags('cabinets')
 @ApiBearerAuth()
@@ -91,6 +92,11 @@ export class CabinetsController {
   @Patch(':id/master-project') @Roles(UserRole.MASTER)
   updateMasterProject(@Param('id') id: string, @Body() dto: UpdateMasterProjectDto) {
     return this.cabinets.updateMasterProject(id, dto);
+  }
+
+  @Patch(':id/master-balance') @Roles(UserRole.MASTER)
+  updateMasterBalance(@CurrentUser() user: AuthUser, @Param('id') id: string, @Body() dto: UpdateMasterBalanceDto) {
+    return this.cabinets.updateMasterBalance(id, dto.moneyBalance, user.id);
   }
 
   @Post(':id/clone') @Roles(UserRole.MASTER)

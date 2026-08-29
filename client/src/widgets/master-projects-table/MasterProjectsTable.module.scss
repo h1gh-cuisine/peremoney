@@ -173,6 +173,36 @@
   width: 90px;
 }
 
+.balanceControl {
+  display: flex;
+  align-items: center;
+  gap: v.$space-1;
+}
+
+.balanceInput {
+  width: 110px;
+  background: v.$color-bg-card;
+  border: 1px solid v.$color-border;
+  border-radius: v.$radius-sm;
+  padding: v.$space-2;
+  color: v.$color-text-primary;
+  font: inherit;
+  font-variant-numeric: tabular-nums;
+
+  &:focus-visible { @include m.focus-ring; }
+}
+
+.balanceSave {
+  @include m.button-reset;
+  padding: v.$space-2;
+  border: 1px solid v.$color-accent-2;
+  border-radius: v.$radius-sm;
+  color: v.$color-accent-2;
+  font-size: 11px;
+
+  &:disabled { opacity: .35; cursor: default; }
+}
+
 .passwordInput {
   width: 140px;
 }

@@ -1,7 +1,7 @@
 import { BadGatewayException, ConflictException, ForbiddenException, Injectable, NotFoundException } from '@nestjs/common';
-import { Cabinet, Prisma, ProjectType, UserRole } from '@prisma/client';
+import { BalanceEntryType, Cabinet, Prisma, ProjectType, ScheduledTask, UserRole } from '@prisma/client';
 import { hash } from 'bcryptjs';
-import { createCipheriv, createHash, createHmac, randomBytes } from 'node:crypto';
+import { createCipheriv, createHash, createHmac, randomBytes, randomUUID } from 'node:crypto';
 import { ConfigService } from '@nestjs/config';
 import { AuthUser } from '../common/auth-user';
 import { PrismaService } from '../prisma/prisma.service';
@@ -504,6 +504,39 @@ export class CabinetsService {
       if (cabinet.providerProjectId) await this.syncProviderActivity(cabinet, cabinet.providerProjectId);
     }
     return updated;
+  }
+
+  async updateMasterBalance(id: string, nextValue: number, actorId: string) {
+    const nextBalance = new Prisma.Decimal(nextValue);
+    const result = await this.prisma.$transaction(async (tx) => {
+      await tx.$executeRaw`SELECT pg_advisory_xact_lock(hashtext(${id}))`;
+      const cabinet = await tx.cabinet.findUnique({ where: { id }, select: {
+        id: true, providerProjectId: true, moneyBalance: true, price: true, totalUnits: true, usedUnits: true,
+      } });
+      if (!cabinet) throw new NotFoundException('Кабинет не найден');
+      const moneyDelta = nextBalance.minus(cabinet.moneyBalance);
+      const remainingUnits = cabinet.price.gt(0) ? Math.floor(nextBalance.div(cabinet.price).toNumber()) : 0;
+      const nextTotalUnits = cabinet.usedUnits + remainingUnits;
+      const unitsDelta = nextTotalUnits - cabinet.totalUnits;
+      if (!moneyDelta.isZero() || unitsDelta !== 0) {
+        await tx.balanceEntry.create({ data: {
+          cabinetId: id, type: BalanceEntryType.MANUAL_ADJUSTMENT,
+          externalKey: `manual:${actorId}:${randomUUID()}`,
+          moneyDelta, unitsDelta,
+        } });
+      }
+      const updated = await tx.cabinet.update({ where: { id }, data: {
+        moneyBalance: nextBalance, totalUnits: nextTotalUnits,
+      }, select: cabinetSelect });
+      if (cabinet.providerProjectId) {
+        const now = new Date();
+        await tx.scheduledRun.create({ data: {
+          cabinetId: id, task: ScheduledTask.APPLY_SCHEDULE, scheduledFor: now, nextAttemptAt: now,
+        } });
+      }
+      return updated;
+    });
+    return result;
   }
 
   async clone(id: string, dto: import('./dto/clone-cabinet.dto').CloneCabinetDto) {

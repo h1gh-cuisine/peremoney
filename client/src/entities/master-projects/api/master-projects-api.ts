@@ -4,12 +4,12 @@ import type { ProjectType } from '@/shared/lib/projectType';
 import type { DateRange } from '@/shared/lib/date';
 
 type ApiProject = { id: string; name: string; managerName: string | null; type: 'VDL'|'PACKAGE'|'NUMBERS'; sphere: string | null;
-  price: string|number; renewalStatus: 'RENEWED'|'NOT_RENEWED'; isActive: boolean; hidden: boolean; createdAt: string;
+  price: string|number; moneyBalance: string|number; renewalStatus: 'RENEWED'|'NOT_RENEWED'; isActive: boolean; hidden: boolean; createdAt: string;
   contactsExported: number; leadsExported: number; sales: number; ltv: number; paymentsCount: number; avgCheck: number; clientLogin: string; employeeLogin: string };
 const TYPES: Record<ApiProject['type'], ProjectType> = { VDL: 'quals', PACKAGE: 'package', NUMBERS: 'numbers' };
 export function mapMasterProject(value: ApiProject): MasterProject { return { id: value.id, name: value.name,
   managerId: value.managerName ?? 'Без менеджера', type: TYPES[value.type], region: value.name.split('/')[0] ?? '', sphere: value.sphere ?? '',
-  contactsExported: value.contactsExported, leadsExported: value.leadsExported, sales: value.sales, price: Number(value.price),
+  contactsExported: value.contactsExported, leadsExported: value.leadsExported, sales: value.sales, price: Number(value.price), moneyBalance: Number(value.moneyBalance),
   renewalStatus: value.renewalStatus === 'RENEWED' ? 'renewed' : 'not_renewed', ltv: value.ltv,
   paymentsCount: value.paymentsCount, avgCheck: value.avgCheck, clientLogin: value.clientLogin, clientPassword: '',
   employeeLogin: value.employeeLogin, employeePassword: '', active: value.isActive, hidden: value.hidden, createdAt: value.createdAt.slice(0,10) }; }
@@ -35,6 +35,9 @@ export async function createMasterProject(input: { clientName: string; type: Pro
 export async function patchMasterProject(id: string, patch: { price?: number; renewalStatus?: RenewalStatus; isActive?: boolean; hidden?: boolean; clientPassword?: string }) {
   await apiClient().patch(`/cabinets/${id}/master-project`, { ...patch,
     renewalStatus: patch.renewalStatus === undefined ? undefined : patch.renewalStatus === 'renewed' ? 'RENEWED' : 'NOT_RENEWED' });
+}
+export async function patchMasterBalance(id: string, moneyBalance: number) {
+  return apiClient().patch<{ moneyBalance: string | number }>(`/cabinets/${id}/master-balance`, { moneyBalance });
 }
 export async function linkProviderProject(input: { providerProjectId: number; price: number; managerId: string }) {
   const result = await apiClient().post<{ cabinet: Record<string, unknown>; credentials: { client: { login: string; password: string }; employee: { login: string; password: string } } }>('/cabinets/link-provider',

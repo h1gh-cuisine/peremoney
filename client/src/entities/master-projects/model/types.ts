@@ -16,6 +16,7 @@ export interface MasterProject {
   leadsExported: number;
   sales: number;
   price: number; // ручной ввод
+  moneyBalance: number; // денежный остаток, управляется мастер-кабинетом
   renewalStatus: RenewalStatus; // ручной ввод
   ltv: number;
   paymentsCount: number;

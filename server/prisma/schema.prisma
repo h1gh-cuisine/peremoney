@@ -78,6 +78,7 @@ enum BalanceEntryType {
   CONTACT_CHARGE
   LEAD_CHARGE
   PAYMENT_REVERSAL
+  MANUAL_ADJUSTMENT
 }
 
 enum FanoutDeliveryStatus {
