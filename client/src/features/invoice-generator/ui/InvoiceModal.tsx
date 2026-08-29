@@ -46,6 +46,7 @@ export function InvoiceModal({ onClose }: InvoiceModalProps) {
         link.href = url; link.download = `Счет-${payment.invoiceNo ?? payment.id}.pdf`;
         document.body.append(link); link.click(); link.remove();
       } finally { setTimeout(() => URL.revokeObjectURL(url), 1000); }
+      onClose();
     }
   }
 

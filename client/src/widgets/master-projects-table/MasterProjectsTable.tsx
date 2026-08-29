@@ -16,7 +16,7 @@ interface MasterProjectsTableProps {
   managers: Manager[];
   onUpdatePrice: (id: string, price: number) => void;
   onUpdateRenewalStatus: (id: string, status: RenewalStatus) => void;
-  onUpdateClientPassword: (id: string, password: string) => void;
+  onUpdateClientPassword: (id: string, password: string) => Promise<void> | void;
   onToggleActive: (id: string) => void;
   onToggleHidden: (id: string) => void;
 }
@@ -24,7 +24,7 @@ interface MasterProjectsTableProps {
 interface PasswordResetCellProps {
   projectId: string;
   projectName: string;
-  onConfirm: (id: string, password: string) => void;
+  onConfirm: (id: string, password: string) => Promise<void> | void;
 }
 
 type SortKey = "name" | "manager" | "type" | "contacts" | "leads" | "sales" | "sphere" | "price"
@@ -48,10 +48,14 @@ function PasswordResetCell({ projectId, projectName, onConfirm }: PasswordResetC
   }, [password]);
 
   const closeConfirmation = () => setPendingPassword("");
-  const confirmChange = () => {
-    onConfirm(projectId, pendingPassword);
-    setPassword("");
-    setPendingPassword("");
+  const confirmChange = async () => {
+    try {
+      await onConfirm(projectId, pendingPassword);
+      setPassword("");
+      setPendingPassword("");
+    } catch {
+      // Оставляем подтверждение открытым, пока сервер не сохранит пароль.
+    }
   };
 
   return (
@@ -90,7 +94,7 @@ function PasswordResetCell({ projectId, projectName, onConfirm }: PasswordResetC
             </p>
             <div className={styles.confirmActions}>
               <button type="button" className={styles.cancelButton} onClick={closeConfirmation}>Отмена</button>
-              <button type="button" className={styles.confirmButton} onClick={confirmChange}>Да, изменить</button>
+              <button type="button" className={styles.confirmButton} onClick={() => void confirmChange()}>Да, изменить</button>
             </div>
           </section>
         </div>

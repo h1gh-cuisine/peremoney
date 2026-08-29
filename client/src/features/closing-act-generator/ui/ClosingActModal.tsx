@@ -47,6 +47,7 @@ export function ClosingActModal({ onClose }: ClosingActModalProps) {
     if (!range || !cabinetId) return;
     await run(() => createClosingAct(cabinetId, selectedIds));
     await downloadClosingActPdf(selected, payer, range.from, range.to);
+    onClose();
   }
 
   return (

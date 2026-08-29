@@ -24,6 +24,7 @@ export function EmployeesModal({ onClose }: EmployeesModalProps) {
     try {
       await addManager(trimmed);
       setName("");
+      onClose();
     } catch {
       // Сообщение уже сохранено в store и показано ниже.
     } finally {
@@ -32,7 +33,7 @@ export function EmployeesModal({ onClose }: EmployeesModalProps) {
   }
 
   async function handleRemove(id: string) {
-    try { await removeManager(id); } catch { /* Ошибка показана в модалке. */ }
+    try { await removeManager(id); onClose(); } catch { /* Ошибка показана в модалке. */ }
   }
 
   return (

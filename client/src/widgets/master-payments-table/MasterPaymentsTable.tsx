@@ -7,7 +7,7 @@ import styles from "./MasterPaymentsTable.module.scss";
 interface MasterPaymentsTableProps {
   payments: MasterPayment[];
   managers: Manager[];
-  onStatusChange: (id: string, status: MasterPaymentStatus) => void;
+  onStatusChange: (id: string, status: MasterPaymentStatus) => Promise<void> | void;
   onDelete: (id: string) => void;
 }
 
@@ -24,10 +24,14 @@ export function MasterPaymentsTable({ payments, managers, onStatusChange, onDele
   };
   const creationStatus = (payment: MasterPayment) => payment.invoiceCreationStatus ?? "succeeded";
 
-  const confirmStatusChange = () => {
+  const confirmStatusChange = async () => {
     if (!pendingChange) return;
-    onStatusChange(pendingChange.payment.id, pendingChange.status);
-    setPendingChange(null);
+    try {
+      await onStatusChange(pendingChange.payment.id, pendingChange.status);
+      setPendingChange(null);
+    } catch {
+      // Ошибка остаётся на странице, а окно не закрывается до успешного ответа.
+    }
   };
 
   return (
@@ -106,7 +110,7 @@ export function MasterPaymentsTable({ payments, managers, onStatusChange, onDele
             </p>
             <div className={styles.confirmActions}>
               <button type="button" className={styles.cancelButton} onClick={() => setPendingChange(null)}>Отмена</button>
-              <button type="button" className={styles.confirmButton} onClick={confirmStatusChange}>Да, изменить</button>
+              <button type="button" className={styles.confirmButton} onClick={() => void confirmStatusChange()}>Да, изменить</button>
             </div>
           </section>
         </div>

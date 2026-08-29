@@ -21,9 +21,9 @@ export default function MasterPaymentsPage() {
 
   const sorted = useMemo(() => sortMasterPayments(payments), [payments]);
 
-  function handleStatusChange(id: string, status: MasterPaymentStatus) {
-    if (status === "paid") void markPaid(id);
-    else void markPending(id);
+  async function handleStatusChange(id: string, status: MasterPaymentStatus) {
+    if (status === "paid") await markPaid(id);
+    else await markPending(id);
   }
 
   return (

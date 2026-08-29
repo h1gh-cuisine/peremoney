@@ -15,7 +15,10 @@ interface MasterPaymentsState {
 export const useMasterPaymentsStore = create<MasterPaymentsState>((set, get) => {
   async function change(id: string, status: MasterPayment['status']) { const previous = get().payments;
     set({ payments: previous.map((p) => p.id === id ? { ...p, status } : p), error: null });
-    try { await setMasterPaymentStatus(id, status); } catch (reason) { set({ payments: previous, error: reason instanceof Error ? reason.message : 'Не удалось изменить платёж' }); } }
+    try { await setMasterPaymentStatus(id, status); } catch (reason) {
+      set({ payments: previous, error: reason instanceof Error ? reason.message : 'Не удалось изменить платёж' });
+      throw reason;
+    } }
   return { payments: [], loading: false, error: null,
     load: async () => { set({ loading: true, error: null }); try { set({ payments: await fetchMasterPayments() }); }
       catch (reason) { set({ error: reason instanceof Error ? reason.message : 'Не удалось загрузить платежи' }); } finally { set({ loading: false }); } },

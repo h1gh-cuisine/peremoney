@@ -113,7 +113,7 @@ export class FinanceService {
       const contractDate = payer.contractDate?.trim();
       const basedOn = contractNumber
         ? `Договор № ${contractNumber}${contractDate ? ` от ${contractDate}` : ''}`
-        : 'Публичная оферта о заключении лицензионного договора';
+        : 'Публичная оферта о заключении лицензионного договора на использование программного обеспечения kupit-klientov.ru';
       const documentId = await this.tochka.createInvoice(buildTochkaInvoice({
         customerCode: this.tochka.customerCode(), accountId: this.tochka.accountId(), invoiceNo,
         quantity, unitPrice: Number(unitPrice), payer, expiryDate: expiry.toISOString().slice(0, 10),

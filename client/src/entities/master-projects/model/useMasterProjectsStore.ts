@@ -22,7 +22,7 @@ interface MasterProjectsState {
   updatePrice: (id: string, price: number) => void;
   updateRenewalStatus: (id: string, status: RenewalStatus) => void;
   /** Пароль клиента изменяемый, в отличие от логина (docs-agent.md 1.12.2) */
-  updateClientPassword: (id: string, password: string) => void;
+  updateClientPassword: (id: string, password: string) => Promise<void>;
 }
 
 export const useMasterProjectsStore = create<MasterProjectsState>((set, get) => ({
@@ -57,6 +57,13 @@ export const useMasterProjectsStore = create<MasterProjectsState>((set, get) => 
     void patchMasterProject(id, { price }).catch((e: unknown) => set({ error: e instanceof Error ? e.message : 'Ошибка обновления' })); },
   updateRenewalStatus: (id, status) => { set((state) => ({ projects: state.projects.map((p) => p.id === id ? { ...p, renewalStatus: status } : p) }));
     void patchMasterProject(id, { renewalStatus: status }).catch((e: unknown) => set({ error: e instanceof Error ? e.message : 'Ошибка обновления' })); },
-  updateClientPassword: (id, password) => { set((state) => ({ projects: state.projects.map((p) => p.id === id ? { ...p, clientPassword: password } : p) }));
-    void patchMasterProject(id, { clientPassword: password }).catch((e: unknown) => set({ error: e instanceof Error ? e.message : 'Ошибка обновления' })); },
+  updateClientPassword: async (id, password) => {
+    const previous = get().projects;
+    set({ projects: previous.map((p) => p.id === id ? { ...p, clientPassword: password } : p), error: null });
+    try { await patchMasterProject(id, { clientPassword: password }); }
+    catch (reason) {
+      set({ projects: previous, error: reason instanceof Error ? reason.message : 'Ошибка обновления' });
+      throw reason;
+    }
+  },
 }));
