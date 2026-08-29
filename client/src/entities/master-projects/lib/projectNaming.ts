@@ -5,3 +5,8 @@ import type { CreateProjectInput } from "../model/types";
 export function composeProjectName(input: CreateProjectInput): string {
   return `${input.region}/Peremoney ЛКП ${getProjectTypeLabel(input.type)}/${input.sphere}/${input.clientName}`;
 }
+
+/** Короткое имя для плашек и аналитики: последний сегмент составного имени. */
+export function shortProjectName(name: string): string {
+  return name.split("/").map((part) => part.trim()).filter(Boolean).at(-1) ?? name;
+}

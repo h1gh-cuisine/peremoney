@@ -23,11 +23,12 @@ describe('master projects API contract', () => {
   it('maps cabinet aggregates and never expects stored plaintext passwords', () => {
     expect(mapMasterProject({ id: 'c', name: 'Москва/Клиент', managerName: null, type: 'VDL', sphere: null,
       price: '250.00', renewalStatus: 'RENEWED', isActive: true, hidden: false, createdAt: '2026-08-20T00:00:00Z',
-      contactsExported: 10, leadsExported: 3, sales: 1, ltv: 1000, paymentsCount: 2, avgCheck: 500,
+      contactsExported: 10, leadsExported: 3, sales: 1, expenses: 900, leadCost: 300, targetLeadCost: 450,
+      ltv: 1000, paymentsCount: 2, avgCheck: 500,
       clientLogin: 'client', employeeLogin: 'staff' })).toEqual(expect.objectContaining({
         id: 'c', managerId: 'Без менеджера', type: 'quals', price: 250, renewalStatus: 'renewed',
         clientLogin: 'client', clientPassword: '', employeeLogin: 'staff', employeePassword: '',
-        contactsExported: 10, leadsExported: 3, sales: 1, ltv: 1000,
+        contactsExported: 10, leadsExported: 3, sales: 1, expenses: 900, leadCost: 300, targetLeadCost: 450, ltv: 1000,
       }));
   });
 

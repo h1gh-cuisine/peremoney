@@ -1,7 +1,7 @@
 "use client";
 
 import { useMemo, useState } from "react";
-import { formatCurrency, formatNumber, formatPercent } from "@/shared/lib/format";
+import { formatCurrency, formatNumber, formatPercent, formatPhone } from "@/shared/lib/format";
 import type { Source } from "@/entities/sources";
 import { SourceRowMenu } from "./SourceRowMenu";
 import styles from "./SourcesTable.module.scss";
@@ -72,6 +72,7 @@ export function SourcesTable({ sources, onToggleActive }: SourcesTableProps) {
 
   return (
     <div className={styles.card}>
+      <div className={styles.tableCount}>Показано: {sorted.length}</div>
       <div className={styles.tableWrap}>
         <table className={styles.table}>
           <thead>
@@ -93,7 +94,7 @@ export function SourcesTable({ sources, onToggleActive }: SourcesTableProps) {
             {sorted.map((s) => (
               <tr key={s.id}>
                 <td className={styles.mono}>{s.id}</td>
-                <td>{s.name}</td>
+                <td>{s.sourceType === "phone" ? formatPhone(s.name) : s.name}</td>
                 <td>{s.operator || "—"}</td>
                 <td>{formatNumber(s.contacts)}</td>
                 <td>{formatNumber(s.leads)}</td>
@@ -117,7 +118,6 @@ export function SourcesTable({ sources, onToggleActive }: SourcesTableProps) {
         {sorted.length === 0 && <div className={styles.empty}>Источников не найдено</div>}
       </div>
 
-      <div className={styles.footer}>Показано: {sorted.length}</div>
     </div>
   );
 }

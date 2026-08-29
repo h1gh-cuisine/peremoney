@@ -9,6 +9,7 @@ interface ContactsTableProps {
 export function ContactsTable({ contacts }: ContactsTableProps) {
   return (
     <div className={styles.card}>
+      <div className={styles.tableCount}>Показано: {contacts.length}</div>
       <div className={styles.tableWrap}>
         <table className={styles.table}>
           <thead>
@@ -40,7 +41,6 @@ export function ContactsTable({ contacts }: ContactsTableProps) {
         )}
       </div>
 
-      <div className={styles.footer}>Показано: {contacts.length}</div>
     </div>
   );
 }

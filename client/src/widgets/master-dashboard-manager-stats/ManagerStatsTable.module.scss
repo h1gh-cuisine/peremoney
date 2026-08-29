@@ -6,10 +6,23 @@
   padding: v.$space-5;
 }
 
+.heading {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: v.$space-4;
+  margin-bottom: v.$space-4;
+}
+
 .title {
   font-size: v.$font-size-md;
   font-weight: 600;
-  margin: 0 0 v.$space-4;
+  margin: 0;
+}
+
+.tableCount {
+  color: v.$color-text-muted;
+  font-size: v.$font-size-xs;
 }
 
 .tableWrap {

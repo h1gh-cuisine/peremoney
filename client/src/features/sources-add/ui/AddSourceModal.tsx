@@ -50,7 +50,7 @@ export function AddSourceModal({ onClose }: AddSourceModalProps) {
 
         <div className={styles.actions}>
           <button type="button" className={styles.cancelBtn} onClick={onClose}>
-            Отмена
+            Закрыть
           </button>
           <button type="button" className={styles.submitBtn} disabled={submitting} onClick={() => void handleSubmit()}>
             {submitting ? 'Добавляем…' : 'Добавить'}

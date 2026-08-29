@@ -111,7 +111,7 @@ export function SourceAutomationPanel() {
               <div><dt>Мин. конверсия</dt><dd>{minConversion}%</dd></div>
             </dl>
             <div className={styles.confirmActions}>
-              <button type="button" className={styles.cancelButton} disabled={saving} onClick={cancelChanges}>Отменить</button>
+              <button type="button" className={styles.cancelButton} disabled={saving} onClick={cancelChanges}>Закрыть</button>
               <button type="button" className={styles.saveButton} disabled={saving} onClick={() => void confirmChanges()}>{saving ? "Сохраняем…" : "Сохранить"}</button>
             </div>
           </section>

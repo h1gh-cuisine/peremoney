@@ -24,6 +24,7 @@ export default function MasterProjectsPage() {
   const updateClientPassword = useMasterProjectsStore((s) => s.updateClientPassword);
   const toggleActive = useMasterProjectsStore((s) => s.toggleActive);
   const toggleHidden = useMasterProjectsStore((s) => s.toggleHidden);
+  const removeProject = useMasterProjectsStore((s) => s.removeProject);
   const load = useMasterProjectsStore((s) => s.load);
   const error = useMasterProjectsStore((s) => s.error);
   useEffect(() => { void load(range); }, [load, range]);
@@ -55,6 +56,7 @@ export default function MasterProjectsPage() {
           onUpdateClientPassword={updateClientPassword}
           onToggleActive={toggleActive}
           onToggleHidden={toggleHidden}
+          onDelete={removeProject}
         />
       </PageBody>
     </>

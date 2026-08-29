@@ -6,7 +6,7 @@ describe('master finance API contract', () => {
       .toEqual({ id: 'p', projectId: 'c', projectName: 'Клиент', legalEntity: '', amount: 500.25, managerId: 'Без менеджера', status: 'paid', invoiceCreationStatus: 'succeeded', createdAt: '2026-08-20' });
   });
   it('maps server-calculated manager/client analytics to widget models', () => {
-    expect(mapMasterDashboard({ managers: [{ managerName: 'Анна', activeProjects: 2, paymentsCount: 3, paymentsSum: 1000, retention: 150, bonus: 100 }], clients: [{ cabinetId: 'c', name: 'Клиент', paymentsSum: 1000 }] }))
+    expect(mapMasterDashboard({ managers: [{ managerName: 'Анна', activeProjects: 2, paymentsCount: 3, paymentsSum: 1000, retention: 150, bonus: 100 }], clients: [{ cabinetId: 'c', name: 'РФ/Peremoney ЛКП VDL/Медицина/Клиент', paymentsSum: 1000 }] }))
       .toEqual({ managers: [{ managerId: 'Анна', managerName: 'Анна', activeProjectsAtSnapshot: 2, paymentsCount: 3, paymentsSum: 1000, retention: 150, bonus: 100 }], clients: [{ projectId: 'c', projectName: 'Клиент', totalAmount: 1000 }] });
   });
 });

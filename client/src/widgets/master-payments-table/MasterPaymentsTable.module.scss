@@ -11,6 +11,13 @@
   @include m.scrollbar;
 }
 
+.tableCount {
+  padding: v.$space-3 v.$space-4;
+  border-bottom: 1px solid v.$color-border-subtle;
+  color: v.$color-text-muted;
+  font-size: v.$font-size-xs;
+}
+
 .table {
   width: 100%;
   border-collapse: collapse;

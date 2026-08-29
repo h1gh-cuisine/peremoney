@@ -20,6 +20,7 @@ export function LeadsTable({
 }: LeadsTableProps) {
   return (
     <div className={styles.card}>
+      <div className={styles.tableCount}>Показано: {leads.length}</div>
       <div className={styles.tableWrap}>
         <table className={styles.table}>
           <thead>
@@ -89,7 +90,6 @@ export function LeadsTable({
         {leads.length === 0 && <div className={styles.empty}>Лидов не найдено</div>}
       </div>
 
-      <div className={styles.footer}>Показано: {leads.length}</div>
     </div>
   );
 }

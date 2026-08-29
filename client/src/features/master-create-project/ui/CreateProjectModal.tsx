@@ -204,7 +204,7 @@ export function CreateProjectModal({ onClose }: CreateProjectModalProps) {
 
             <div className={styles.actions}>
               <button type="button" className={styles.cancelBtn} onClick={onClose}>
-                Отмена
+                Закрыть
               </button>
               <button
                 type="button"
@@ -273,7 +273,7 @@ export function CreateProjectModal({ onClose }: CreateProjectModalProps) {
                   </div>
                   <div className={styles.regionActions}>
                     <span>Выбрано: {regionDraft.length}</span>
-                    <button type="button" className={styles.cancelBtn} onClick={() => setRegionPickerOpen(false)}>Отмена</button>
+                    <button type="button" className={styles.cancelBtn} onClick={() => setRegionPickerOpen(false)}>Закрыть</button>
                     <button
                       type="button"
                       className={styles.submitBtn}

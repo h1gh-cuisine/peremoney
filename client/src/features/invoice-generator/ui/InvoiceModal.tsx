@@ -102,7 +102,7 @@ export function InvoiceModal({ onClose }: InvoiceModalProps) {
 
         <div className={styles.actions}>
           <button type="button" className={styles.cancelBtn} onClick={onClose}>
-            Отмена
+            Закрыть
           </button>
           <button type="button" className={styles.submitBtn} disabled={submitting || uncertain || !payerReady} onClick={() => void handleDownload()}>
             {submitting ? 'Формируем…' : 'Скачать PDF'}

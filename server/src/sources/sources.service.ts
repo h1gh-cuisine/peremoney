@@ -58,10 +58,16 @@ export class SourcesService {
       items.push(lead); leadsBySite.set(lead.contact.site, items);
     }
     const items = tags.map((tag) => {
-      const matching = leadsBySite.get(tag.name) ?? [];
+      // Нормализуем исходное имя и при чтении: так старые записи, сохранённые до
+      // появления парсера, также отображаются как `example.com`, а не как
+      // `B1291_example.com_32092309`.
+      const parsed = parseSourceName(tag.rawName || tag.name);
+      const matching = leadsBySite.get(parsed.name) ?? [];
       const notTarget = matching.filter((lead) => lead.saleStatus === LeadSaleStatus.NOT_TARGET).length;
       return {
         ...tag,
+        name: parsed.name,
+        operator: parsed.operator ?? tag.operator,
         // Public source ID is the internal Leads Factory tag ID. The local UUID
         // remains an implementation detail and must not leak into the project UI.
         id: String(tag.providerTagId),
@@ -105,11 +111,10 @@ export class SourcesService {
   }
 
   async automate(cabinetId: string) {
-    // Automation is defined over the latest 28 calendar days, independently
-    // from whichever range an operator last selected in the sources screen.
+    // Автоматическая чистка всегда анализирует всю историю с 01.04.2026,
+    // независимо от выбранного пользователем периода в разделе источников.
     const end = new Date();
-    const start = new Date(end);
-    start.setUTCDate(start.getUTCDate() - 27);
+    const start = new Date('2026-04-01T00:00:00.000Z');
     await this.sync(cabinetId, {
       dateFrom: start.toISOString().slice(0, 10),
       dateTo: end.toISOString().slice(0, 10),

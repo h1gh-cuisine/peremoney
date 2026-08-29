@@ -20,6 +20,7 @@ interface MasterProjectsTableProps {
   onUpdateClientPassword: (id: string, password: string) => Promise<void> | void;
   onToggleActive: (id: string) => void;
   onToggleHidden: (id: string) => void;
+  onDelete: (id: string) => Promise<void>;
 }
 
 interface PasswordResetCellProps {
@@ -29,7 +30,7 @@ interface PasswordResetCellProps {
 }
 
 type SortKey = "name" | "manager" | "type" | "contacts" | "leads" | "sales" | "sphere" | "price" | "moneyBalance"
-  | "renewalStatus" | "ltv" | "paymentsCount" | "avgCheck" | "clientLogin" | "active";
+  | "expenses" | "leadCost" | "targetLeadCost" | "renewalStatus" | "ltv" | "paymentsCount" | "avgCheck" | "clientLogin" | "active";
 type SortDirection = "asc" | "desc";
 
 const collator = new Intl.Collator("ru", { numeric: true, sensitivity: "base" });
@@ -94,7 +95,7 @@ function PasswordResetCell({ projectId, projectName, onConfirm }: PasswordResetC
               Все активные клиентские сессии завершатся.
             </p>
             <div className={styles.confirmActions}>
-              <button type="button" className={styles.cancelButton} onClick={closeConfirmation}>Отмена</button>
+              <button type="button" className={styles.cancelButton} onClick={closeConfirmation}>Закрыть</button>
               <button type="button" className={styles.confirmButton} onClick={() => void confirmChange()}>Да, изменить</button>
             </div>
           </section>
@@ -140,6 +141,7 @@ export function MasterProjectsTable({
   onUpdateClientPassword,
   onToggleActive,
   onToggleHidden,
+  onDelete,
 }: MasterProjectsTableProps) {
   const [showHidden, setShowHidden] = useState(false);
   const [sort, setSort] = useState<{ key: SortKey; direction: SortDirection }>({ key: "name", direction: "asc" });
@@ -161,7 +163,7 @@ export function MasterProjectsTable({
   );
 
   const sortedProjects = useMemo(() => {
-    const value = (project: MasterProject): string | number | boolean => {
+    const value = (project: MasterProject): string | number | boolean | null => {
       switch (sort.key) {
         case "manager": return managerNames.get(project.managerId) ?? "";
         case "type": return getProjectTypeLabel(project.type);
@@ -175,6 +177,9 @@ export function MasterProjectsTable({
     return visible.map((project, index) => ({ project, index })).sort((a, b) => {
       const left = value(a.project);
       const right = value(b.project);
+      if (left === null && right === null) return a.index - b.index;
+      if (left === null) return 1;
+      if (right === null) return -1;
       const comparison = typeof left === "number" && typeof right === "number"
         ? left - right
         : collator.compare(String(left), String(right));
@@ -216,6 +221,7 @@ export function MasterProjectsTable({
   return (
     <div className={styles.card}>
       <div className={styles.toolbar}>
+        <span className={styles.tableCount}>Показано: {visible.length}</span>
         {openError && <span className={styles.openError} role="alert">{openError}</span>}
         <button type="button" className={styles.toggleHiddenBtn} onClick={() => setShowHidden((v) => !v)}>
           {showHidden ? "Скрыть спрятанные" : "Показать скрытые"}
@@ -232,6 +238,9 @@ export function MasterProjectsTable({
               {sortHeader("Контактов", "contacts")}
               {sortHeader("Лидов", "leads")}
               {sortHeader("Продаж", "sales")}
+              {sortHeader("Траты", "expenses")}
+              {sortHeader("Себес лида", "leadCost")}
+              {sortHeader("Себес целевого лида", "targetLeadCost")}
               {sortHeader("Сфера", "sphere")}
               {sortHeader("Цена", "price")}
               {sortHeader("Баланс", "moneyBalance")}
@@ -239,7 +248,7 @@ export function MasterProjectsTable({
               {sortHeader("LTV", "ltv")}
               {sortHeader("Платежей", "paymentsCount")}
               {sortHeader("Средний чек", "avgCheck")}
-              {sortHeader("Логин", "clientLogin")}
+              {sortHeader("Логин клиента", "clientLogin")}
               <th>Пароль</th>
               {sortHeader("Доступ", "active")}
               <th>Проект</th>
@@ -256,6 +265,9 @@ export function MasterProjectsTable({
                 <td>{formatNumber(p.contactsExported)}</td>
                 <td>{formatNumber(p.leadsExported)}</td>
                 <td>{formatNumber(p.sales)}</td>
+                <td>{p.expenses === null ? "—" : formatCurrency(p.expenses)}</td>
+                <td>{p.leadCost === null ? "—" : formatCurrency(p.leadCost)}</td>
+                <td>{p.targetLeadCost === null ? "—" : formatCurrency(p.targetLeadCost)}</td>
                 <td>{p.sphere}</td>
                 <td>
                   <input
@@ -280,7 +292,7 @@ export function MasterProjectsTable({
                 <td>{formatCurrency(p.ltv)}</td>
                 <td>{formatNumber(p.paymentsCount)}</td>
                 <td>{formatCurrency(p.avgCheck)}</td>
-                <td className={styles.mono}>{p.clientLogin}</td>
+                <td className={styles.mono}>{p.clientLogin || "—"}</td>
                 <td>
                   <PasswordResetCell
                     projectId={p.id}
@@ -297,6 +309,11 @@ export function MasterProjectsTable({
                       active={p.active}
                       onToggleActive={() => onToggleActive(p.id)}
                       onHide={() => onToggleHidden(p.id)}
+                      onDelete={async () => {
+                        const name = projectDisplayName(p.name);
+                        if (!window.confirm(`Удалить проект «${name}» из Peremoney? Все локальные данные проекта будут удалены без возможности восстановления.`)) return;
+                        await onDelete(p.id);
+                      }}
                     />
                   </div>
                 </td>
@@ -318,7 +335,6 @@ export function MasterProjectsTable({
         {visible.length === 0 && <div className={styles.empty}>Проектов не найдено</div>}
       </div>
 
-      <div className={styles.footer}>Показано: {visible.length}</div>
     </div>
   );
 }

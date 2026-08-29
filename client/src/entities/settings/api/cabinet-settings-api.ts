@@ -24,7 +24,7 @@ export async function fetchCabinetSettings() {
   return { cabinetId: value.id, ...mapCabinetSettings(value) };
 }
 export async function saveCabinetSettings(cabinetId: string, settings: import('../model/types').ProjectSettings, visibility: SectionVisibility) {
-  return apiClient().patch<{ providerSync?: { status: 'SYNCED' | 'PENDING' | 'SKIPPED'; message?: string } }>(`/cabinets/${cabinetId}/settings`, {
+  return apiClient().patch<{ isActive: boolean; providerSync?: { status: 'SYNCED' | 'PENDING' | 'SKIPPED'; message?: string }; balanceWarning?: string }>(`/cabinets/${cabinetId}/settings`, {
     isActive: settings.status === 'active', timezoneOffset: settings.timezoneOffset,
     uploadsEnabled: settings.uploadsEnabled, callsEnabled: settings.callsEnabled, scheduleDays: settings.scheduleDays,
     ...scheduleToApi(settings.schedulePreset), crmIntegration: settings.crmIntegration,

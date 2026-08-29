@@ -4,6 +4,7 @@ import { ProviderException } from './provider.exception';
 import {
   ProviderAnswersPage, ProviderCall, ProviderIntegrationName, ProviderProjectCreated,
   ProviderProjectDetail, ProviderProjectType, ProviderRegion, ProviderScript, ProviderSource, ProviderTag,
+  ProviderProjectFinance,
 } from './leads-factory.types';
 
 @Injectable()
@@ -118,6 +119,13 @@ export class LeadsFactoryService {
 
   getProjectTypes() {
     return this.request<{ items: ProviderProjectType[] }>('/crm/open-api/projects/types');
+  }
+
+  getProjectFinance(projectId: number, params: { dateFrom?: string; dateTo?: string }) {
+    return this.request<ProviderProjectFinance>(`/crm/open-api/projects/${projectId}/finance/get`, {
+      date_from: params.dateFrom,
+      date_to: params.dateTo,
+    });
   }
 
   getAvailableRegions() {

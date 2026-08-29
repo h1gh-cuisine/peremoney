@@ -15,6 +15,12 @@
   border-bottom: 1px solid v.$color-border-subtle;
 }
 
+.tableCount {
+  margin-right: auto;
+  color: v.$color-text-muted;
+  font-size: v.$font-size-xs;
+}
+
 .openError {
   margin-right: auto;
   color: #ff7474;
@@ -334,11 +340,4 @@
   text-align: center;
   color: v.$color-text-muted;
   font-size: v.$font-size-sm;
-}
-
-.footer {
-  padding: v.$space-3 v.$space-4;
-  border-top: 1px solid v.$color-border-subtle;
-  color: v.$color-text-muted;
-  font-size: v.$font-size-xs;
 }

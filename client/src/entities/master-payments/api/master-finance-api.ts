@@ -3,6 +3,7 @@ import type { ClientStat } from '../lib/clientStats';
 import type { ManagerStat } from '../lib/managerStats';
 import { getPeriodRange, type MasterPeriod } from '../lib/period';
 import type { MasterPayment, MasterPaymentStatus } from '../model/types';
+import { shortProjectName } from '@/entities/master-projects';
 
 export interface ApiMasterPayment { id: string; cabinetId: string; legalEntity: string | null; amount: string | number; status: 'PAID' | 'PENDING'; invoiceCreationStatus?: 'PENDING' | 'SUCCEEDED' | 'FAILED' | 'UNCERTAIN'; createdAt: string; cabinet: { name: string; managerName: string | null }; }
 export function mapMasterPayment(value: ApiMasterPayment): MasterPayment { return { id: value.id, projectId: value.cabinetId,
@@ -13,7 +14,7 @@ export function mapMasterPayment(value: ApiMasterPayment): MasterPayment { retur
 export function mapMasterDashboard(value: { managers: Array<{ managerName: string; activeProjects: number; paymentsCount: number; paymentsSum: number; retention: number; bonus: number }>; clients: Array<{ cabinetId: string; name: string; paymentsSum: number }> }) {
   return { managers: value.managers.map((x): ManagerStat => ({ managerId: x.managerName, managerName: x.managerName,
     activeProjectsAtSnapshot: x.activeProjects, paymentsCount: x.paymentsCount, paymentsSum: x.paymentsSum, retention: x.retention, bonus: x.bonus })),
-  clients: value.clients.map((x): ClientStat => ({ projectId: x.cabinetId, projectName: x.name, totalAmount: x.paymentsSum })) };
+  clients: value.clients.map((x): ClientStat => ({ projectId: x.cabinetId, projectName: shortProjectName(x.name), totalAmount: x.paymentsSum })) };
 }
 export async function fetchMasterPayments() { return (await apiClient().get<ApiMasterPayment[]>('/master/payments')).map(mapMasterPayment); }
 export async function setMasterPaymentStatus(id: string, status: MasterPaymentStatus) { await apiClient().patch(`/master/payments/${id}`, { status: status.toUpperCase() }); }

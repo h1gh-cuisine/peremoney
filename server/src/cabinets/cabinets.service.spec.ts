@@ -47,6 +47,23 @@ describe('CabinetsService', () => {
     expect(select.payments.where.paidAt).toEqual(range);
   });
 
+  it('loads provider expenses for the period and calculates lead costs', async () => {
+    const prisma = { cabinet: { findMany: jest.fn().mockResolvedValue([{
+      id: 'cab', providerProjectId: 22931, users: [], payments: [],
+      leads: [{ saleStatus: 'NOT_TARGET' }, { saleStatus: 'BOUGHT' }],
+      _count: { contacts: 20, leads: 4 },
+    }]) } };
+    const provider = { getProjectFinance: jest.fn().mockResolvedValue({
+      project_id: 22931, totals: { trati: 1200, success_count: 4 },
+    }) };
+    const service = new CabinetsService(prisma as never, provider as never, config as never);
+
+    const [result] = await service.list({ dateFrom: '2026-08-01', dateTo: '2026-08-25' });
+
+    expect(provider.getProjectFinance).toHaveBeenCalledWith(22931, { dateFrom: '2026-08-01', dateTo: '2026-08-25' });
+    expect(result).toMatchObject({ expenses: 1200, leadCost: 300, targetLeadCost: 400, leadsExported: 4, sales: 1 });
+  });
+
   it('maps and sorts the live region dictionary', async () => {
     const provider = { getAvailableRegions: jest.fn().mockResolvedValue({ regions: [
       { region_id: 78, region_name: ' Санкт-Петербург ' }, { region_id: 77, region_name: 'Москва' },
@@ -143,7 +160,7 @@ describe('CabinetsService', () => {
     expect(updateProjectProcesses).toHaveBeenCalledWith(42, { uploadsEnabled: undefined, callsEnabled: false });
   });
 
-  it('rejects activation with zero balance instead of creating a local/provider desync', async () => {
+  it('keeps a zero-balance project paused but still saves the rest of the form', async () => {
     const update = jest.fn().mockResolvedValue(cabinet);
     const updateProjectSettings = jest.fn();
     const service = new CabinetsService({ cabinet: { update, findUnique: jest.fn().mockResolvedValue({
@@ -152,15 +169,20 @@ describe('CabinetsService', () => {
       scheduleDays: [1, 2, 3, 4, 5, 6, 7],
     }) } } as never, { updateProjectSettings } as never, config as never);
 
-    await expect(service.updateSettings(cabinet.id, {
-      isActive: true, timezoneOffset: 3, uploadsEnabled: true, callsEnabled: true,
+    const result = await service.updateSettings(cabinet.id, {
+      // Draft still asks for "active" (stale/optimistic UI state) while turning uploads off —
+      // insufficient balance must not block the uploads change from being saved.
+      isActive: true, timezoneOffset: 3, uploadsEnabled: false, callsEnabled: true,
       schedulePreset: 'EVERYDAY' as never, scheduleDays: [1, 2, 3, 4, 5, 6, 7],
       crmIntegration: '', messengerIntegrations: [], contacts: true, sources: true,
       script: true, finance: true, settings: true,
-    })).rejects.toThrow('Проект нельзя активировать');
+    });
 
-    expect(update).not.toHaveBeenCalled();
-    expect(updateProjectSettings).not.toHaveBeenCalled();
+    expect(result).toEqual(expect.objectContaining({
+      balanceWarning: expect.stringContaining('недостаточно средств'),
+    }));
+    expect(update.mock.calls[0][0].data).toEqual(expect.objectContaining({ isActive: false, uploadsEnabled: false }));
+    expect(updateProjectSettings).toHaveBeenCalledWith(42, expect.objectContaining({ isActive: false, uploadsEnabled: false }));
   });
 
   it('allows an empty work-week and pauses the provider project', async () => {

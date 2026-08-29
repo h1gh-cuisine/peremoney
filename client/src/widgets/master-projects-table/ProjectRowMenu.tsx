@@ -8,10 +8,11 @@ interface ProjectRowMenuProps {
   active: boolean;
   onToggleActive: () => void;
   onHide: () => void;
+  onDelete: () => Promise<void> | void;
 }
 
 const POPOVER_WIDTH = 160;
-const POPOVER_HEIGHT = 82;
+const POPOVER_HEIGHT = 114;
 const POPOVER_GAP = 4;
 const VIEWPORT_MARGIN = 8;
 
@@ -32,7 +33,7 @@ export function getProjectMenuPosition(
 }
 
 /** "Управлять": Отключить/Включить + Скрыть строку (docs-agent.md 1.12.2) */
-export function ProjectRowMenu({ active, onToggleActive, onHide }: ProjectRowMenuProps) {
+export function ProjectRowMenu({ active, onToggleActive, onHide, onDelete }: ProjectRowMenuProps) {
   const [open, setOpen] = useState(false);
   const [position, setPosition] = useState({ left: 0, top: 0 });
   const rootRef = useRef<HTMLDivElement>(null);
@@ -103,6 +104,17 @@ export function ProjectRowMenu({ active, onToggleActive, onHide }: ProjectRowMen
             }}
           >
             Скрыть строку
+          </button>
+          <button
+            type="button"
+            className={`${styles.item} ${styles.dangerItem}`}
+            role="menuitem"
+            onClick={() => {
+              setOpen(false);
+              void onDelete();
+            }}
+          >
+            Удалить проект
           </button>
         </div>,
         document.body,

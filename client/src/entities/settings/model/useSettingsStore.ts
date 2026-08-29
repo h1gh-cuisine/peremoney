@@ -54,8 +54,13 @@ export const useSettingsStore = create<SettingsState>((set, get) => ({
     try {
       const result = await saveCabinetSettings(cabinetId, draft, visibility);
       const sync = result.providerSync;
-      set({ saved: draft, error: sync?.status === 'PENDING'
-        ? (sync.message ?? 'Настройки сохранены, но Leads Factory пока не подтвердил изменения') : null });
+      // The server can silently keep the project paused (insufficient balance) even
+      // when the form asked for "Активен" — reflect its authoritative status back into
+      // the UI instead of trusting the submitted draft blindly.
+      const persisted = { ...draft, status: (result.isActive ? 'active' : 'paused') as ProjectSettings['status'] };
+      const message = result.balanceWarning ?? (sync?.status === 'PENDING'
+        ? (sync.message ?? 'Настройки сохранены, но Leads Factory пока не подтвердил изменения') : null);
+      set({ saved: persisted, draft: persisted, error: message });
       return true;
     }
     catch (reason) { set({ error: reason instanceof Error ? reason.message : 'Не удалось сохранить настройки' }); return false; }

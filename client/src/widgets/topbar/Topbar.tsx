@@ -3,7 +3,7 @@
 import { useEffect } from 'react';
 import styles from "./Topbar.module.scss";
 import { useFinanceStore } from '@/entities/finance';
-import { formatNumber } from '@/shared/lib/format';
+import { formatCurrency, formatNumber } from '@/shared/lib/format';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { useSessionStore } from '@/entities/session';
@@ -22,6 +22,7 @@ function projectBadgeLabel(cabinetName: string) {
 
 export function Topbar({ title }: TopbarProps) {
   const unitBalance = useFinanceStore((state) => state.unitBalance);
+  const moneyBalance = useFinanceStore((state) => state.moneyBalance);
   const resetFinance = useFinanceStore((state) => state.reset);
   const pathname = usePathname();
   const isMaster = pathname.startsWith('/master');
@@ -29,6 +30,7 @@ export function Topbar({ title }: TopbarProps) {
   const clientSession = useSessionStore((state) => state.clientSession);
   const cabinetName = useAccessStore((state) => state.cabinetName);
   const percentUsed = unitBalance.totalUnits > 0 ? Math.min(100, unitBalance.usedUnits / unitBalance.totalUnits * 100) : 0;
+  const remainingUnits = Math.max(0, unitBalance.totalUnits - unitBalance.usedUnits);
   useEffect(() => {
     if (isMaster) resetFinance();
   }, [isMaster, resetFinance]);
@@ -51,9 +53,9 @@ export function Topbar({ title }: TopbarProps) {
           </nav>
         )}
         {!isMaster && (
-          <div className={styles.balance} aria-label={`Баланс ${unitBalance.usedUnits} из ${unitBalance.totalUnits} штук`}>
+          <div className={styles.balance} aria-label={`Баланс ${remainingUnits} штук, ${formatCurrency(moneyBalance)}`}>
             <span>Баланс</span><i><b style={{ width: `${percentUsed}%` }} /></i>
-            <strong>{formatNumber(unitBalance.usedUnits)} / {formatNumber(unitBalance.totalUnits)} шт.</strong>
+            <strong>{formatNumber(remainingUnits)} шт. / {formatCurrency(moneyBalance)}</strong>
           </div>
         )}
         {!isMaster && cabinetName && (

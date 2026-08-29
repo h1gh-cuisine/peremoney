@@ -1,5 +1,5 @@
 import { create } from "zustand";
-import { createMasterProject, fetchMasterProjects, linkProviderProject, patchMasterBalance, patchMasterProject } from '../api/master-projects-api';
+import { createMasterProject, deleteMasterProject, fetchMasterProjects, linkProviderProject, patchMasterBalance, patchMasterProject } from '../api/master-projects-api';
 import type { CreateProjectInput, MasterProject, RenewalStatus } from "./types";
 import type { DateRange } from '@/shared/lib/date';
 
@@ -24,6 +24,7 @@ interface MasterProjectsState {
   updateRenewalStatus: (id: string, status: RenewalStatus) => void;
   /** Пароль клиента изменяемый, в отличие от логина (docs-agent.md 1.12.2) */
   updateClientPassword: (id: string, password: string) => Promise<void>;
+  removeProject: (id: string) => Promise<void>;
 }
 
 export const useMasterProjectsStore = create<MasterProjectsState>((set, get) => ({
@@ -74,6 +75,15 @@ export const useMasterProjectsStore = create<MasterProjectsState>((set, get) => 
     try { await patchMasterProject(id, { clientPassword: password }); }
     catch (reason) {
       set({ projects: previous, error: reason instanceof Error ? reason.message : 'Ошибка обновления' });
+      throw reason;
+    }
+  },
+  removeProject: async (id) => {
+    try {
+      await deleteMasterProject(id);
+      set((state) => ({ projects: state.projects.filter((project) => project.id !== id), error: null }));
+    } catch (reason) {
+      set({ error: reason instanceof Error ? reason.message : 'Не удалось удалить проект' });
       throw reason;
     }
   },

@@ -10,7 +10,10 @@ interface ManagerStatsTableProps {
 export function ManagerStatsTable({ stats }: ManagerStatsTableProps) {
   return (
     <div className={styles.card}>
-      <h2 className={styles.title}>Статистика по менеджерам</h2>
+      <div className={styles.heading}>
+        <h2 className={styles.title}>Статистика по менеджерам</h2>
+        <span className={styles.tableCount}>Показано: {stats.length}</span>
+      </div>
       <div className={styles.tableWrap}>
         <table className={styles.table}>
           <thead>

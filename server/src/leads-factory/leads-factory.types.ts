@@ -58,6 +58,15 @@ export interface ProviderProjectCreated {
   id: number;
 }
 
+export interface ProviderProjectFinance {
+  project_id: number;
+  project_name?: string | null;
+  totals: {
+    trati?: number;
+    success_count?: number;
+  };
+}
+
 export interface ProviderProjectDetail {
   id: number;
   name: string | null;

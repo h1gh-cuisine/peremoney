@@ -17,6 +17,7 @@ export function PaymentsTable({ payments }: PaymentsTableProps) {
   };
   return (
     <div className={styles.card}>
+      <div className={styles.tableCount}>Показано: {payments.length}</div>
       <div className={styles.tableWrap}>
         <table className={styles.table}>
           <thead>

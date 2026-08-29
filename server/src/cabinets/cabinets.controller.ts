@@ -1,4 +1,4 @@
-import { Body, Controller, ForbiddenException, Get, Param, Patch, Post, Query, UseGuards } from '@nestjs/common';
+import { Body, Controller, Delete, ForbiddenException, Get, Param, Patch, Post, Query, UseGuards } from '@nestjs/common';
 import { ApiBearerAuth, ApiTags } from '@nestjs/swagger';
 import { UserRole } from '@prisma/client';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
@@ -98,6 +98,9 @@ export class CabinetsController {
   updateMasterBalance(@CurrentUser() user: AuthUser, @Param('id') id: string, @Body() dto: UpdateMasterBalanceDto) {
     return this.cabinets.updateMasterBalance(id, dto.moneyBalance, user.id);
   }
+
+  @Delete(':id') @Roles(UserRole.MASTER)
+  remove(@Param('id') id: string) { return this.cabinets.remove(id); }
 
   @Post(':id/clone') @Roles(UserRole.MASTER)
   clone(@Param('id') id: string, @Body() dto: CloneCabinetDto) { return this.cabinets.clone(id, dto); }

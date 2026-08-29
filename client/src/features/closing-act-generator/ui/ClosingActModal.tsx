@@ -82,7 +82,7 @@ export function ClosingActModal({ onClose }: ClosingActModalProps) {
 
         <div className={styles.actions}>
           <button type="button" className={styles.cancelBtn} onClick={onClose}>
-            Отмена
+            Закрыть
           </button>
           <button type="button" className={styles.submitBtn} disabled={!range || submitting} onClick={() => void handleDownload()}>
             {submitting ? 'Формируем…' : 'Скачать PDF'}

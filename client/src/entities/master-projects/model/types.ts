@@ -15,6 +15,9 @@ export interface MasterProject {
   contactsExported: number;
   leadsExported: number;
   sales: number;
+  expenses: number | null;
+  leadCost: number | null;
+  targetLeadCost: number | null;
   price: number; // ручной ввод
   moneyBalance: number; // денежный остаток, управляется мастер-кабинетом
   renewalStatus: RenewalStatus; // ручной ввод

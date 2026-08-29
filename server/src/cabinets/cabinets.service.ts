@@ -83,6 +83,13 @@ export class CabinetsService {
     return { deleted: true };
   }
 
+  async remove(id: string) {
+    const cabinet = await this.prisma.cabinet.findUnique({ where: { id }, select: { id: true } });
+    if (!cabinet) throw new NotFoundException('Проект не найден');
+    await this.prisma.cabinet.delete({ where: { id } });
+    return { deleted: true };
+  }
+
   async list(query: { dateFrom?: string; dateTo?: string } = {}) {
     const range = query.dateFrom || query.dateTo ? {
       gte: query.dateFrom ? new Date(`${query.dateFrom}T00:00:00.000Z`) : undefined,
@@ -94,11 +101,32 @@ export class CabinetsService {
         leads: range ? { where: { successDate: range } } : true,
       } },
       payments: { where: { status: 'PAID', ...(range ? { paidAt: range } : {}) }, select: { amount: true } },
-      leads: { where: { saleStatus: 'BOUGHT', ...(range ? { successDate: range } : {}) }, select: { id: true } },
+      leads: { where: { saleStatus: { in: ['BOUGHT', 'NOT_TARGET'] }, ...(range ? { successDate: range } : {}) }, select: { saleStatus: true } },
     }, orderBy: { createdAt: 'desc' } });
-    return cabinets.map(({ users, payments, leads, _count, ...cabinet }) => {
+    const providerFinances = await Promise.all(cabinets.map(async (cabinet) => {
+      if (!cabinet.providerProjectId) return null;
+      try {
+        return await this.provider.getProjectFinance(cabinet.providerProjectId, {
+          dateFrom: query.dateFrom,
+          dateTo: query.dateTo,
+        });
+      } catch {
+        // Не подменяем недоступные данные нулём: UI покажет прочерк.
+        return null;
+      }
+    }));
+    return cabinets.map(({ users, payments, leads, _count, ...cabinet }, index) => {
       const ltv = payments.reduce((sum, payment) => sum + Number(payment.amount), 0);
-      return { ...cabinet, contactsExported: _count.contacts, leadsExported: _count.leads, sales: leads.length,
+      const finance = providerFinances[index];
+      const expenses = finance ? Number(finance.totals.trati ?? 0) : null;
+      const providerLeads = finance ? Number(finance.totals.success_count ?? 0) : null;
+      const notTargetLeads = leads.filter((lead) => lead.saleStatus === 'NOT_TARGET').length;
+      const targetLeads = providerLeads === null ? null : Math.max(0, providerLeads - notTargetLeads);
+      return { ...cabinet, contactsExported: _count.contacts, leadsExported: _count.leads,
+        sales: leads.filter((lead) => lead.saleStatus === 'BOUGHT').length,
+        expenses,
+        leadCost: expenses === null || !providerLeads ? null : expenses / providerLeads,
+        targetLeadCost: expenses === null || !targetLeads ? null : expenses / targetLeads,
         ltv, paymentsCount: payments.length, avgCheck: payments.length ? ltv / payments.length : 0,
         clientLogin: users.find((user) => user.role === UserRole.LIMITED)?.login ?? '',
         employeeLogin: users.find((user) => user.role === UserRole.FULL)?.login ?? '' };
@@ -434,36 +462,35 @@ export class CabinetsService {
     } });
     if (!cabinet) throw new NotFoundException('Кабинет не найден');
     const balanceAvailable = hasAvailableBalance(cabinet);
-    if (dto.isActive && !balanceAvailable) {
-      // Legacy versions could persist the desired local state as active while sending
-      // pause to Leads Factory. Heal such records before rejecting another activation.
-      if (cabinet.isActive) {
-        await this.prisma.cabinet.update({ where: { id }, data: { isActive: false } });
-      }
-      throw new ConflictException(
-        'Проект нельзя активировать: недостаточно средств или оплаченных единиц',
-      );
-    }
+    // Insufficient balance keeps the project paused no matter what the form requested, but
+    // must not block the rest of the form (uploads/calls/schedule/integrations) from saving —
+    // a broke project still needs to be reachable to turn its uploads/calls off.
+    const effectiveIsActive = dto.isActive && balanceAvailable;
+    const balanceWarning = dto.isActive && !balanceAvailable
+      ? 'Проект остаётся на паузе: недостаточно средств или оплаченных единиц'
+      : undefined;
     const updated = await this.prisma.cabinet.update({ where: { id }, data: {
-      isActive: dto.isActive, timezoneOffset: dto.timezoneOffset, uploadsEnabled: dto.uploadsEnabled,
+      isActive: effectiveIsActive, timezoneOffset: dto.timezoneOffset, uploadsEnabled: dto.uploadsEnabled,
       callsEnabled: dto.callsEnabled, schedulePreset: dto.schedulePreset, scheduleDays: dto.scheduleDays,
       crmIntegration: dto.crmIntegration,
       messengerIntegrations: dto.messengerIntegrations, contactsVisible: dto.contacts,
       sourcesVisible: dto.sources, scriptVisible: dto.script, financeVisible: dto.finance,
       settingsVisible: dto.settings,
     }, select: cabinetSelect });
-    if (!cabinet.providerProjectId) return { ...updated, providerSync: { status: 'SKIPPED' } };
+    if (!cabinet.providerProjectId) {
+      return { ...updated, providerSync: { status: 'SKIPPED' }, ...(balanceWarning ? { balanceWarning } : {}) };
+    }
     const scheduleChanged = cabinet.scheduleDays.length !== dto.scheduleDays.length
       || cabinet.scheduleDays.some((day, index) => day !== dto.scheduleDays[index]);
-    const generalChanged = cabinet.isActive !== dto.isActive
+    const generalChanged = cabinet.isActive !== effectiveIsActive
       || cabinet.timezoneOffset !== dto.timezoneOffset || scheduleChanged;
     const uploadsChanged = cabinet.uploadsEnabled !== dto.uploadsEnabled;
     const callsChanged = cabinet.callsEnabled !== dto.callsEnabled;
-    const operationalNow = dto.isActive && balanceAvailable && this.isActiveToday(dto.scheduleDays);
+    const operationalNow = effectiveIsActive && this.isActiveToday(dto.scheduleDays);
     try {
       if (!operationalNow || generalChanged) {
         await this.provider.updateProjectSettings(cabinet.providerProjectId, {
-          isActive: dto.isActive && balanceAvailable, timezoneOffset: dto.timezoneOffset,
+          isActive: effectiveIsActive, timezoneOffset: dto.timezoneOffset,
           uploadsEnabled: dto.uploadsEnabled, callsEnabled: dto.callsEnabled,
           activeToday: this.isActiveToday(dto.scheduleDays),
         });
@@ -473,12 +500,12 @@ export class CabinetsService {
           callsEnabled: callsChanged ? dto.callsEnabled : undefined,
         });
       }
-      return { ...updated, providerSync: { status: 'SYNCED' } };
+      return { ...updated, providerSync: { status: 'SYNCED' }, ...(balanceWarning ? { balanceWarning } : {}) };
     } catch (error) {
       const now = new Date();
       await this.prisma.scheduledRun.create({ data: { cabinetId: id, task: 'APPLY_SCHEDULE', scheduledFor: now,
         nextAttemptAt: now, lastError: error instanceof Error ? error.message.slice(0, 2000) : 'Provider sync failed' } });
-      return { ...updated, providerSync: { status: 'PENDING', message: 'Статус будет повторно передан провайдеру' } };
+      return { ...updated, providerSync: { status: 'PENDING', message: 'Статус будет повторно передан провайдеру' }, ...(balanceWarning ? { balanceWarning } : {}) };
     }
   }
 

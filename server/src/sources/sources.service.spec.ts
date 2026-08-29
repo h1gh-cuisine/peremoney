@@ -52,8 +52,9 @@ describe('источники: бизнес-правила 2.6', () => {
     const result = await new SourcesService(prisma as never, { updateTags, getTags } as never, {} as never).automate('cab');
     expect(updateTags).toHaveBeenNthCalledWith(1, [1], false);
     expect(updateTags).toHaveBeenNthCalledWith(2, [2], true);
-    expect(result).toEqual(expect.objectContaining({ disabled: 1, enabled: 1 }));
+    expect(result).toEqual(expect.objectContaining({ disabled: 1, enabled: 1, analysisFrom: '2026-04-01' }));
     const range = getTags.mock.calls[0]![1];
-    expect((new Date(range.endDate).getTime() - new Date(range.startDate).getTime()) / 86_400_000).toBe(27);
+    expect(range.startDate).toBe('2026-04-01');
+    expect(range.endDate).toBe(new Date().toISOString().slice(0, 10));
   });
 });

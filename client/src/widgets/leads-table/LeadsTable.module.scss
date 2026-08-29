@@ -126,9 +126,9 @@
   font-size: v.$font-size-sm;
 }
 
-.footer {
+.tableCount {
   padding: v.$space-3 v.$space-4;
-  border-top: 1px solid v.$color-border-subtle;
+  border-bottom: 1px solid v.$color-border-subtle;
   color: v.$color-text-muted;
   font-size: v.$font-size-xs;
 }

@@ -36,6 +36,7 @@ export function MasterPaymentsTable({ payments, managers, onStatusChange, onDele
 
   return (
     <div className={styles.card}>
+      <div className={styles.tableCount}>Показано: {payments.length}</div>
       <div className={styles.tableWrap}>
         <table className={styles.table}>
           <thead>
@@ -109,7 +110,7 @@ export function MasterPaymentsTable({ payments, managers, onStatusChange, onDele
               После изменения строка может переместиться в другую группу таблицы.
             </p>
             <div className={styles.confirmActions}>
-              <button type="button" className={styles.cancelButton} onClick={() => setPendingChange(null)}>Отмена</button>
+              <button type="button" className={styles.cancelButton} onClick={() => setPendingChange(null)}>Закрыть</button>
               <button type="button" className={styles.confirmButton} onClick={() => void confirmStatusChange()}>Да, изменить</button>
             </div>
           </section>

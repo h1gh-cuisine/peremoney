@@ -1,4 +1,5 @@
 import type { MasterProject } from "@/entities/master-projects";
+import { shortProjectName } from "@/entities/master-projects";
 import type { MasterPayment } from "../model/types";
 import { getPeriodRange, type MasterPeriod } from "./period";
 
@@ -27,7 +28,7 @@ export function computeClientStats(
   return Array.from(totals.entries())
     .map(([projectId, totalAmount]) => ({
       projectId,
-      projectName: projects.find((p) => p.id === projectId)?.name ?? projectId,
+      projectName: shortProjectName(projects.find((p) => p.id === projectId)?.name ?? projectId),
       totalAmount,
     }))
     .sort((a, b) => b.totalAmount - a.totalAmount);
