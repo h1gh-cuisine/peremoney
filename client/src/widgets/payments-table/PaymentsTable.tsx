@@ -25,6 +25,7 @@ export function PaymentsTable({ payments }: PaymentsTableProps) {
               <th>Штук</th>
               <th>Сумма</th>
               <th>Статус</th>
+              <th>Обоснование</th>
             </tr>
           </thead>
           <tbody>
@@ -38,6 +39,7 @@ export function PaymentsTable({ payments }: PaymentsTableProps) {
                     {status(p).label}
                   </span>
                 </td>
+                <td className={styles.purpose}>{p.paymentPurpose ?? "—"}</td>
               </tr>
             ))}
           </tbody>

@@ -9,6 +9,7 @@ import { PrismaService } from '../prisma/prisma.service';
 import { SourcesService } from '../sources/sources.service';
 import { hasAvailableBalance } from '../finance/balance-availability';
 import { providerScriptToText } from '../leads-factory/script-text';
+import { ProviderException } from '../leads-factory/provider.exception';
 
 const MOSCOW_OFFSET_MS = 3 * 60 * 60 * 1000;
 const SLOTS: Array<{ hour: number; task: ScheduledTask }> = [
@@ -131,7 +132,7 @@ export class SchedulerService implements OnApplicationBootstrap, OnApplicationSh
       });
     } catch (error) {
       const finalFailure = run.attempts >= 3;
-      const message = error instanceof Error ? error.message.slice(0, 2000) : 'Unknown error';
+      const message = this.errorMessage(error);
       await this.prisma.scheduledRun.update({
         where: { id: run.id },
         data: {
@@ -142,6 +143,20 @@ export class SchedulerService implements OnApplicationBootstrap, OnApplicationSh
       });
       this.logger.error(`Scheduled run ${run.id} (${run.task}) failed: ${message}`);
     }
+  }
+
+  private errorMessage(error: unknown) {
+    if (!(error instanceof ProviderException)) {
+      return error instanceof Error ? error.message.slice(0, 2000) : 'Unknown error';
+    }
+    let details = '';
+    if (error.providerBody !== undefined) {
+      try {
+        details = JSON.stringify(error.providerBody, (key, value) =>
+          /token|authorization|password|secret|cookie/i.test(key) ? '[REDACTED]' : value).slice(0, 1200);
+      } catch { details = '[unserializable provider response]'; }
+    }
+    return (`[Leads Factory ${error.providerStatus}] ${error.message}${details ? `: ${details}` : ''}`).slice(0, 2000);
   }
 
   private async dispatch(run: ScheduledRun): Promise<unknown> {

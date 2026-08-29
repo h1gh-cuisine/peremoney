@@ -4,6 +4,8 @@ export interface TochkaPayer {
   kpp?: string;
   legalAddress?: string;
   bankName?: string;
+  contractNumber?: string;
+  contractDate?: string;
 }
 
 interface InvoiceInput {
@@ -15,6 +17,7 @@ interface InvoiceInput {
   payer: TochkaPayer;
   expiryDate: string;
   positionName: string;
+  basedOn: string;
 }
 
 export function buildTochkaInvoice(input: InvoiceInput) {
@@ -32,6 +35,7 @@ export function buildTochkaInvoice(input: InvoiceInput) {
     },
     Content: { Invoice: {
       number: input.invoiceNo,
+      basedOn: input.basedOn,
       paymentExpiryDate: input.expiryDate,
       totalAmount,
       totalNds: 0,

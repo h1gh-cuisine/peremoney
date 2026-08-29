@@ -109,10 +109,15 @@ export class FinanceService {
     }
     try {
       const expiry = new Date(); expiry.setUTCDate(expiry.getUTCDate() + 5);
+      const contractNumber = payer.contractNumber?.trim();
+      const contractDate = payer.contractDate?.trim();
+      const basedOn = contractNumber
+        ? `Договор № ${contractNumber}${contractDate ? ` от ${contractDate}` : ''}`
+        : 'Публичная оферта о заключении лицензионного договора';
       const documentId = await this.tochka.createInvoice(buildTochkaInvoice({
         customerCode: this.tochka.customerCode(), accountId: this.tochka.accountId(), invoiceNo,
         quantity, unitPrice: Number(unitPrice), payer, expiryDate: expiry.toISOString().slice(0, 10),
-        positionName: 'Информационные услуги',
+        positionName: 'Информационные услуги', basedOn,
       }));
       const completed = await this.prisma.payment.update({ where: { id: payment.id }, data: {
         tochkaDocumentId: documentId, invoiceCreationStatus: 'SUCCEEDED',
@@ -136,7 +141,10 @@ export class FinanceService {
     return this.tochka.getInvoicePdf(payment.tochkaDocumentId);
   }
 
-  async setPaymentStatus(paymentId: string, status: PaymentStatus, actorId?: string, bankPaymentId?: string) {
+  async setPaymentStatus(
+    paymentId: string, status: PaymentStatus, actorId?: string, bankPaymentId?: string,
+    extra?: { paidAt?: Date; paymentPurpose?: string },
+  ) {
     return this.prisma.$transaction(async (tx) => {
       // Serialize transitions for one payment. READ COMMITTED alone allows two
       // concurrent requests to observe PENDING and credit the cabinet twice.
@@ -176,7 +184,8 @@ export class FinanceService {
         moneyDelta: paid ? payment.amount : payment.amount.negated(), unitsDelta: paid ? payment.quantity : -payment.quantity,
       } });
       const updated = await tx.payment.update({ where: { id: payment.id }, data: {
-        status, paidAt: paid ? new Date() : null, bankPaymentId: paid ? bankPaymentId : null,
+        status, paidAt: paid ? (extra?.paidAt ?? new Date()) : null, bankPaymentId: paid ? bankPaymentId : null,
+        ...(paid && extra?.paymentPurpose ? { paymentPurpose: extra.paymentPurpose } : {}),
         ...(paid ? {
           balanceTypeBefore: payment.cabinet.balanceType,
           totalUnitsBefore: payment.cabinet.totalUnits,

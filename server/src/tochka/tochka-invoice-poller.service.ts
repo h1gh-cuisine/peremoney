@@ -47,14 +47,18 @@ export class TochkaInvoicePollerService implements OnApplicationBootstrap, OnApp
     try {
       const pending = await this.prisma.payment.findMany({
         where: { status: PaymentStatus.PENDING, invoiceCreationStatus: 'SUCCEEDED', tochkaDocumentId: { not: null } },
-        select: { id: true, tochkaDocumentId: true }, orderBy: { createdAt: 'asc' }, take: 100,
+        select: { id: true, tochkaDocumentId: true, invoiceNo: true, createdAt: true }, orderBy: { createdAt: 'asc' }, take: 100,
       });
       this.logger.debug(`Polling счетов Точки: найдено ожидающих счетов ${pending.length}`);
       for (const payment of pending) {
         try {
           const status = await this.tochka.getInvoicePaymentStatus(payment.tochkaDocumentId!);
           if (status === 'payment_paid') {
-            await this.finance.setPaymentStatus(payment.id, PaymentStatus.PAID, undefined, `TOCHKA_INVOICE:${payment.tochkaDocumentId}`);
+            // Точка сообщает только сам факт оплаты (без назначения платежа —
+            // это данные банковской выписки, которой у нас нет), поэтому
+            // обоснование формируем сами по номеру и дате нашего счёта.
+            const paymentPurpose = `Обоснование: оплата по счёту № ${payment.invoiceNo} от ${this.formatDate(payment.createdAt)}`;
+            await this.finance.setPaymentStatus(payment.id, PaymentStatus.PAID, undefined, `TOCHKA_INVOICE:${payment.tochkaDocumentId}`, { paymentPurpose });
           }
         } catch (error) {
           this.logger.warn(`Не удалось обновить статус счёта ${payment.id}: ${error instanceof Error ? error.message : 'ошибка'}`);
@@ -88,6 +92,10 @@ export class TochkaInvoicePollerService implements OnApplicationBootstrap, OnApp
     } finally {
       this.running = false;
     }
+  }
+
+  private formatDate(value: Date): string {
+    return value.toLocaleDateString('ru-RU', { day: '2-digit', month: '2-digit', year: 'numeric', timeZone: 'Europe/Moscow' });
   }
 
   private async safeNotify(message: string) {

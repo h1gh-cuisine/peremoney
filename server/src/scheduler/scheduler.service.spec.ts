@@ -1,5 +1,6 @@
 import { ScheduledRunStatus, ScheduledTask } from '@prisma/client';
 import { SchedulerService } from './scheduler.service';
+import { ProviderException } from '../leads-factory/provider.exception';
 
 describe('SchedulerService', () => {
   function service(prisma: Record<string, unknown>, provider: Record<string, unknown> = {}) {
@@ -126,5 +127,29 @@ describe('SchedulerService', () => {
     expect(update).toHaveBeenCalledWith(expect.objectContaining({
       data: expect.objectContaining({ status: ScheduledRunStatus.PENDING, lastError: 'CRM unavailable' }),
     }));
+  });
+
+  it('stores provider status and safe response details for schedule diagnostics', async () => {
+    const run = {
+      id: 'run-provider', cabinetId: 'cabinet-id', task: ScheduledTask.APPLY_SCHEDULE,
+      status: ScheduledRunStatus.RUNNING, scheduledFor: new Date(), nextAttemptAt: new Date(),
+      attempts: 1, startedAt: new Date(), finishedAt: null, lastError: null, result: null,
+      createdAt: new Date(), updatedAt: new Date(),
+    };
+    const update = jest.fn();
+    const prisma = {
+      cabinet: { findMany: jest.fn().mockResolvedValue([]), findUniqueOrThrow: jest.fn().mockResolvedValue({
+        id: 'cabinet-id', providerProjectId: 42, isActive: true, moneyBalance: 1000, price: 100,
+        totalUnits: 10, usedUnits: 0, scheduleDays: [1, 2, 3, 4, 5, 6, 7],
+      }) },
+      scheduledRun: { updateMany: jest.fn(), update },
+      $queryRaw: jest.fn().mockResolvedValueOnce([run]).mockResolvedValueOnce([]),
+    };
+    const provider = { updateProjectSchedule: jest.fn().mockRejectedValue(new ProviderException(502,
+      'Ошибка CRM Leads Factory', { request_id: 'lf-123', token: 'must-not-leak' })) };
+    await service(prisma, provider).runOnce();
+    expect(update).toHaveBeenCalledWith(expect.objectContaining({ data: expect.objectContaining({
+      lastError: '[Leads Factory 502] Ошибка CRM Leads Factory: {"request_id":"lf-123","token":"[REDACTED]"}',
+    }) }));
   });
 });

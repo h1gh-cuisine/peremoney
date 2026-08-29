@@ -1,8 +1,9 @@
 import { BadRequestException, Injectable, ServiceUnavailableException } from '@nestjs/common';
 import type { JsonWebKey } from 'node:crypto';
 import { ConfigService } from '@nestjs/config';
-import { BalanceEntryType, PaymentStatus, Prisma } from '@prisma/client';
+import { PaymentStatus, Prisma } from '@prisma/client';
 import { PrismaService } from '../prisma/prisma.service';
+import { FinanceService } from '../finance/finance.service';
 import { IncomingPayment, matchIncomingPayment } from './tochka-payment';
 import { TelegramService } from './telegram.service';
 import { TochkaWebhookVerifier } from './tochka-webhook-verifier';
@@ -15,7 +16,12 @@ type WebhookPayload = IncomingPayment & {
 @Injectable()
 export class TochkaWebhookService {
   private verifier?: TochkaWebhookVerifier;
-  constructor(private readonly prisma: PrismaService, private readonly config: ConfigService, private readonly telegram: TelegramService) {}
+  constructor(
+    private readonly prisma: PrismaService,
+    private readonly config: ConfigService,
+    private readonly telegram: TelegramService,
+    private readonly finance: FinanceService,
+  ) {}
 
   async processJwt(token: string) {
     const verifier = await this.getVerifier();
@@ -24,46 +30,50 @@ export class TochkaWebhookService {
 
   async processVerified(event: WebhookPayload) {
     if (event.webhookType !== 'incomingPayment' || !event.paymentId) throw new BadRequestException('Неподдерживаемый webhook Точки');
+    const existing = await this.prisma.tochkaWebhookEvent.findUnique({ where: { externalId: event.paymentId } });
+    if (existing) return { ok: true, status: 'duplicate' };
+
     const raw = JSON.stringify(event);
     const internal = raw.includes('tb-funds-') || raw.includes('tb-fonds') || raw.includes('Перевод собственных средств');
-    const result = await this.prisma.$transaction(async (tx) => {
-      const duplicate = await tx.tochkaWebhookEvent.findUnique({ where: { externalId: event.paymentId } });
-      if (duplicate) return { status: 'duplicate', payment: null };
-      if (internal) {
-        await tx.tochkaWebhookEvent.create({ data: { externalId: event.paymentId, webhookType: event.webhookType!, payload: event as unknown as Prisma.InputJsonValue, status: 'IGNORED_INTERNAL' } });
-        return { status: 'ignored', payment: null };
-      }
-      const payer = event.SidePayer;
-      const candidates = payer?.inn && payer.amount ? await tx.payment.findMany({ where: {
-        status: PaymentStatus.PENDING, payerInn: payer.inn, amount: new Prisma.Decimal(payer.amount),
-      } }) : [];
-      const payment = candidates.find((candidate) => matchIncomingPayment(event, {
-        invoiceNo: candidate.invoiceNo, payerInn: candidate.payerInn ?? '', amount: String(candidate.amount),
-      }));
-      if (!payment) {
-        await tx.tochkaWebhookEvent.create({ data: { externalId: event.paymentId, webhookType: event.webhookType!, payload: event as unknown as Prisma.InputJsonValue, status: 'UNMATCHED' } });
-        return { status: 'unmatched', payment: null };
-      }
-      const cabinet = await tx.cabinet.findUniqueOrThrow({ where: { id: payment.cabinetId } });
-      const typeChanged = cabinet.balanceType !== null && cabinet.balanceType !== payment.projectType;
-      await tx.cabinet.update({ where: { id: payment.cabinetId }, data: {
-        moneyBalance: { increment: payment.amount }, balanceType: payment.projectType,
-        totalUnits: typeChanged ? payment.quantity : { increment: payment.quantity },
-        usedUnits: typeChanged ? 0 : undefined,
-      } });
-      await tx.balanceEntry.create({ data: { cabinetId: payment.cabinetId, paymentId: payment.id,
-        type: BalanceEntryType.PAYMENT, externalKey: `TOCHKA:${event.paymentId}`,
-        moneyDelta: payment.amount, unitsDelta: payment.quantity } });
-      const updated = await tx.payment.update({ where: { id: payment.id }, data: {
-        status: PaymentStatus.PAID, paidAt: event.date ? new Date(event.date) : new Date(), bankPaymentId: event.paymentId,
-      } });
-      await tx.tochkaWebhookEvent.create({ data: { externalId: event.paymentId, webhookType: event.webhookType!, payload: event as unknown as Prisma.InputJsonValue, status: 'MATCHED', paymentId: payment.id } });
-      return { status: 'matched', payment: updated };
-    });
+    if (internal) {
+      await this.recordEvent(event, 'IGNORED_INTERNAL');
+      return { ok: true, status: 'ignored' };
+    }
+
     const payer = event.SidePayer;
-    if (result.status === 'matched') await this.safeNotify(`💸 Поступил платеж: ${payer?.amount ?? ''} ₽\n${payer?.name ?? ''}\nИНН: ${payer?.inn ?? ''}\n${event.purpose ?? ''}`);
-    if (result.status === 'unmatched') await this.safeNotify(`⚠️ Не удалось сопоставить платеж Точки ${event.paymentId}: ${payer?.amount ?? ''} ₽, ИНН ${payer?.inn ?? ''}`);
-    return { ok: true, status: result.status };
+    const candidates = payer?.inn && payer.amount ? await this.prisma.payment.findMany({ where: {
+      status: PaymentStatus.PENDING, payerInn: payer.inn, amount: new Prisma.Decimal(payer.amount),
+    } }) : [];
+    const matched = candidates.find((candidate) => matchIncomingPayment(event, {
+      invoiceNo: candidate.invoiceNo, payerInn: candidate.payerInn ?? '', amount: String(candidate.amount),
+    }));
+    if (!matched) {
+      await this.recordEvent(event, 'UNMATCHED');
+      await this.safeNotify(`⚠️ Не удалось сопоставить платеж Точки ${event.paymentId}: ${payer?.amount ?? ''} ₽, ИНН ${payer?.inn ?? ''}`);
+      return { ok: true, status: 'unmatched' };
+    }
+
+    // Same guarded path as the invoice poller (advisory lock + idempotent status
+    // check inside FinanceService.setPaymentStatus) so a webhook that races a poll
+    // tick for the same payment cannot credit the cabinet twice.
+    const updated = await this.finance.setPaymentStatus(matched.id, PaymentStatus.PAID, undefined, event.paymentId, {
+      paidAt: event.date ? new Date(event.date) : undefined,
+      paymentPurpose: event.purpose,
+    });
+    await this.recordEvent(event, 'MATCHED', updated.id);
+    await this.safeNotify(`💸 Поступил платеж: ${payer?.amount ?? ''} ₽\n${payer?.name ?? ''}\nИНН: ${payer?.inn ?? ''}\n${event.purpose ?? ''}`);
+    return { ok: true, status: 'matched' };
+  }
+
+  private async recordEvent(event: WebhookPayload, status: string, paymentId?: string) {
+    try {
+      await this.prisma.tochkaWebhookEvent.create({ data: {
+        externalId: event.paymentId, webhookType: event.webhookType!, payload: event as unknown as Prisma.InputJsonValue, status, paymentId,
+      } });
+    } catch (error) {
+      // Another concurrent delivery of the exact same bank event already recorded it.
+      if (!(error instanceof Prisma.PrismaClientKnownRequestError) || error.code !== 'P2002') throw error;
+    }
   }
 
   private async safeNotify(message: string) {

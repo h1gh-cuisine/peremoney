@@ -214,6 +214,7 @@ model Payment {
   projectType ProjectType
   status      PaymentStatus @default(PENDING)
   paidAt      DateTime?
+  paymentPurpose String?
   telegramNotifiedAt DateTime?
   balanceTypeBefore ProjectType?
   totalUnitsBefore Int?

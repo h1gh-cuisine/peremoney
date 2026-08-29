@@ -72,6 +72,12 @@
   color: v.$color-accent-2;
 }
 
+.purpose {
+  white-space: normal;
+  max-width: 320px;
+  color: v.$color-text-muted;
+}
+
 .empty {
   padding: v.$space-8;
   text-align: center;

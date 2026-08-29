@@ -13,6 +13,7 @@ export interface Payment {
   documentId?: string;
   invoiceNo?: string;
   unitPrice?: number;
+  paymentPurpose?: string;
 }
 
 /** "Потрачено/всего" в штуках (docs-agent.md 2.7.4) */
