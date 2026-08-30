@@ -86,10 +86,14 @@ export class FinanceService {
     }
     if (!this.tochka) throw new BadRequestException('Интеграция Точки не настроена');
     const requestHash = createHash('sha256').update(JSON.stringify({ cabinetId, quantity, unitPrice: unitPrice.toString(), payer })).digest('hex');
-    // Keep the value digits-only for human/accounting use; Tochka's JSON contract
-    // requires Invoice.number to be transmitted as a string.
-    const suffix = createHash('sha256').update(idempotencyKey).digest().readUInt32BE(0) % 100_000;
-    const invoiceNo = `${Math.floor(Date.now() / 1000)}${suffix.toString().padStart(5, '0')}`;
+    // A database sequence keeps invoice numbers strictly increasing even when
+    // several invoices are created concurrently or by multiple API instances.
+    const sequenceResult = await this.prisma.$queryRaw<Array<{ invoiceNo: bigint }>>`
+      SELECT nextval('payment_invoice_number_seq') AS "invoiceNo"
+    `;
+    const nextInvoiceNo = sequenceResult[0]?.invoiceNo;
+    if (nextInvoiceNo === undefined) throw new Error('Не удалось получить номер счёта');
+    const invoiceNo = nextInvoiceNo.toString();
     let payment;
     try {
       payment = await this.prisma.payment.create({ data: {
@@ -109,16 +113,12 @@ export class FinanceService {
         : 'Создание счёта с этим ключом уже выполняется');
     }
     try {
-      const expiry = new Date(); expiry.setUTCDate(expiry.getUTCDate() + 5);
-      const contractNumber = payer.contractNumber?.trim();
-      const contractDate = payer.contractDate?.trim();
-      const basedOn = contractNumber
-        ? `Договор № ${contractNumber}${contractDate ? ` от ${contractDate}` : ''}`
-        : 'Публичная оферта о заключении лицензионного договора на использование программного обеспечения kupit-klientov.ru';
       const documentId = await this.tochka.createInvoice(buildTochkaInvoice({
         customerCode: this.tochka.customerCode(), accountId: this.tochka.accountId(), invoiceNo,
-        quantity, unitPrice: Number(unitPrice), payer, expiryDate: expiry.toISOString().slice(0, 10),
-        positionName: 'Информационные услуги', basedOn,
+        quantity, unitPrice: Number(unitPrice), payer,
+        positionName: 'Неисключительная лицензия на использование ПО',
+        unitCode: 'лицензия',
+        basedOn: 'Публичная оферта о заключении лицензионного договора на использование программного обеспечения peremoney.ru',
       }));
       const completed = await this.prisma.payment.update({ where: { id: payment.id }, data: {
         tochkaDocumentId: documentId, invoiceCreationStatus: 'SUCCEEDED',

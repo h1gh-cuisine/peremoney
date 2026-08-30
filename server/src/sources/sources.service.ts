@@ -106,23 +106,35 @@ export class SourcesService {
   async getAutomation(cabinetId: string) {
     const cabinet = await this.prisma.cabinet.findUnique({ where: { id: cabinetId }, select: {
       autoCleanupEnabled: true, autoManagementEnabled: true, minContactsPerLead: true, minConversion: true,
+      defaultLimit: true, maxLimit: true,
     } });
     if (!cabinet) throw new NotFoundException('Кабинет не найден');
     return {
       autoCleanupEnabled: cabinet.autoCleanupEnabled, minContactsPerLead: cabinet.minContactsPerLead,
       autoManageEnabled: cabinet.autoManagementEnabled, minConversion: Number(cabinet.minConversion),
+      defaultLimit: cabinet.defaultLimit, maxLimit: cabinet.maxLimit,
     };
   }
 
   async updateAutomation(cabinetId: string, dto: UpdateAutomationDto) {
-    return this.prisma.cabinet.update({
+    const cabinet = await this.prisma.cabinet.update({
       where: { id: cabinetId },
       data: {
         autoCleanupEnabled: dto.autoCleanupEnabled, autoManagementEnabled: dto.autoManagementEnabled,
+        // minContactsPerLead/minConversion управляют только локальной автоочистке/автоуправлению
+        // и никогда не уходят в Leads Factory — в отличие от default/max limit ниже.
         minContactsPerLead: dto.minContactsPerLead,
         minConversion: dto.minConversion === undefined ? undefined : new Prisma.Decimal(dto.minConversion),
+        defaultLimit: dto.defaultLimit, maxLimit: dto.maxLimit,
       },
+      select: { providerProjectId: true, defaultLimit: true, maxLimit: true },
     });
+    if (cabinet.providerProjectId) {
+      await this.provider.updateProjectAutomationLimits(cabinet.providerProjectId, {
+        defaultLimit: cabinet.defaultLimit, maxLimit: cabinet.maxLimit,
+      });
+    }
+    return cabinet;
   }
 
   async automate(cabinetId: string) {

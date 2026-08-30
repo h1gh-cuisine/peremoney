@@ -14,6 +14,8 @@ interface SourceAutomationState extends SourceAutomationSettings {
   setMinContactsPerLead: (value: number) => void;
   setAutoManageEnabled: (enabled: boolean) => void;
   setMinConversion: (value: number) => void;
+  setDefaultLimit: (value: number) => void;
+  setMaxLimit: (value: number) => void;
   save: () => Promise<boolean>;
   discard: () => void;
 }
@@ -26,16 +28,19 @@ interface SourceAutomationState extends SourceAutomationSettings {
 export const useSourceAutomationStore = create<SourceAutomationState>((set, get) => {
   let committed: SourceAutomationSettings = {
     autoCleanupEnabled: false, minContactsPerLead: 2, autoManageEnabled: false, minConversion: 20,
+    defaultLimit: 5, maxLimit: 50,
   };
   const draft = () => ({ autoCleanupEnabled: get().autoCleanupEnabled,
     minContactsPerLead: get().minContactsPerLead, autoManageEnabled: get().autoManageEnabled,
-    minConversion: get().minConversion });
+    minConversion: get().minConversion, defaultLimit: get().defaultLimit, maxLimit: get().maxLimit });
   return {
   cabinetId: null, error: null, dirty: false, loading: false, saving: false,
   autoCleanupEnabled: false,
   minContactsPerLead: 2,
   autoManageEnabled: false,
   minConversion: 20,
+  defaultLimit: 5,
+  maxLimit: 50,
   setCabinetId: (cabinetId) => { set({ cabinetId }); void get().load(); },
   load: async () => {
     const cabinetId = get().cabinetId;
@@ -55,6 +60,8 @@ export const useSourceAutomationStore = create<SourceAutomationState>((set, get)
   setMinContactsPerLead: (minContactsPerLead) => set({ minContactsPerLead, dirty: true, error: null }),
   setAutoManageEnabled: (autoManageEnabled) => set({ autoManageEnabled, dirty: true, error: null }),
   setMinConversion: (minConversion) => set({ minConversion, dirty: true, error: null }),
+  setDefaultLimit: (defaultLimit) => set({ defaultLimit, dirty: true, error: null }),
+  setMaxLimit: (maxLimit) => set({ maxLimit, dirty: true, error: null }),
   save: async () => {
     const cabinetId = get().cabinetId;
     if (!cabinetId) return false;

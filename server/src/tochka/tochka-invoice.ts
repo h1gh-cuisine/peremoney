@@ -15,8 +15,8 @@ interface InvoiceInput {
   quantity: number;
   unitPrice: number;
   payer: TochkaPayer;
-  expiryDate: string;
   positionName: string;
+  unitCode: string;
   basedOn: string;
 }
 
@@ -36,12 +36,11 @@ export function buildTochkaInvoice(input: InvoiceInput) {
     Content: { Invoice: {
       number: input.invoiceNo,
       basedOn: input.basedOn,
-      paymentExpiryDate: input.expiryDate,
       totalAmount,
       totalNds: 0,
       Positions: [{
         positionName: input.positionName,
-        unitCode: 'услуга.',
+        unitCode: input.unitCode,
         ndsKind: 'without_nds',
         price: input.unitPrice,
         quantity: input.quantity,

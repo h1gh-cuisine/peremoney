@@ -18,7 +18,8 @@ export function buildSourcesQuery(range: DateRange) {
 }
 export function automationToApi(settings: SourceAutomationSettings) {
   return { autoCleanupEnabled: settings.autoCleanupEnabled, minContactsPerLead: settings.minContactsPerLead,
-    autoManagementEnabled: settings.autoManageEnabled, minConversion: settings.minConversion };
+    autoManagementEnabled: settings.autoManageEnabled, minConversion: settings.minConversion,
+    defaultLimit: settings.defaultLimit, maxLimit: settings.maxLimit };
 }
 export async function fetchSources(cabinetId: string, range: DateRange) {
   const values: ApiSource[] = [];

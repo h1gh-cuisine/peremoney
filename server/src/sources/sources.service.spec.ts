@@ -41,11 +41,29 @@ describe('источники: бизнес-правила 2.6', () => {
   it('отдаёт сохранённые пороги автоматизации в терминах API (autoManageEnabled, не autoManagementEnabled)', async () => {
     const findUnique = jest.fn().mockResolvedValue({
       autoCleanupEnabled: true, autoManagementEnabled: false, minContactsPerLead: 6, minConversion: new Prisma.Decimal(15),
+      defaultLimit: 5, maxLimit: 50,
     });
     const service = new SourcesService({ cabinet: { findUnique } } as never, {} as never, {} as never);
     await expect(service.getAutomation('cab')).resolves.toEqual({
       autoCleanupEnabled: true, autoManageEnabled: false, minContactsPerLead: 6, minConversion: 15,
+      defaultLimit: 5, maxLimit: 50,
     });
+  });
+
+  it('при сохранении настроек автоматизации шлёт в Leads Factory только default_limit/max_limit, без minContactsPerLead/minConversion', async () => {
+    const update = jest.fn().mockResolvedValue({ providerProjectId: 42, defaultLimit: 10, maxLimit: 80 });
+    const updateProjectAutomationLimits = jest.fn().mockResolvedValue(undefined);
+    const service = new SourcesService({ cabinet: { update } } as never, { updateProjectAutomationLimits } as never, {} as never);
+    await service.updateAutomation('cab', { autoCleanupEnabled: true, minContactsPerLead: 3, minConversion: 12, defaultLimit: 10, maxLimit: 80 });
+    expect(updateProjectAutomationLimits).toHaveBeenCalledWith(42, { defaultLimit: 10, maxLimit: 80 });
+  });
+
+  it('не дёргает Leads Factory при сохранении автоматизации, если проект ещё не связан', async () => {
+    const update = jest.fn().mockResolvedValue({ providerProjectId: null, defaultLimit: 5, maxLimit: 50 });
+    const updateProjectAutomationLimits = jest.fn();
+    const service = new SourcesService({ cabinet: { update } } as never, { updateProjectAutomationLimits } as never, {} as never);
+    await service.updateAutomation('cab', {});
+    expect(updateProjectAutomationLimits).not.toHaveBeenCalled();
   });
 
   it('разделяет автоочистку и автоуправление по порогам', async () => {

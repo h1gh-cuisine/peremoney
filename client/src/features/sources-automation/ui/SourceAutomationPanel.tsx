@@ -14,6 +14,10 @@ export function SourceAutomationPanel() {
   const setAutoManageEnabled = useSourceAutomationStore((s) => s.setAutoManageEnabled);
   const minConversion = useSourceAutomationStore((s) => s.minConversion);
   const setMinConversion = useSourceAutomationStore((s) => s.setMinConversion);
+  const defaultLimit = useSourceAutomationStore((s) => s.defaultLimit);
+  const setDefaultLimit = useSourceAutomationStore((s) => s.setDefaultLimit);
+  const maxLimit = useSourceAutomationStore((s) => s.maxLimit);
+  const setMaxLimit = useSourceAutomationStore((s) => s.setMaxLimit);
   const dirty = useSourceAutomationStore((s) => s.dirty);
   const saving = useSourceAutomationStore((s) => s.saving);
   const error = useSourceAutomationStore((s) => s.error);
@@ -26,7 +30,7 @@ export function SourceAutomationPanel() {
     setConfirming(false);
     const timer = window.setTimeout(() => setConfirming(true), 2000);
     return () => window.clearTimeout(timer);
-  }, [dirty, autoCleanupEnabled, minContactsPerLead, autoManageEnabled, minConversion]);
+  }, [dirty, autoCleanupEnabled, minContactsPerLead, autoManageEnabled, minConversion, defaultLimit, maxLimit]);
 
   const cancelChanges = () => {
     discard();
@@ -95,6 +99,35 @@ export function SourceAutomationPanel() {
         </div>
       </div>
 
+      <div className={styles.row}>
+        <div className={styles.rowText}>
+          <span className={styles.rowLabel}>Лимиты тегов у провайдера</span>
+          <span className={styles.rowHint}>Коридор лимитов, который отправляется в Leads Factory</span>
+        </div>
+        <div className={styles.rowControls}>
+          <label className={styles.numberField}>
+            <span>Мин. лимит:</span>
+            <input
+              type="number"
+              min={1}
+              className={styles.numberInput}
+              value={defaultLimit}
+              onChange={(e) => setDefaultLimit(Math.max(1, Number(e.target.value) || 1))}
+            />
+          </label>
+          <label className={styles.numberField}>
+            <span>Макс. лимит:</span>
+            <input
+              type="number"
+              min={1}
+              className={styles.numberInput}
+              value={maxLimit}
+              onChange={(e) => setMaxLimit(Math.max(1, Number(e.target.value) || 1))}
+            />
+          </label>
+        </div>
+      </div>
+
       {dirty && !confirming && <p className={styles.pendingHint}>Ожидаем завершения изменений…</p>}
       {error && <p className={styles.error} role="alert">{error}</p>}
 
@@ -109,6 +142,8 @@ export function SourceAutomationPanel() {
               <div><dt>Мин. контактов на 1 лид</dt><dd>{minContactsPerLead}</dd></div>
               <div><dt>Автоматическое управление</dt><dd>{autoManageEnabled ? "Включено" : "Выключено"}</dd></div>
               <div><dt>Мин. конверсия</dt><dd>{minConversion}%</dd></div>
+              <div><dt>Мин. лимит (default_limit)</dt><dd>{defaultLimit}</dd></div>
+              <div><dt>Макс. лимит (max_limit)</dt><dd>{maxLimit}</dd></div>
             </dl>
             <div className={styles.confirmActions}>
               <button type="button" className={styles.cancelButton} disabled={saving} onClick={cancelChanges}>Закрыть</button>

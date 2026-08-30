@@ -26,4 +26,6 @@ export interface SourceAutomationSettings {
   minContactsPerLead: number; // "мин. контактов на 1 лид"
   autoManageEnabled: boolean; // автоматическое управление
   minConversion: number; // "мин. конверсия", %
+  defaultLimit: number; // "мин лимит" — уходит в Leads Factory как default_limit
+  maxLimit: number; // "макс лимит" — уходит в Leads Factory как max_limit
 }

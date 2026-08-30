@@ -1,0 +1,5 @@
+CREATE SEQUENCE "payment_invoice_number_seq"
+  AS BIGINT
+  START WITH 640
+  INCREMENT BY 1
+  NO CYCLE;

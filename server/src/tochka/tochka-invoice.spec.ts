@@ -7,7 +7,7 @@ describe('buildTochkaInvoice', () => {
       quantity: 2, unitPrice: 1250, payer: {
         organizationName: 'ООО Клиент', inn: '6450000000', legalAddress: 'Саратов',
         bankName: 'ПАО Сбербанк', kpp: '645001001',
-      }, expiryDate: '2026-08-26', positionName: 'Информационные услуги',
+      }, positionName: 'Неисключительная лицензия на использование ПО', unitCode: 'лицензия',
       basedOn: 'Договор № 451 от 2026-08-21',
     })).toEqual({ Data: {
       customerCode: '305541696', accountId: 'account-1',
@@ -15,8 +15,8 @@ describe('buildTochkaInvoice', () => {
         secondSideName: 'ООО Клиент', legalAddress: 'Саратов', bankName: 'ПАО Сбербанк' },
       Content: { Invoice: {
         number: '42', basedOn: 'Договор № 451 от 2026-08-21',
-        paymentExpiryDate: '2026-08-26', totalAmount: 2500, totalNds: 0,
-        Positions: [{ positionName: 'Информационные услуги', unitCode: 'услуга.', ndsKind: 'without_nds',
+        totalAmount: 2500, totalNds: 0,
+        Positions: [{ positionName: 'Неисключительная лицензия на использование ПО', unitCode: 'лицензия', ndsKind: 'without_nds',
           price: 1250, quantity: 2, totalAmount: 2500, totalNds: 0 }],
       } },
     } });
@@ -25,6 +25,6 @@ describe('buildTochkaInvoice', () => {
   it('detects an individual entrepreneur by a 12-digit INN', () => {
     expect(buildTochkaInvoice({ customerCode: 'c', accountId: 'a', invoiceNo: '7', quantity: 1,
       unitPrice: 100, payer: { organizationName: 'ИП Иванов', inn: '645000000000' },
-      expiryDate: '2026-08-26', positionName: 'Услуги', basedOn: 'Публичная оферта' }).Data.SecondSide.type).toBe('ip');
+      positionName: 'Услуги', unitCode: 'лицензия', basedOn: 'Публичная оферта' }).Data.SecondSide.type).toBe('ip');
   });
 });

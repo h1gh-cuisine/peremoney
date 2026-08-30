@@ -118,6 +118,18 @@ export class LeadsFactoryService {
     });
   }
 
+  updateProjectAutomationLimits(projectId: number, limits: { defaultLimit: number; maxLimit: number }) {
+    return this.request(`/vdl/api/projects/info/${projectId}`, {}, {
+      method: 'PATCH',
+      body: {
+        default_limit: limits.defaultLimit,
+        max_limit: limits.maxLimit,
+        // Автоскрипты сами двигают лимиты тегов — мы задаём коридор, не разрешаем провайдеру менять его сам.
+        limit_autochange: false,
+      },
+    });
+  }
+
   getProjectScript(projectId: number) {
     return this.request<ProviderScript>(`/crm/open-api/projects/${projectId}/script`);
   }

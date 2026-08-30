@@ -3,10 +3,13 @@ import { FinanceService } from './finance.service';
 import { TochkaApiException, TochkaTransportException } from '../tochka/tochka.service';
 
 describe('FinanceService', () => {
+  const nextInvoiceNumber = () => jest.fn().mockResolvedValue([{ invoiceNo: 640n }]);
+
   it('creates an invoice using the current tariff price and payer', async () => {
     const create = jest.fn().mockImplementation(({ data }) => ({ id: 'pay', ...data }));
     const update = jest.fn().mockImplementation(({ data }) => ({ id: 'pay', ...data }));
     const prisma = {
+      $queryRaw: nextInvoiceNumber(),
       cabinet: { findUnique: jest.fn().mockResolvedValue({
         id: 'cab', price: new Prisma.Decimal(125), type: ProjectType.VDL,
         payerProfile: { data: { organizationName: 'ООО Клиент', inn: '6450000001', kpp: '645001001' } },
@@ -22,13 +25,22 @@ describe('FinanceService', () => {
       customerCode: 'customer', accountId: 'account',
     }) }));
     const bankPayload = tochka.createInvoice.mock.calls[0]![0];
-    expect(bankPayload.Data.Content.Invoice.number).toMatch(/^\d+$/);
+    expect(bankPayload.Data.Content.Invoice.number).toBe('640');
     expect(typeof bankPayload.Data.Content.Invoice.number).toBe('string');
+    expect(bankPayload.Data.Content.Invoice).not.toHaveProperty('paymentExpiryDate');
+    expect(bankPayload.Data.Content.Invoice.basedOn).toBe(
+      'Публичная оферта о заключении лицензионного договора на использование программного обеспечения peremoney.ru',
+    );
+    expect(bankPayload.Data.Content.Invoice.Positions[0]).toEqual(expect.objectContaining({
+      positionName: 'Неисключительная лицензия на использование ПО',
+      unitCode: 'лицензия',
+    }));
   });
 
   it('replays a successful invoice without a second bank POST', async () => {
     const existing = { id: 'pay', invoiceRequestHash: '', invoiceCreationStatus: 'SUCCEEDED', tochkaDocumentId: 'doc-1' };
     const prisma = {
+      $queryRaw: nextInvoiceNumber(),
       cabinet: { findUnique: jest.fn().mockResolvedValue({ id: 'cab', price: new Prisma.Decimal(125), type: ProjectType.VDL,
         payerProfile: { data: { organizationName: 'ООО Клиент', inn: '6450000001', kpp: '645001001' } } }) },
       payment: { create: jest.fn().mockRejectedValue(new Prisma.PrismaClientKnownRequestError('unique', { code: 'P2002', clientVersion: '6.19.3' })),
@@ -46,6 +58,7 @@ describe('FinanceService', () => {
   it('marks a deterministic bank validation rejection as FAILED', async () => {
     const update = jest.fn().mockImplementation(({ data }) => ({ id: 'pay', ...data }));
     const prisma = {
+      $queryRaw: nextInvoiceNumber(),
       cabinet: { findUnique: jest.fn().mockResolvedValue({
         id: 'cab', price: new Prisma.Decimal(125), type: ProjectType.VDL,
         payerProfile: { data: { organizationName: 'Тест', inn: '0000000000', kpp: '000000000' } },
@@ -63,6 +76,7 @@ describe('FinanceService', () => {
   it('keeps an ambiguous network failure UNCERTAIN', async () => {
     const update = jest.fn().mockImplementation(({ data }) => ({ id: 'pay', ...data }));
     const prisma = {
+      $queryRaw: nextInvoiceNumber(),
       cabinet: { findUnique: jest.fn().mockResolvedValue({
         id: 'cab', price: new Prisma.Decimal(125), type: ProjectType.VDL,
         payerProfile: { data: { organizationName: 'Тест', inn: '0000000000', kpp: '000000000' } },
@@ -80,6 +94,7 @@ describe('FinanceService', () => {
   it('marks a certificate failure as FAILED because the invoice was not sent', async () => {
     const update = jest.fn().mockImplementation(({ data }) => ({ id: 'pay', ...data }));
     const prisma = {
+      $queryRaw: nextInvoiceNumber(),
       cabinet: { findUnique: jest.fn().mockResolvedValue({
         id: 'cab', price: new Prisma.Decimal(125), type: ProjectType.VDL,
         payerProfile: { data: { organizationName: 'Тест', inn: '0000000000', kpp: '000000000' } },
