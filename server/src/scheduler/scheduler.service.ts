@@ -13,10 +13,10 @@ import { ProviderException } from '../leads-factory/provider.exception';
 
 const MOSCOW_OFFSET_MS = 3 * 60 * 60 * 1000;
 // docs-agent.md 2.3 говорит "18:00" для TAG_AUTOMATION — продуктовое решение
-// перенесло его на 21:15 МСК, независимо от текста ТЗ.
+// перенесло его на 21:24 МСК, независимо от текста ТЗ.
 const SLOTS: Array<{ hour: number; minute?: number; task: ScheduledTask }> = [
   { hour: 9, task: ScheduledTask.SOURCES_SYNC },
-  { hour: 21, minute: 15, task: ScheduledTask.TAG_AUTOMATION },
+  { hour: 21, minute: 24, task: ScheduledTask.TAG_AUTOMATION },
   { hour: 20, task: ScheduledTask.APPLY_SCHEDULE },
   { hour: 20, task: ScheduledTask.SCRIPT_SYNC },
 ];
