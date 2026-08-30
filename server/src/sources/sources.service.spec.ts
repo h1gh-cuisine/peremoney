@@ -21,7 +21,7 @@ describe('источники: бизнес-правила 2.6', () => {
       ]) },
     };
     const { items: [result], total, hasMore } = await new SourcesService(prisma as never, {} as never, {} as never).list('cab', {});
-    expect(result).toMatchObject({ id: '731', providerTagId: 731, sales: 1, notTargetShare: 200 });
+    expect(result).toMatchObject({ id: '731', providerTagId: 731, sales: 1, notTargetShare: 66.7 });
     expect({ total, hasMore }).toEqual({ total: 1, hasMore: false });
   });
 

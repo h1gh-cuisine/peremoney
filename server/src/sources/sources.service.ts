@@ -72,7 +72,7 @@ export class SourcesService {
         // remains an implementation detail and must not leak into the project UI.
         id: String(tag.providerTagId),
         sales: matching.filter((lead) => lead.saleStatus === LeadSaleStatus.BOUGHT).length,
-        notTargetShare: notTarget === 0 ? 0 : Number(tag.success) / notTarget * 100,
+        notTargetShare: matching.length === 0 ? 0 : Math.round((notTarget / matching.length) * 1000) / 10,
       };
     });
     return { items, total, page, pageSize, hasMore: page * pageSize < total };
