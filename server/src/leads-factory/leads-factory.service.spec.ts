@@ -42,6 +42,26 @@ describe('LeadsFactoryService contract', () => {
     });
   });
 
+  it('bulk tag update chunks tag_ids into batches of 1000 (provider rejects больше 1000 за раз)', async () => {
+    const fetchMock = jest.spyOn(global, 'fetch').mockResolvedValue(new Response('{}', { status: 200 }));
+    const service = new LeadsFactoryService(config as never);
+    const tagIds = Array.from({ length: 1500 }, (_, i) => i + 1);
+    await service.updateTags(tagIds, true, 5);
+    expect(fetchMock).toHaveBeenCalledTimes(2);
+    const firstBody = JSON.parse(String(fetchMock.mock.calls[0]![1]?.body));
+    const secondBody = JSON.parse(String(fetchMock.mock.calls[1]![1]?.body));
+    expect(firstBody.tag_ids).toHaveLength(1000);
+    expect(secondBody.tag_ids).toHaveLength(500);
+    expect(firstBody.update_tag_schema).toEqual({ norm_work: true, limit: 5 });
+  });
+
+  it('does not call the provider for an empty tag list', async () => {
+    const fetchMock = jest.spyOn(global, 'fetch').mockResolvedValue(new Response('{}', { status: 200 }));
+    const service = new LeadsFactoryService(config as never);
+    await service.updateTags([], false);
+    expect(fetchMock).not.toHaveBeenCalled();
+  });
+
   it('loads an existing project by its internal provider ID', async () => {
     const project = { id: 22931, name: 'Проект LF', sphere: 'Медицина', status: 'active', timezone: 3,
       numbers: false, vdl: true, prozvon_base: false };

@@ -69,10 +69,19 @@ export class LeadsFactoryService {
     });
   }
 
-  updateTags(tagIds: number[], enabled: boolean, enabledLimit = 50) {
-    return this.request('/vdl/api/tags/update', {}, {
-      method: 'PATCH', body: { tag_ids: tagIds, update_tag_schema: { norm_work: enabled, limit: enabled ? enabledLimit : 0 } },
-    });
+  // Провайдер отклоняет запрос с "Нельзя обновлять больше 1000 тегов за раз" —
+  // замечено на реальном кабинете 30.08.2026. Бьём на чанки и шлём
+  // последовательно, чтобы не упереться в этот лимит и не создавать всплеск
+  // параллельных запросов к Leads Factory.
+  private static readonly MAX_TAG_IDS_PER_UPDATE = 1000;
+
+  async updateTags(tagIds: number[], enabled: boolean, enabledLimit = 50) {
+    for (let offset = 0; offset < tagIds.length; offset += LeadsFactoryService.MAX_TAG_IDS_PER_UPDATE) {
+      const chunk = tagIds.slice(offset, offset + LeadsFactoryService.MAX_TAG_IDS_PER_UPDATE);
+      await this.request('/vdl/api/tags/update', {}, {
+        method: 'PATCH', body: { tag_ids: chunk, update_tag_schema: { norm_work: enabled, limit: enabled ? enabledLimit : 0 } },
+      });
+    }
   }
 
   addSources(crmId: number, body: Record<string, unknown>) {
