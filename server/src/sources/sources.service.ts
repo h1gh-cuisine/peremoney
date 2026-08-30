@@ -85,10 +85,17 @@ export class SourcesService {
   async toggle(cabinetId: string, tagId: string, enabled: boolean) {
     const providerTagId = Number(tagId);
     if (!Number.isSafeInteger(providerTagId) || providerTagId <= 0) throw new NotFoundException('Источник не найден');
-    const tag = await this.prisma.sourceTag.findFirst({ where: { providerTagId, cabinetId } });
+    const [tag, cabinet] = await Promise.all([
+      this.prisma.sourceTag.findFirst({ where: { providerTagId, cabinetId } }),
+      this.prisma.cabinet.findUnique({ where: { id: cabinetId }, select: { defaultLimit: true } }),
+    ]);
     if (!tag) throw new NotFoundException('Источник не найден');
-    await this.provider.updateTag(tag.providerTagId, enabled);
-    return this.prisma.sourceTag.update({ where: { id: tag.id }, data: { normWork: enabled, limit: enabled ? 50 : 0 } });
+    // Включаем по лимиту именно этого проекта (Cabinet.defaultLimit), а не по
+    // единому значению на всех — иначе проект с default_limit=5 получал бы
+    // такой же лимит 50, как проект с default_limit=200.
+    const limit = cabinet?.defaultLimit ?? 50;
+    await this.provider.updateTag(tag.providerTagId, enabled, limit);
+    return this.prisma.sourceTag.update({ where: { id: tag.id }, data: { normWork: enabled, limit: enabled ? limit : 0 } });
   }
 
   async add(cabinetId: string, dto: AddSourcesDto) {
@@ -152,13 +159,20 @@ export class SourcesService {
     const cabinet = await this.cabinet(cabinetId);
     const tags = await this.prisma.sourceTag.findMany({ where: { cabinetId } });
     const minConversion = Number(cabinet.minConversion);
-    const disable = cabinet.autoCleanupEnabled ? tags.filter((t) => t.newAnswer >= cabinet.minContactsPerLead && Number(t.conversion) < minConversion) : [];
+    // Условие по мин. контактам на 1 лид намеренно отделено от порога конверсии
+    // (продуктовое решение) — раньше это было "И", и на кабинетах, где у всех
+    // низкоконверсионных тегов ещё не набралось нужное число контактов, чистка
+    // не выключала вообще ничего, хотя видимых кандидатов было полно.
+    const disable = cabinet.autoCleanupEnabled ? tags.filter((t) => Number(t.conversion) < minConversion) : [];
     const enable = cabinet.autoManagementEnabled ? tags.filter((t) => Number(t.conversion) >= minConversion) : [];
     if (disable.length) await this.provider.updateTags(disable.map((t) => t.providerTagId), false);
-    if (enable.length) await this.provider.updateTags(enable.map((t) => t.providerTagId), true);
+    // Включаем по лимиту именно этого проекта (Cabinet.defaultLimit — "лимит,
+    // который выставляется новым тегам по умолчанию", leads-docs.json), а не по
+    // одному значению 50 на все проекты.
+    if (enable.length) await this.provider.updateTags(enable.map((t) => t.providerTagId), true, cabinet.defaultLimit);
     await this.prisma.$transaction([
       this.prisma.sourceTag.updateMany({ where: { id: { in: disable.map((t) => t.id) } }, data: { normWork: false, limit: 0 } }),
-      this.prisma.sourceTag.updateMany({ where: { id: { in: enable.map((t) => t.id) } }, data: { normWork: true, limit: 50 } }),
+      this.prisma.sourceTag.updateMany({ where: { id: { in: enable.map((t) => t.id) } }, data: { normWork: true, limit: cabinet.defaultLimit } }),
     ]);
     return { disabled: disable.length, enabled: enable.length,
       analysisFrom: start.toISOString().slice(0, 10), analysisTo: end.toISOString().slice(0, 10) };

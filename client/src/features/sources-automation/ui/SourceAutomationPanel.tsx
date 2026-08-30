@@ -48,7 +48,7 @@ export function SourceAutomationPanel() {
       <div className={styles.row}>
         <div className={styles.rowText}>
           <span className={styles.rowLabel}>Автоматическая чистка</span>
-          <span className={styles.rowHint}>Удалять неактивные теги (conversion ниже порога)</span>
+          <span className={styles.rowHint}>Удалять неактивные источники (конверсия ниже порога)</span>
         </div>
         <div className={styles.rowControls}>
           <label className={styles.numberField}>
@@ -101,8 +101,8 @@ export function SourceAutomationPanel() {
 
       <div className={styles.row}>
         <div className={styles.rowText}>
-          <span className={styles.rowLabel}>Лимиты тегов у провайдера</span>
-          <span className={styles.rowHint}>Коридор лимитов, который отправляется в Leads Factory</span>
+          <span className={styles.rowLabel}>Лимиты источников</span>
+          <span className={styles.rowHint}>Коридор лимитов, который отправляется операторам</span>
         </div>
         <div className={styles.rowControls}>
           <label className={styles.numberField}>

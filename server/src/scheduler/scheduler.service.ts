@@ -12,9 +12,11 @@ import { providerScriptToText } from '../leads-factory/script-text';
 import { ProviderException } from '../leads-factory/provider.exception';
 
 const MOSCOW_OFFSET_MS = 3 * 60 * 60 * 1000;
-const SLOTS: Array<{ hour: number; task: ScheduledTask }> = [
+// docs-agent.md 2.3 говорит "18:00" для TAG_AUTOMATION — продуктовое решение
+// перенесло его на 21:15 МСК, независимо от текста ТЗ.
+const SLOTS: Array<{ hour: number; minute?: number; task: ScheduledTask }> = [
   { hour: 9, task: ScheduledTask.SOURCES_SYNC },
-  { hour: 18, task: ScheduledTask.TAG_AUTOMATION },
+  { hour: 21, minute: 15, task: ScheduledTask.TAG_AUTOMATION },
   { hour: 20, task: ScheduledTask.APPLY_SCHEDULE },
   { hour: 20, task: ScheduledTask.SCRIPT_SYNC },
 ];
@@ -91,7 +93,7 @@ export class SchedulerService implements OnApplicationBootstrap, OnApplicationSh
     const cutoff = now.getTime() - 24 * 60 * 60 * 1000;
     const daily = dates.flatMap((date) => SLOTS.map((slot) => ({
       task: slot.task,
-      at: new Date(Date.UTC(date.getUTCFullYear(), date.getUTCMonth(), date.getUTCDate(), slot.hour - 3)),
+      at: new Date(Date.UTC(date.getUTCFullYear(), date.getUTCMonth(), date.getUTCDate(), slot.hour - 3, slot.minute ?? 0)),
     }))).filter((slot) => slot.at <= now && slot.at.getTime() >= cutoff);
     const configured = Number(this.config.get('CONTACTS_POLL_MS') ?? 2 * 60_000);
     const interval = Number.isFinite(configured) && configured >= 60_000 ? configured : 2 * 60_000;

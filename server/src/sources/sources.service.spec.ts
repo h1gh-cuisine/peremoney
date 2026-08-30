@@ -2,12 +2,27 @@ import { LeadSaleStatus, Prisma } from '@prisma/client';
 import { SourcesService } from './sources.service';
 
 describe('источники: бизнес-правила 2.6', () => {
-  it('включает тег как norm_work=true, limit=50', async () => {
+  it('включает тег по лимиту именно этого проекта (Cabinet.defaultLimit), а не по единому 50 на все проекты', async () => {
     const update = jest.fn(); const updateTag = jest.fn();
-    const service = new SourcesService({ sourceTag: { findFirst: jest.fn().mockResolvedValue({ id: 'tag', providerTagId: 7 }), update } } as never, { updateTag } as never, {} as never);
+    const prisma = {
+      sourceTag: { findFirst: jest.fn().mockResolvedValue({ id: 'tag', providerTagId: 7 }), update },
+      cabinet: { findUnique: jest.fn().mockResolvedValue({ defaultLimit: 8 }) },
+    };
+    const service = new SourcesService(prisma as never, { updateTag } as never, {} as never);
     await service.toggle('cab', '7', true);
-    expect(updateTag).toHaveBeenCalledWith(7, true);
-    expect(update).toHaveBeenCalledWith({ where: { id: 'tag' }, data: { normWork: true, limit: 50 } });
+    expect(updateTag).toHaveBeenCalledWith(7, true, 8);
+    expect(update).toHaveBeenCalledWith({ where: { id: 'tag' }, data: { normWork: true, limit: 8 } });
+  });
+
+  it('падает обратно на лимит 50, если у кабинета лимит не настроен', async () => {
+    const update = jest.fn(); const updateTag = jest.fn();
+    const prisma = {
+      sourceTag: { findFirst: jest.fn().mockResolvedValue({ id: 'tag', providerTagId: 7 }), update },
+      cabinet: { findUnique: jest.fn().mockResolvedValue(null) },
+    };
+    const service = new SourcesService(prisma as never, { updateTag } as never, {} as never);
+    await service.toggle('cab', '7', true);
+    expect(updateTag).toHaveBeenCalledWith(7, true, 50);
   });
 
   it('считает продажи и долю нецелевых по совпавшему site (Contact.site хранит сырой тег провайдера)', async () => {
@@ -73,14 +88,33 @@ describe('источники: бизнес-правила 2.6', () => {
     ];
     const updateTags = jest.fn(); const updateMany = jest.fn();
     const prisma = {
-      cabinet: { findUnique: jest.fn().mockResolvedValue({ providerProjectId: 42, autoCleanupEnabled: true, autoManagementEnabled: true, minContactsPerLead: 5, minConversion: new Prisma.Decimal(10) }) },
+      cabinet: { findUnique: jest.fn().mockResolvedValue({ providerProjectId: 42, autoCleanupEnabled: true, autoManagementEnabled: true, minContactsPerLead: 5, minConversion: new Prisma.Decimal(10), defaultLimit: 5 }) },
       sourceTag: { findMany: jest.fn().mockResolvedValue(tags), updateMany, upsert: jest.fn() }, $transaction: jest.fn(),
     };
     const getTags = jest.fn().mockResolvedValue({ items: [], total: 0 });
     const result = await new SourcesService(prisma as never, { updateTags, getTags } as never, {} as never).automate('cab');
     expect(updateTags).toHaveBeenNthCalledWith(1, [1], false);
-    expect(updateTags).toHaveBeenNthCalledWith(2, [2], true);
+    // Включение идёт по Cabinet.defaultLimit этого проекта, не по единому 50.
+    expect(updateTags).toHaveBeenNthCalledWith(2, [2], true, 5);
     expect(result).toEqual(expect.objectContaining({ disabled: 1, enabled: 1 }));
+  });
+
+  it('выключает тег по одной только конверсии, даже если он не набрал мин. контактов на 1 лид (продуктовое решение: условия разделены, не "И")', async () => {
+    // Регрессия, замеченная на реальном кабинете: все теги были ниже порога
+    // конверсии, но ни один не набрал minContactsPerLead — при старой логике
+    // "И" чистка не выключала вообще ничего.
+    const tags = [
+      { id: 'low-traffic-bad-conversion', providerTagId: 1, newAnswer: 2, conversion: new Prisma.Decimal(5) },
+    ];
+    const updateTags = jest.fn(); const updateMany = jest.fn();
+    const prisma = {
+      cabinet: { findUnique: jest.fn().mockResolvedValue({ providerProjectId: 42, autoCleanupEnabled: true, autoManagementEnabled: false, minContactsPerLead: 11, minConversion: new Prisma.Decimal(42) }) },
+      sourceTag: { findMany: jest.fn().mockResolvedValue(tags), updateMany, upsert: jest.fn() }, $transaction: jest.fn(),
+    };
+    const getTags = jest.fn().mockResolvedValue({ items: [], total: 0 });
+    const result = await new SourcesService(prisma as never, { updateTags, getTags } as never, {} as never).automate('cab');
+    expect(updateTags).toHaveBeenCalledWith([1], false);
+    expect(result).toEqual(expect.objectContaining({ disabled: 1, enabled: 0 }));
   });
 
   it('анализирует автоматизацию с 01.04.2026 по сегодня, а не по диапазону из UI (продуктовое решение, расходится с буквальным текстом docs-agent.md 2.6.4)', async () => {

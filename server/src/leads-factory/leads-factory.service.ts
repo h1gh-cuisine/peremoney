@@ -58,15 +58,20 @@ export class LeadsFactoryService {
     });
   }
 
-  updateTag(tagId: number, enabled: boolean) {
+  // enabledLimit по умолчанию 50 — только страховка для мест, которые ещё не
+  // передают лимит явно. Реальные вызовы должны передавать Cabinet.defaultLimit
+  // ("лимит, который выставляется новым тегам по умолчанию" — leads-docs.json,
+  // ProjectInfoUpdateSchema), чтобы включение тега работало по лимиту именно
+  // этого проекта, а не по одному значению на всех.
+  updateTag(tagId: number, enabled: boolean, enabledLimit = 50) {
     return this.request(`/vdl/api/tags/update/${tagId}`, {}, {
-      method: 'PATCH', body: { norm_work: enabled, limit: enabled ? 50 : 0 },
+      method: 'PATCH', body: { norm_work: enabled, limit: enabled ? enabledLimit : 0 },
     });
   }
 
-  updateTags(tagIds: number[], enabled: boolean) {
+  updateTags(tagIds: number[], enabled: boolean, enabledLimit = 50) {
     return this.request('/vdl/api/tags/update', {}, {
-      method: 'PATCH', body: { tag_ids: tagIds, update_tag_schema: { norm_work: enabled, limit: enabled ? 50 : 0 } },
+      method: 'PATCH', body: { tag_ids: tagIds, update_tag_schema: { norm_work: enabled, limit: enabled ? enabledLimit : 0 } },
     });
   }
 
