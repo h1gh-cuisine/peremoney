@@ -54,8 +54,12 @@ export class SourcesService {
     const leadsBySite = new Map<string, typeof leads>();
     for (const lead of leads) {
       if (!lead.contact.site) continue;
-      const items = leadsBySite.get(lead.contact.site) ?? [];
-      items.push(lead); leadsBySite.set(lead.contact.site, items);
+      // Contact.site stores the raw provider tag string (e.g. `B111_<phone>_<projectId>`),
+      // the same shape as SourceTag.rawName below — both sides must be parsed the same
+      // way or the join never matches and sales/notTargetShare stay stuck at 0.
+      const key = parseSourceName(lead.contact.site).name;
+      const items = leadsBySite.get(key) ?? [];
+      items.push(lead); leadsBySite.set(key, items);
     }
     const items = tags.map((tag) => {
       // Нормализуем исходное имя и при чтении: так старые записи, сохранённые до

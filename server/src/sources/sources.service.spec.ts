@@ -10,14 +10,14 @@ describe('источники: бизнес-правила 2.6', () => {
     expect(update).toHaveBeenCalledWith({ where: { id: 'tag' }, data: { normWork: true, limit: 50 } });
   });
 
-  it('считает продажи и долю нецелевых по совпавшему site', async () => {
+  it('считает продажи и долю нецелевых по совпавшему site (Contact.site хранит сырой тег провайдера)', async () => {
     const prisma = {
-      sourceTag: { findMany: jest.fn().mockResolvedValue([{ id: 'local-uuid', providerTagId: 731, name: 'site', success: 4 }]), count: jest.fn().mockResolvedValue(1) },
+      sourceTag: { findMany: jest.fn().mockResolvedValue([{ id: 'local-uuid', providerTagId: 731, rawName: 'B111_79311094344_22442', name: '79311094344', success: 4 }]), count: jest.fn().mockResolvedValue(1) },
       lead: { findMany: jest.fn().mockResolvedValue([
-        { saleStatus: LeadSaleStatus.NOT_TARGET, contact: { site: 'site' } },
-        { saleStatus: LeadSaleStatus.NOT_TARGET, contact: { site: 'site' } },
-        { saleStatus: LeadSaleStatus.BOUGHT, contact: { site: 'site' } },
-        { saleStatus: LeadSaleStatus.BOUGHT, contact: { site: 'other' } },
+        { saleStatus: LeadSaleStatus.NOT_TARGET, contact: { site: 'B111_79311094344_22442' } },
+        { saleStatus: LeadSaleStatus.NOT_TARGET, contact: { site: 'B111_79311094344_22442' } },
+        { saleStatus: LeadSaleStatus.BOUGHT, contact: { site: 'B111_79311094344_22442' } },
+        { saleStatus: LeadSaleStatus.BOUGHT, contact: { site: 'B222_74950040278_22442' } },
       ]) },
     };
     const { items: [result], total, hasMore } = await new SourcesService(prisma as never, {} as never, {} as never).list('cab', {});
