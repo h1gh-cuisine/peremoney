@@ -3,13 +3,15 @@ import type { MasterProject, RenewalStatus } from '../model/types';
 import type { ProjectType } from '@/shared/lib/projectType';
 import type { DateRange } from '@/shared/lib/date';
 
-type ApiProject = { id: string; name: string; managerName: string | null; type: 'VDL'|'PACKAGE'|'NUMBERS'; sphere: string | null;
+type ApiProject = { id: string; name: string; managerName: string | null; providerProjectId: number | null; linkedProviderProjectIds?: number[]; type: 'VDL'|'PACKAGE'|'NUMBERS'; sphere: string | null;
   price: string|number; moneyBalance: string|number; renewalStatus: 'RENEWED'|'NOT_RENEWED'; isActive: boolean; hidden: boolean; createdAt: string;
   contactsExported: number; leadsExported: number; sales: number; expenses: number | null; leadCost: number | null; targetLeadCost: number | null;
   ltv: number; paymentsCount: number; avgCheck: number; clientLogin: string; employeeLogin: string };
 const TYPES: Record<ApiProject['type'], ProjectType> = { VDL: 'quals', PACKAGE: 'package', NUMBERS: 'numbers' };
 export function mapMasterProject(value: ApiProject): MasterProject { return { id: value.id, name: value.name,
-  managerId: value.managerName ?? 'Без менеджера', type: TYPES[value.type], region: value.name.split('/')[0] ?? '', sphere: value.sphere ?? '',
+  managerId: value.managerName ?? 'Без менеджера', providerProjectId: value.providerProjectId,
+  linkedProviderProjectIds: value.linkedProviderProjectIds ?? [],
+  type: TYPES[value.type], region: value.name.split('/')[0] ?? '', sphere: value.sphere ?? '',
   contactsExported: value.contactsExported, leadsExported: value.leadsExported, sales: value.sales,
   expenses: value.expenses == null ? null : Number(value.expenses),
   leadCost: value.leadCost == null ? null : Number(value.leadCost),
@@ -38,7 +40,7 @@ export async function createMasterProject(input: { clientName: string; type: Pro
     paymentsCount: 0, avgCheck: 0, clientLogin: input.clientLogin, employeeLogin: input.employeeLogin });
   return { ...project, clientPassword: result.credentials?.client.password ?? '', employeePassword: result.credentials?.employee.password ?? '' };
 }
-export async function patchMasterProject(id: string, patch: { price?: number; renewalStatus?: RenewalStatus; isActive?: boolean; hidden?: boolean; clientPassword?: string }) {
+export async function patchMasterProject(id: string, patch: { price?: number; renewalStatus?: RenewalStatus; isActive?: boolean; hidden?: boolean; clientPassword?: string; linkedProviderProjectIds?: number[] }) {
   await apiClient().patch(`/cabinets/${id}/master-project`, { ...patch,
     renewalStatus: patch.renewalStatus === undefined ? undefined : patch.renewalStatus === 'renewed' ? 'RENEWED' : 'NOT_RENEWED' });
 }

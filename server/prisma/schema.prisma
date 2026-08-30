@@ -104,6 +104,7 @@ model Cabinet {
   id              String   @id @default(uuid()) @db.Uuid
   name            String
   providerProjectId Int?
+  linkedProviderProjectIds Int[] @default([])
   type            ProjectType
   price           Decimal  @default(0) @db.Decimal(14, 2)
   managerName     String?
@@ -339,6 +340,10 @@ model Contact {
   cabinetId        String   @db.Uuid
   cabinet          Cabinet  @relation(fields: [cabinetId], references: [id], onDelete: Cascade)
   providerAnswerId Int?
+  // Проект Leads Factory, из которого пришла эта заявка — свой providerProjectId
+  // кабинета либо один из Cabinet.linkedProviderProjectIds. Без него providerAnswerId
+  // не различал бы заявки с одинаковым числовым ID из разных связанных проектов.
+  providerProjectId Int?
   date             DateTime
   status           String
   mobileTel        String
@@ -349,7 +354,7 @@ model Contact {
   lead             Lead?
   fanoutDelivery   FanoutDelivery?
 
-  @@unique([cabinetId, providerAnswerId])
+  @@unique([cabinetId, providerProjectId, providerAnswerId])
   @@index([cabinetId, date])
   @@index([cabinetId, status])
 }
@@ -436,6 +441,11 @@ model AnswerSyncRun {
   id            String     @id @default(uuid()) @db.Uuid
   cabinetId     String     @db.Uuid
   cabinet       Cabinet    @relation(fields: [cabinetId], references: [id], onDelete: Cascade)
+  // Каждый прогон синхронизации теперь привязан к одному проекту Leads Factory
+  // (своему или связанному) — окно инкрементального опроса считается отдельно
+  // для каждого проекта, иначе у только что связанного проекта не подтянулась бы
+  // вся история.
+  providerProjectId Int?
   status        SyncStatus @default(RUNNING)
   receivedCount Int        @default(0)
   contactCount  Int        @default(0)
@@ -444,7 +454,7 @@ model AnswerSyncRun {
   startedAt     DateTime   @default(now())
   finishedAt    DateTime?
 
-  @@index([cabinetId, startedAt])
+  @@index([cabinetId, providerProjectId, startedAt])
 }
 
 model User {

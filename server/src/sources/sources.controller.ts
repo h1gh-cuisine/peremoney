@@ -41,6 +41,11 @@ export class SourcesController {
     assertCabinetAccess(user, cabinetId, true); return this.sources.toggle(cabinetId, tagId, dto.enabled);
   }
 
+  @Get('automation/settings') @Roles(UserRole.MASTER, UserRole.FULL)
+  getAutomationSettings(@CurrentUser() user: AuthUser, @Param('cabinetId') cabinetId: string) {
+    assertCabinetAccess(user, cabinetId, true); return this.sources.getAutomation(cabinetId);
+  }
+
   @Patch('automation/settings') @Roles(UserRole.MASTER, UserRole.FULL)
   automationSettings(@CurrentUser() user: AuthUser, @Param('cabinetId') cabinetId: string, @Body() dto: UpdateAutomationDto) {
     assertCabinetAccess(user, cabinetId, true); return this.sources.updateAutomation(cabinetId, dto);

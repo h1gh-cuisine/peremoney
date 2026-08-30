@@ -24,6 +24,9 @@ interface MasterProjectsState {
   updateRenewalStatus: (id: string, status: RenewalStatus) => void;
   /** Пароль клиента изменяемый, в отличие от логина (docs-agent.md 1.12.2) */
   updateClientPassword: (id: string, password: string) => Promise<void>;
+  /** "Связанные проекты" — project_id из Leads Factory, чьи лиды/контакты
+   * дублируются в этот кабинет наравне с его собственным. */
+  updateLinkedProjects: (id: string, linkedProviderProjectIds: number[]) => Promise<void>;
   removeProject: (id: string) => Promise<void>;
 }
 
@@ -73,6 +76,15 @@ export const useMasterProjectsStore = create<MasterProjectsState>((set, get) => 
     const previous = get().projects;
     set({ projects: previous.map((p) => p.id === id ? { ...p, clientPassword: password } : p), error: null });
     try { await patchMasterProject(id, { clientPassword: password }); }
+    catch (reason) {
+      set({ projects: previous, error: reason instanceof Error ? reason.message : 'Ошибка обновления' });
+      throw reason;
+    }
+  },
+  updateLinkedProjects: async (id, linkedProviderProjectIds) => {
+    const previous = get().projects;
+    set({ projects: previous.map((p) => p.id === id ? { ...p, linkedProviderProjectIds } : p), error: null });
+    try { await patchMasterProject(id, { linkedProviderProjectIds }); }
     catch (reason) {
       set({ projects: previous, error: reason instanceof Error ? reason.message : 'Ошибка обновления' });
       throw reason;

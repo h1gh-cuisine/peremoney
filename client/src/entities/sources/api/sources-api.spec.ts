@@ -1,6 +1,19 @@
-import { automationToApi, buildSourcesQuery, mapSourceFromApi, normalizeTagTypes } from './sources-api';
+import { apiClient } from '@/shared/api';
+import { automationToApi, buildSourcesQuery, fetchAutomation, mapSourceFromApi, normalizeTagTypes } from './sources-api';
+
+jest.mock('@/shared/api', () => ({ apiClient: jest.fn() }));
 
 describe('sources API contract', () => {
+  it('reads saved automation thresholds from their own dedicated endpoint', async () => {
+    const get = jest.fn().mockResolvedValue({ autoCleanupEnabled: true, minContactsPerLead: 5, autoManageEnabled: false, minConversion: 15 });
+    (apiClient as jest.Mock).mockReturnValue({ get });
+
+    await expect(fetchAutomation('cab-1')).resolves.toEqual({
+      autoCleanupEnabled: true, minContactsPerLead: 5, autoManageEnabled: false, minConversion: 15,
+    });
+    expect(get).toHaveBeenCalledWith('/cabinets/cab-1/sources/automation/settings');
+  });
+
   it('maps Prisma source fields and calculated metrics to the UI model', () => {
     expect(mapSourceFromApi({ id: 's1', name: 'site.ru', operator: null, newAnswer: 12, success: 3,
       conversion: '25.0000', sebes: '140.50', notTargetShare: 75, sales: 2, normWork: true, sourceType: null }))

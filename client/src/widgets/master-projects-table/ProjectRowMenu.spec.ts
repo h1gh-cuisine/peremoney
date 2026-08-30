@@ -12,7 +12,7 @@ describe('project row menu viewport positioning', () => {
     expect(getProjectMenuPosition(
       { left: 900, right: 1010, top: 680, bottom: 712 } as DOMRect,
       { width: 1024, height: 720 },
-    )).toEqual({ left: 850, top: 562 });
+    )).toEqual({ left: 850, top: 524 });
   });
 
   it('never returns a negative left coordinate on an extremely narrow viewport', () => {

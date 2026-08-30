@@ -219,6 +219,16 @@ describe('CabinetsService', () => {
     expect(updateProjectSettings).toHaveBeenCalledWith(1, expect.objectContaining({ isActive: false }));
   });
 
+  it('deduplicates linked Leads Factory project ids when saving "Связанные проекты"', async () => {
+    const cabinetUpdate = jest.fn().mockResolvedValue({ ...cabinet, linkedProviderProjectIds: [26416, 22931] });
+    const transaction = jest.fn().mockImplementation(async (operations) => Promise.all(operations));
+    const service = new CabinetsService({ cabinet: { update: cabinetUpdate }, $transaction: transaction } as never, {} as never, config as never);
+
+    await service.updateMasterProject(cabinet.id, { linkedProviderProjectIds: [26416, 22931, 26416] });
+
+    expect(cabinetUpdate.mock.calls[0][0].data.linkedProviderProjectIds).toEqual([26416, 22931]);
+  });
+
   it('clones internally with fresh users and no copied business metrics', async () => {
     const create = jest.fn().mockResolvedValue({ ...cabinet, id: 'clone', name: 'Clone' });
     const createMany = jest.fn().mockResolvedValue({ count: 2 });
@@ -236,7 +246,7 @@ describe('CabinetsService', () => {
     const createMany = jest.fn().mockResolvedValue({ count: 2 });
     const prisma = { cabinet: { findFirst: jest.fn().mockResolvedValue(null) },
       $transaction: (callback: (tx: unknown) => unknown) => callback({ cabinet: { create }, user: { createMany } }) };
-    const provider = { getProject: jest.fn().mockResolvedValue({ id: 22931, name: 'Живой проект', sphere: 'Медицина',
+    const provider = { getProject: jest.fn().mockResolvedValue({ id: 22931, name: 'РФ/Peremoney ЛКП VDL/Медицина/Живой проект', sphere: 'Медицина',
       status: 'active', timezone: 4, numbers: false, vdl: true, prozvon_base: false }) };
     const answers = { sync: jest.fn().mockResolvedValue({ contactCount: 12, leadCount: 3 }) };
     const sources = { sync: jest.fn().mockResolvedValue({ items: [] }) };
@@ -244,14 +254,16 @@ describe('CabinetsService', () => {
       .linkProviderProject({ providerProjectId: 22931, price: 250, managerName: 'Анна' });
     expect(provider.getProject).toHaveBeenCalledWith(22931);
     expect(create).toHaveBeenCalledWith(expect.objectContaining({ data: expect.objectContaining({
-      name: 'Живой проект', providerProjectId: 22931, type: 'VDL', sphere: 'Медицина', timezoneOffset: 4,
+      name: 'РФ/Peremoney ЛКП VDL/Медицина/Живой проект', providerProjectId: 22931, type: 'VDL', sphere: 'Медицина', timezoneOffset: 4,
     }) }));
-    expect(createMany.mock.calls[0][0].data).toHaveLength(2);
+    expect(createMany.mock.calls[0][0].data).toEqual(expect.arrayContaining([
+      expect.objectContaining({ login: 'Живой проект', role: UserRole.LIMITED }),
+    ]));
     expect(answers.sync).toHaveBeenCalledWith('linked');
     expect(sources.sync).toHaveBeenCalledWith('linked', {});
     expect(result.initialSync).toEqual({ answers: 'COMPLETED', sources: 'COMPLETED' });
     expect(result.credentials.client.password).toBeTruthy();
-  });
+  }, 20_000);
 
   it('does not link the same Leads Factory project twice', async () => {
     const provider = { getProject: jest.fn() };

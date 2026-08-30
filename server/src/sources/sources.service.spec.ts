@@ -38,6 +38,16 @@ describe('источники: бизнес-правила 2.6', () => {
     expect(result.domainProcessingJob).toEqual({ id: 'job' });
   });
 
+  it('отдаёт сохранённые пороги автоматизации в терминах API (autoManageEnabled, не autoManagementEnabled)', async () => {
+    const findUnique = jest.fn().mockResolvedValue({
+      autoCleanupEnabled: true, autoManagementEnabled: false, minContactsPerLead: 6, minConversion: new Prisma.Decimal(15),
+    });
+    const service = new SourcesService({ cabinet: { findUnique } } as never, {} as never, {} as never);
+    await expect(service.getAutomation('cab')).resolves.toEqual({
+      autoCleanupEnabled: true, autoManageEnabled: false, minContactsPerLead: 6, minConversion: 15,
+    });
+  });
+
   it('разделяет автоочистку и автоуправление по порогам', async () => {
     const tags = [
       { id: 'bad', providerTagId: 1, newAnswer: 10, conversion: new Prisma.Decimal(5) },
@@ -52,9 +62,24 @@ describe('источники: бизнес-правила 2.6', () => {
     const result = await new SourcesService(prisma as never, { updateTags, getTags } as never, {} as never).automate('cab');
     expect(updateTags).toHaveBeenNthCalledWith(1, [1], false);
     expect(updateTags).toHaveBeenNthCalledWith(2, [2], true);
-    expect(result).toEqual(expect.objectContaining({ disabled: 1, enabled: 1, analysisFrom: '2026-04-01' }));
-    const range = getTags.mock.calls[0]![1];
-    expect(range.startDate).toBe('2026-04-01');
-    expect(range.endDate).toBe(new Date().toISOString().slice(0, 10));
+    expect(result).toEqual(expect.objectContaining({ disabled: 1, enabled: 1 }));
+  });
+
+  it('анализирует автоматизацию с 01.04.2026 по сегодня, а не по диапазону из UI (продуктовое решение, расходится с буквальным текстом docs-agent.md 2.6.4)', async () => {
+    jest.useFakeTimers().setSystemTime(new Date('2026-08-23T12:00:00.000Z'));
+    try {
+      const prisma = {
+        cabinet: { findUnique: jest.fn().mockResolvedValue({ providerProjectId: 42, autoCleanupEnabled: false, autoManagementEnabled: false, minContactsPerLead: 5, minConversion: new Prisma.Decimal(10) }) },
+        sourceTag: { findMany: jest.fn().mockResolvedValue([]), updateMany: jest.fn(), upsert: jest.fn() }, $transaction: jest.fn(),
+      };
+      const getTags = jest.fn().mockResolvedValue({ items: [], total: 0 });
+      const result = await new SourcesService(prisma as never, { updateTags: jest.fn(), getTags } as never, {} as never).automate('cab');
+      expect(result).toEqual(expect.objectContaining({ analysisFrom: '2026-04-01', analysisTo: '2026-08-23' }));
+      const range = getTags.mock.calls[0]![1];
+      expect(range.startDate).toBe('2026-04-01');
+      expect(range.endDate).toBe('2026-08-23');
+    } finally {
+      jest.useRealTimers();
+    }
   });
 });

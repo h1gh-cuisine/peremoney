@@ -17,13 +17,18 @@ export class LeadsFactoryService {
     this.token = config.get<string>('LEADS_FACTORY_TOKEN') ?? '';
   }
 
-  getAnswers(projectId: number, params: { page: number; limit?: number; dateFrom?: Date; dateTo?: Date }) {
+  getAnswers(projectId: number, params: {
+    page: number; limit?: number; dateFrom?: Date; dateTo?: Date;
+    dateUpdatedFrom?: Date; dateUpdatedTo?: Date;
+  }) {
     return this.request<ProviderAnswersPage>(`/crm/open-api/projects/${projectId}/answers`, {
       page: params.page,
       limit: params.limit ?? 200,
       order: 'asc',
       date_from: params.dateFrom ? this.providerDate(params.dateFrom) : undefined,
       date_to: params.dateTo ? this.providerDate(params.dateTo) : undefined,
+      date_updated_from: params.dateUpdatedFrom ? this.providerDate(params.dateUpdatedFrom) : undefined,
+      date_updated_to: params.dateUpdatedTo ? this.providerDate(params.dateUpdatedTo) : undefined,
     });
   }
 

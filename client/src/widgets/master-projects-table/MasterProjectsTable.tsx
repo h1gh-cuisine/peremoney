@@ -9,6 +9,7 @@ import { getProjectTypeLabel } from "@/shared/lib/projectType";
 import type { Manager } from "@/entities/master-managers";
 import type { MasterProject, RenewalStatus } from "@/entities/master-projects";
 import { ProjectRowMenu } from "./ProjectRowMenu";
+import { LinkedProjectsModal } from "./LinkedProjectsModal";
 import styles from "./MasterProjectsTable.module.scss";
 
 interface MasterProjectsTableProps {
@@ -18,6 +19,7 @@ interface MasterProjectsTableProps {
   onUpdateBalance: (id: string, moneyBalance: number) => Promise<void>;
   onUpdateRenewalStatus: (id: string, status: RenewalStatus) => void;
   onUpdateClientPassword: (id: string, password: string) => Promise<void> | void;
+  onUpdateLinkedProjects: (id: string, linkedProviderProjectIds: number[]) => Promise<void>;
   onToggleActive: (id: string) => void;
   onToggleHidden: (id: string) => void;
   onDelete: (id: string) => Promise<void>;
@@ -139,6 +141,7 @@ export function MasterProjectsTable({
   onUpdateBalance,
   onUpdateRenewalStatus,
   onUpdateClientPassword,
+  onUpdateLinkedProjects,
   onToggleActive,
   onToggleHidden,
   onDelete,
@@ -147,6 +150,7 @@ export function MasterProjectsTable({
   const [sort, setSort] = useState<{ key: SortKey; direction: SortDirection }>({ key: "name", direction: "asc" });
   const [openingId, setOpeningId] = useState<string | null>(null);
   const [openError, setOpenError] = useState("");
+  const [linkedProjectsTarget, setLinkedProjectsTarget] = useState<MasterProject | null>(null);
   const router = useRouter();
   const setSession = useSessionStore((state) => state.setSession);
 
@@ -309,6 +313,7 @@ export function MasterProjectsTable({
                       active={p.active}
                       onToggleActive={() => onToggleActive(p.id)}
                       onHide={() => onToggleHidden(p.id)}
+                      onLinkedProjects={() => setLinkedProjectsTarget(p)}
                       onDelete={async () => {
                         const name = projectDisplayName(p.name);
                         if (!window.confirm(`Удалить проект «${name}» из Peremoney? Все локальные данные проекта будут удалены без возможности восстановления.`)) return;
@@ -335,6 +340,13 @@ export function MasterProjectsTable({
         {visible.length === 0 && <div className={styles.empty}>Проектов не найдено</div>}
       </div>
 
+      {linkedProjectsTarget && (
+        <LinkedProjectsModal
+          project={linkedProjectsTarget}
+          onSave={onUpdateLinkedProjects}
+          onClose={() => setLinkedProjectsTarget(null)}
+        />
+      )}
     </div>
   );
 }

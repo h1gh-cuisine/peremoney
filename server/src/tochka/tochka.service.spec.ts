@@ -23,6 +23,22 @@ describe('TochkaService', () => {
     expect(fetchMock).toHaveBeenCalledWith('https://enter.tochka.com/uapi/invoice/v1.0/bills/customer/doc-1/file', expect.any(Object));
   });
 
+  it('creates a closing document and returns its documentId', async () => {
+    const fetchMock = jest.spyOn(global, 'fetch').mockResolvedValue(new Response(JSON.stringify({ Data: { documentId: 'act-1' } }), { status: 200 }));
+    await expect(new TochkaService(config).createClosingDocument({ Data: {} })).resolves.toBe('act-1');
+    expect(fetchMock).toHaveBeenCalledWith('https://enter.tochka.com/uapi/invoice/v1.0/closing-documents', expect.objectContaining({
+      method: 'POST', headers: expect.objectContaining({ Authorization: 'Bearer secret' }),
+    }));
+  });
+
+  it('downloads a closing document PDF from Tochka', async () => {
+    const fetchMock = jest.spyOn(global, 'fetch').mockResolvedValue(new Response(Buffer.from('%PDF-act'), { status: 200, headers: { 'content-type': 'application/pdf' } }));
+    await expect(new TochkaService(config).getClosingDocumentPdf('act-1')).resolves.toEqual(Buffer.from('%PDF-act'));
+    expect(fetchMock).toHaveBeenCalledWith(
+      'https://enter.tochka.com/uapi/invoice/v1.0/closing-documents/customer/act-1/file', expect.any(Object),
+    );
+  });
+
   it('turns a provider failure into a safe error', async () => {
     jest.spyOn(global, 'fetch').mockResolvedValue(new Response(JSON.stringify({ error: 'invalid accountId', token: 'must-not-leak' }), {
       status: 400, headers: { 'content-type': 'application/json' },

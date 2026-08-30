@@ -92,6 +92,7 @@ LEADS_FACTORY_BASE_URL=https://openapi.leads-factory.ru/v1
 LEADS_FACTORY_TOKEN=<bearer token>
 DOMAIN_JOB_POLL_MS=60000
 SCHEDULER_POLL_MS=60000
+CONTACTS_POLL_MS=120000
 ```
 
 - Base URL заканчивается на `/v1`; код сам добавляет `/crm/open-api` и `/vdl/api`.

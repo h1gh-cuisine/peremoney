@@ -99,6 +99,17 @@ export class SourcesService {
 
   availableTypes() { return this.provider.availableTagTypes(); }
 
+  async getAutomation(cabinetId: string) {
+    const cabinet = await this.prisma.cabinet.findUnique({ where: { id: cabinetId }, select: {
+      autoCleanupEnabled: true, autoManagementEnabled: true, minContactsPerLead: true, minConversion: true,
+    } });
+    if (!cabinet) throw new NotFoundException('Кабинет не найден');
+    return {
+      autoCleanupEnabled: cabinet.autoCleanupEnabled, minContactsPerLead: cabinet.minContactsPerLead,
+      autoManageEnabled: cabinet.autoManagementEnabled, minConversion: Number(cabinet.minConversion),
+    };
+  }
+
   async updateAutomation(cabinetId: string, dto: UpdateAutomationDto) {
     return this.prisma.cabinet.update({
       where: { id: cabinetId },
@@ -111,8 +122,11 @@ export class SourcesService {
   }
 
   async automate(cabinetId: string) {
-    // Автоматическая чистка всегда анализирует всю историю с 01.04.2026,
-    // независимо от выбранного пользователем периода в разделе источников.
+    // Автоочистка и автоуправление анализируют весь накопленный период с
+    // 01.04.2026 по сегодня, независимо от выбранного пользователем периода в
+    // разделе источников. docs-agent.md 2.6.4 буквально говорит "фильтрация за
+    // 28 дней" — это устаревшая формулировка ТЗ; продуктовое решение (уточнено
+    // с заказчиком) — считать с апреля 2026 года, не скользящим окном.
     const end = new Date();
     const start = new Date('2026-04-01T00:00:00.000Z');
     await this.sync(cabinetId, {

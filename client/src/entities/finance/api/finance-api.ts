@@ -30,5 +30,7 @@ export function downloadInvoice(cabinetId: string, paymentId: string) {
   return apiClient().download(`/cabinets/${cabinetId}/finance/invoices/${paymentId}/pdf`);
 }
 export function createClosingAct(cabinetId: string, paymentIds: string[]) {
-  return apiClient().post(`/cabinets/${cabinetId}/finance/closing-acts`, { paymentIds });
+  return apiClient().download(`/cabinets/${cabinetId}/finance/closing-acts`, {
+    method: 'POST', body: JSON.stringify({ paymentIds }),
+  });
 }

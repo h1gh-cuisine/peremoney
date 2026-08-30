@@ -40,8 +40,12 @@ export class FinanceController {
       type: 'application/pdf', disposition: `attachment; filename="invoice-${paymentId}.pdf"`,
     });
   }
-  @Post('finance/closing-acts') act(@CurrentUser() user: AuthUser, @Param('cabinetId') id: string, @Body() dto: ClosingActDto) {
-    assertCabinetAccess(user, id); return this.finance.closingAct(id, dto.paymentIds);
+  @Post('finance/closing-acts') async act(@CurrentUser() user: AuthUser, @Param('cabinetId') id: string, @Body() dto: ClosingActDto) {
+    assertCabinetAccess(user, id);
+    const document = await this.finance.closingActPdf(id, dto.paymentIds);
+    return new StreamableFile(document.pdf, {
+      type: 'application/pdf', disposition: `attachment; filename="closing-act-${document.documentNo}.pdf"`,
+    });
   }
   @Get('dashboard') dashboard(@CurrentUser() user: AuthUser, @Param('cabinetId') id: string, @Query() query: AnalyticsQueryDto) {
     assertCabinetAccess(user, id); return this.finance.clientDashboard(id, query);

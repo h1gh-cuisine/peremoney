@@ -1,13 +1,15 @@
 import { create } from "zustand";
-import { saveAutomation } from '../api/sources-api';
+import { fetchAutomation, saveAutomation } from '../api/sources-api';
 import type { SourceAutomationSettings } from "./types";
 
 interface SourceAutomationState extends SourceAutomationSettings {
   cabinetId: string | null;
   error: string | null;
   dirty: boolean;
+  loading: boolean;
   saving: boolean;
   setCabinetId: (cabinetId: string) => void;
+  load: () => Promise<void>;
   setAutoCleanupEnabled: (enabled: boolean) => void;
   setMinContactsPerLead: (value: number) => void;
   setAutoManageEnabled: (enabled: boolean) => void;
@@ -29,12 +31,26 @@ export const useSourceAutomationStore = create<SourceAutomationState>((set, get)
     minContactsPerLead: get().minContactsPerLead, autoManageEnabled: get().autoManageEnabled,
     minConversion: get().minConversion });
   return {
-  cabinetId: null, error: null, dirty: false, saving: false,
+  cabinetId: null, error: null, dirty: false, loading: false, saving: false,
   autoCleanupEnabled: false,
   minContactsPerLead: 2,
   autoManageEnabled: false,
   minConversion: 20,
-  setCabinetId: (cabinetId) => set({ cabinetId }),
+  setCabinetId: (cabinetId) => { set({ cabinetId }); void get().load(); },
+  load: async () => {
+    const cabinetId = get().cabinetId;
+    if (!cabinetId) return;
+    set({ loading: true, error: null });
+    try {
+      const settings = await fetchAutomation(cabinetId);
+      committed = settings;
+      set({ ...settings, dirty: false });
+    } catch (reason) {
+      set({ error: reason instanceof Error ? reason.message : 'Не удалось загрузить настройки автоматизации' });
+    } finally {
+      set({ loading: false });
+    }
+  },
   setAutoCleanupEnabled: (autoCleanupEnabled) => set({ autoCleanupEnabled, dirty: true, error: null }),
   setMinContactsPerLead: (minContactsPerLead) => set({ minContactsPerLead, dirty: true, error: null }),
   setAutoManageEnabled: (autoManageEnabled) => set({ autoManageEnabled, dirty: true, error: null }),

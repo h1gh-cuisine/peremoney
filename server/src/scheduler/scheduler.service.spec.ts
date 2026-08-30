@@ -25,6 +25,7 @@ describe('SchedulerService', () => {
     expect(data).toEqual(expect.arrayContaining([
       expect.objectContaining({ task: ScheduledTask.SOURCES_SYNC, scheduledFor: new Date('2026-08-19T06:00:00.000Z') }),
       expect.objectContaining({ task: ScheduledTask.SCRIPT_SYNC, scheduledFor: new Date('2026-08-19T17:00:00.000Z') }),
+      expect.objectContaining({ task: ScheduledTask.CONTACTS_SYNC, scheduledFor: new Date('2026-08-19T17:04:00.000Z') }),
     ]));
   });
 

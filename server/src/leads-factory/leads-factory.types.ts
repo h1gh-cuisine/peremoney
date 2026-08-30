@@ -1,10 +1,12 @@
+// Nullability matches the real contract (Crm_AnswerOut in leads-docs.json) — date,
+// date_updated, status and mobile_tel are all nullable there, not just success_date.
 export interface ProviderAnswer {
   id: number;
-  date: string;
+  date: string | null;
   success_date: string | null;
-  date_updated: string;
-  status: string;
-  mobile_tel: string;
+  date_updated: string | null;
+  status: string | null;
+  mobile_tel: string | null;
   name: string | null;
   site: string | null;
   mobile_operator: string | null;

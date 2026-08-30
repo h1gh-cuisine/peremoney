@@ -17,7 +17,7 @@ import { SourcesService } from '../sources/sources.service';
 import { hasAvailableBalance } from '../finance/balance-availability';
 
 const cabinetSelect = {
-  id: true, name: true, providerProjectId: true, type: true, price: true,
+  id: true, name: true, providerProjectId: true, linkedProviderProjectIds: true, type: true, price: true,
   managerName: true, sphere: true, moneyBalance: true, totalUnits: true, usedUnits: true, balanceType: true,
   isActive: true, renewalStatus: true, hidden: true, timezoneOffset: true, uploadsEnabled: true, callsEnabled: true,
   crmIntegration: true, messengerIntegrations: true, contactsVisible: true, sourcesVisible: true,
@@ -225,22 +225,31 @@ export class CabinetsService {
     const type = providerProject.numbers ? ProjectType.NUMBERS : providerProject.vdl ? ProjectType.VDL : ProjectType.PACKAGE;
     const suffix = `${dto.providerProjectId}-${Date.now().toString(36)}`;
     const employeeLogin = `staff-${suffix}`;
-    const clientLogin = `client-${suffix}`;
+    const projectName = providerProject.name?.trim() || `Leads Factory #${dto.providerProjectId}`;
+    const clientLogin = this.clientLoginFromProjectName(projectName);
     const employeePassword = generatePassword();
     const clientPassword = generatePassword();
-    const cabinet = await this.prisma.$transaction(async (tx) => {
-      const created = await tx.cabinet.create({ data: {
-        name: providerProject.name?.trim() || `Leads Factory #${dto.providerProjectId}`,
-        type, price: new Prisma.Decimal(dto.price), managerName: dto.managerName,
-        sphere: providerProject.sphere, providerProjectId: dto.providerProjectId,
-        isActive: providerProject.status === 'active', timezoneOffset: providerProject.timezone ?? 3,
-      }, select: cabinetSelect });
-      await tx.user.createMany({ data: [
-        { login: employeeLogin, passwordHash: await hash(employeePassword, 12), role: UserRole.FULL, cabinetId: created.id },
-        { login: clientLogin, passwordHash: await hash(clientPassword, 12), role: UserRole.LIMITED, cabinetId: created.id },
-      ] });
-      return created;
-    });
+    let cabinet;
+    try {
+      cabinet = await this.prisma.$transaction(async (tx) => {
+        const created = await tx.cabinet.create({ data: {
+          name: projectName,
+          type, price: new Prisma.Decimal(dto.price), managerName: dto.managerName,
+          sphere: providerProject.sphere, providerProjectId: dto.providerProjectId,
+          isActive: providerProject.status === 'active', timezoneOffset: providerProject.timezone ?? 3,
+        }, select: cabinetSelect });
+        await tx.user.createMany({ data: [
+          { login: employeeLogin, passwordHash: await hash(employeePassword, 12), role: UserRole.FULL, cabinetId: created.id },
+          { login: clientLogin, passwordHash: await hash(clientPassword, 12), role: UserRole.LIMITED, cabinetId: created.id },
+        ] });
+        return created;
+      });
+    } catch (error) {
+      if (error instanceof Prisma.PrismaClientKnownRequestError && error.code === 'P2002') {
+        throw new ConflictException(`Логин клиента «${clientLogin}» уже занят другим проектом`);
+      }
+      throw error;
+    }
     const [answersSync, sourcesSync] = await Promise.allSettled([
       this.answers?.sync(cabinet.id),
       this.sources?.sync(cabinet.id, {}),
@@ -375,6 +384,11 @@ export class CabinetsService {
       employee: { login: dto.employeeLogin, password: password('employee') },
       client: { login: dto.clientLogin, password: password('client') },
     };
+  }
+
+  private clientLoginFromProjectName(name: string) {
+    const parts = name.split('/').map((part) => part.normalize('NFKC').trim()).filter(Boolean);
+    return (parts.at(-1) ?? name.normalize('NFKC').trim()).replace(/\s+/g, ' ');
   }
 
   private typeLabel(type: import('@prisma/client').ProjectType) {
@@ -517,9 +531,11 @@ export class CabinetsService {
 
   async updateMasterProject(id: string, dto: import('./dto/update-master-project.dto').UpdateMasterProjectDto) {
     const passwordHash = dto.clientPassword ? await hash(dto.clientPassword, 12) : undefined;
+    const linkedProviderProjectIds = dto.linkedProviderProjectIds === undefined
+      ? undefined : [...new Set(dto.linkedProviderProjectIds)];
     const operations: Prisma.PrismaPromise<unknown>[] = [this.prisma.cabinet.update({ where: { id }, data: {
       price: dto.price === undefined ? undefined : new Prisma.Decimal(dto.price), renewalStatus: dto.renewalStatus,
-      isActive: dto.isActive, hidden: dto.hidden,
+      isActive: dto.isActive, hidden: dto.hidden, linkedProviderProjectIds,
     }, select: cabinetSelect })];
     if (passwordHash) operations.push(this.prisma.user.updateMany({
       where: { cabinetId: id, role: UserRole.LIMITED },

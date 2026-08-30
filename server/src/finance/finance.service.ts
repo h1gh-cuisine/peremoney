@@ -8,6 +8,7 @@ import { AnalyticsQueryDto } from './dto/analytics-query.dto';
 import { TochkaService } from '../tochka/tochka.service';
 import { TochkaApiException, TochkaTransportException } from '../tochka/tochka.service';
 import { buildTochkaInvoice, TochkaPayer } from '../tochka/tochka-invoice';
+import { buildTochkaClosingAct } from '../tochka/tochka-closing-document';
 import { hasAvailableBalance } from './balance-availability';
 import { isValidInn } from './inn';
 
@@ -290,15 +291,35 @@ export class FinanceService {
     return { managers, clients };
   }
 
-  closingAct(cabinetId: string, paymentIds: string[]) {
-    return this.prisma.payment.findMany({ where: { cabinetId, id: { in: paymentIds } }, orderBy: { createdAt: 'asc' } })
-      .then(async (payments) => {
-        if (!payments.length) throw new BadRequestException('Выберите платежи');
-        const payer = await this.getPayer(cabinetId);
-        return { kind: 'closing-act', template: 'peremoney-closing-act', payer: payer?.data ?? {}, payments,
-          dateFrom: payments[0]!.createdAt, dateTo: new Date(),
-          amount: payments.reduce((sum, p) => sum + Number(p.amount), 0) };
-      });
+  async closingActPdf(cabinetId: string, paymentIds: string[]) {
+    const uniqueIds = [...new Set(paymentIds)];
+    if (!uniqueIds.length) throw new BadRequestException('Выберите платежи');
+    const [payments, payerProfile] = await Promise.all([
+      this.prisma.payment.findMany({ where: { cabinetId, id: { in: uniqueIds } }, orderBy: { createdAt: 'asc' } }),
+      this.getPayer(cabinetId),
+    ]);
+    if (payments.length !== uniqueIds.length) throw new BadRequestException('Часть платежей не найдена');
+    if (!payerProfile) throw new BadRequestException('Сначала заполните данные плательщика');
+    if (!this.tochka) throw new BadRequestException('Интеграция Точки не настроена');
+
+    const payer = payerProfile.data as unknown as TochkaPayer;
+    if (!payer.organizationName || !payer.inn) throw new BadRequestException('Укажите название и ИНН плательщика');
+    const contractNumber = payer.contractNumber?.trim();
+    const contractDate = payer.contractDate?.trim();
+    const basedOn = contractNumber
+      ? `Договор № ${contractNumber}${contractDate ? ` от ${contractDate}` : ''}`
+      : 'Публичная оферта о заключении лицензионного договора на использование программного обеспечения kupit-klientov.ru';
+    const suffix = createHash('sha256').update(uniqueIds.sort().join(':')).digest().readUInt32BE(0) % 100_000;
+    const documentNo = `${Math.floor(Date.now() / 1000)}${suffix.toString().padStart(5, '0')}`;
+    const documentId = await this.tochka.createClosingDocument(buildTochkaClosingAct({
+      customerCode: this.tochka.customerCode(), accountId: this.tochka.accountId(), documentNo, payer, basedOn,
+      positions: payments.map((payment) => ({
+        positionName: `Информационные услуги по счёту № ${payment.invoiceNo ?? payment.id}`,
+        unitCode: 'услуга.', ndsKind: 'without_nds' as const,
+        price: Number(payment.unitPrice), quantity: payment.quantity, totalAmount: Number(payment.amount),
+      })),
+    }));
+    return { pdf: await this.tochka.getClosingDocumentPdf(documentId), documentNo };
   }
 
   private range(query: AnalyticsQueryDto) {

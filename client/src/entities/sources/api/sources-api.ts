@@ -38,6 +38,9 @@ export async function toggleSource(cabinetId: string, id: string, enabled: boole
 export async function addSourceValues(cabinetId: string, sources: string[], sourceType: SourceType) {
   return apiClient().post(`/cabinets/${cabinetId}/sources`, { sources, sourceType, activeDuplicateSource: false });
 }
+export async function fetchAutomation(cabinetId: string): Promise<SourceAutomationSettings> {
+  return apiClient().get<SourceAutomationSettings>(`/cabinets/${cabinetId}/sources/automation/settings`);
+}
 export async function saveAutomation(cabinetId: string, settings: SourceAutomationSettings) {
   await apiClient().patch(`/cabinets/${cabinetId}/sources/automation/settings`, automationToApi(settings));
 }

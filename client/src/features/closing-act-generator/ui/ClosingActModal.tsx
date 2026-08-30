@@ -1,7 +1,6 @@
 "use client";
 
 import { useMemo, useState } from "react";
-import { usePayerStore } from "@/entities/payer";
 import { useFinanceStore } from "@/entities/finance";
 import { createClosingAct } from '@/entities/finance/api/finance-api';
 import { useSessionStore } from '@/entities/session';
@@ -9,14 +8,12 @@ import { formatCurrency, formatShortDate } from "@/shared/lib/format";
 import { toISODate } from "@/shared/lib/date";
 import styles from "./ClosingActModal.module.scss";
 import { useSubmissionLock } from '@/shared/lib/useSubmissionLock';
-import { downloadClosingActPdf } from '@/shared/lib/accountingPdf';
 
 interface ClosingActModalProps {
   onClose: () => void;
 }
 
 export function ClosingActModal({ onClose }: ClosingActModalProps) {
-  const payer = usePayerStore((s) => s.saved);
   const payments = useFinanceStore((s) => s.payments);
   const [selectedIds, setSelectedIds] = useState<string[]>([]);
   const cabinetId = useSessionStore((s) => s.user?.cabinetId);
@@ -45,8 +42,19 @@ export function ClosingActModal({ onClose }: ClosingActModalProps) {
 
   async function handleDownload() {
     if (!range || !cabinetId) return;
-    await run(() => createClosingAct(cabinetId, selectedIds));
-    await downloadClosingActPdf(selected, payer, range.from, range.to);
+    const blob = await run(() => createClosingAct(cabinetId, selectedIds));
+    if (!blob) return;
+    const url = URL.createObjectURL(blob);
+    try {
+      const link = document.createElement('a');
+      link.href = url;
+      link.download = `Закрывающий-документ-${range.from}-${range.to}.pdf`;
+      document.body.append(link);
+      link.click();
+      link.remove();
+    } finally {
+      URL.revokeObjectURL(url);
+    }
     onClose();
   }
 

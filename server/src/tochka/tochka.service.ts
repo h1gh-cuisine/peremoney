@@ -57,6 +57,20 @@ export class TochkaService {
     return Buffer.from(await response.arrayBuffer());
   }
 
+  async createClosingDocument(payload: unknown): Promise<string> {
+    const response = await this.request('/invoice/v1.0/closing-documents', { method: 'POST', body: JSON.stringify(payload) });
+    const result = await response.json() as { Data?: { documentId?: string } };
+    if (!result.Data?.documentId) throw new BadGatewayException('Точка API: ответ не содержит documentId закрывающего документа');
+    return result.Data.documentId;
+  }
+
+  async getClosingDocumentPdf(documentId: string): Promise<Buffer> {
+    const response = await this.request(`/invoice/v1.0/closing-documents/${encodeURIComponent(this.customerCode())}/${encodeURIComponent(documentId)}/file`, {
+      method: 'GET', headers: { Accept: 'application/pdf' },
+    });
+    return Buffer.from(await response.arrayBuffer());
+  }
+
   async getInvoicePaymentStatus(documentId: string): Promise<'payment_waiting' | 'payment_expired' | 'payment_paid'> {
     const response = await this.request(`/invoice/v1.0/bills/${encodeURIComponent(this.customerCode())}/${encodeURIComponent(documentId)}/payment-status`, { method: 'GET' });
     const result = await response.json() as { Data?: { paymentStatus?: string } };

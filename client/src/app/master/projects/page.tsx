@@ -22,6 +22,7 @@ export default function MasterProjectsPage() {
   const updateBalance = useMasterProjectsStore((s) => s.updateBalance);
   const updateRenewalStatus = useMasterProjectsStore((s) => s.updateRenewalStatus);
   const updateClientPassword = useMasterProjectsStore((s) => s.updateClientPassword);
+  const updateLinkedProjects = useMasterProjectsStore((s) => s.updateLinkedProjects);
   const toggleActive = useMasterProjectsStore((s) => s.toggleActive);
   const toggleHidden = useMasterProjectsStore((s) => s.toggleHidden);
   const removeProject = useMasterProjectsStore((s) => s.removeProject);
@@ -54,6 +55,7 @@ export default function MasterProjectsPage() {
           onUpdateBalance={updateBalance}
           onUpdateRenewalStatus={updateRenewalStatus}
           onUpdateClientPassword={updateClientPassword}
+          onUpdateLinkedProjects={updateLinkedProjects}
           onToggleActive={toggleActive}
           onToggleHidden={toggleHidden}
           onDelete={removeProject}
