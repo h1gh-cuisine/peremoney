@@ -72,6 +72,7 @@ CREDENTIAL_DERIVATION_SECRET=<отдельный стабильный секре
 INTEGRATION_ENCRYPTION_KEY=<отдельный стабильный секрет>
 MASTER_LOGIN=<production login>
 MASTER_PASSWORD=<первичный production password>
+PROJECT_DELETE_SECRET=<отдельный случайный код удаления проектов>
 CORS_ORIGINS=https://peremony.ru,https://www.peremony.ru
 SWAGGER_ENABLED=false
 ```
@@ -84,6 +85,7 @@ SWAGGER_ENABLED=false
 - `CORS_ORIGINS` — точные origins через запятую, без path и wildcard.
 - В production Swagger должен быть выключен.
 - `MASTER_LOGIN` и `MASTER_PASSWORD` создают MASTER только при первом запуске. Смена env не меняет пароль существующего MASTER: bootstrap выполняет upsert с пустым update.
+- `PROJECT_DELETE_SECRET` обязателен: без него endpoint удаления fail-closed отвечает 503. Не использовать пароль MASTER и не передавать его в `NEXT_PUBLIC_*`.
 
 ### 4.2. Leads Factory
 
@@ -158,6 +160,8 @@ TELEGRAM_CHAT_IDS=-1004437027549,-5539134940
 ```env
 LOGIN_RATE_LIMIT=10
 FANOUT_RATE_LIMIT=120
+PROJECT_DELETE_RATE_LIMIT=5
+PROJECT_DELETE_RATE_LIMIT_WINDOW_MS=60000
 RATE_LIMIT_WINDOW_MS=60000
 ```
 

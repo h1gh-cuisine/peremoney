@@ -33,6 +33,27 @@ describe('CabinetsService', () => {
     expect(prisma.masterManager.deleteMany).not.toHaveBeenCalled();
   });
 
+  it('deletes a project only when the configured secret code matches', async () => {
+    const prisma = { cabinet: {
+      findUnique: jest.fn().mockResolvedValue({ id: 'cabinet-id' }),
+      delete: jest.fn().mockResolvedValue({ id: 'cabinet-id' }),
+    } };
+    const service = new CabinetsService(prisma as never, {} as never, config as never);
+
+    await expect(service.remove('cabinet-id', 'wrong-code')).rejects.toThrow('Неверный секретный код');
+    expect(prisma.cabinet.findUnique).not.toHaveBeenCalled();
+
+    await expect(service.remove('cabinet-id', 'test-secret-at-least-32-characters-long')).resolves.toEqual({ deleted: true });
+    expect(prisma.cabinet.delete).toHaveBeenCalledWith({ where: { id: 'cabinet-id' } });
+  });
+
+  it('fails closed when project deletion secret is not configured', async () => {
+    const prisma = { cabinet: { findUnique: jest.fn(), delete: jest.fn() } };
+    const service = new CabinetsService(prisma as never, {} as never, { get: () => undefined } as never);
+    await expect(service.remove('cabinet-id', 'anything')).rejects.toThrow('Удаление проектов не настроено');
+    expect(prisma.cabinet.findUnique).not.toHaveBeenCalled();
+  });
+
   it('filters project analytics by an inclusive calendar period', async () => {
     const findMany = jest.fn().mockResolvedValue([]);
     const service = new CabinetsService({ cabinet: { findMany } } as never, {} as never, config as never);

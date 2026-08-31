@@ -40,7 +40,9 @@ export function createApiClient(options: ApiClientOptions) {
     post: <T>(path: string, body?: unknown) => request<T>(path, { method: 'POST', body: body === undefined ? undefined : JSON.stringify(body) }),
     put: <T>(path: string, body?: unknown) => request<T>(path, { method: 'PUT', body: body === undefined ? undefined : JSON.stringify(body) }),
     patch: <T>(path: string, body?: unknown) => request<T>(path, { method: 'PATCH', body: body === undefined ? undefined : JSON.stringify(body) }),
-    delete: <T>(path: string) => request<T>(path, { method: 'DELETE' }),
+    delete: <T>(path: string, body?: unknown) => request<T>(path, {
+      method: 'DELETE', body: body === undefined ? undefined : JSON.stringify(body),
+    }),
     download: async (path: string, init: RequestInit = {}) => {
       const token = options.getToken();
       const headers: Record<string, string> = { Accept: 'application/pdf' };

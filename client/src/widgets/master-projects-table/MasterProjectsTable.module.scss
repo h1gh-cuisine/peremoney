@@ -281,6 +281,41 @@
   color: v.$color-text-on-accent;
 }
 
+.secretCodeField {
+  display: grid;
+  gap: v.$space-2;
+  margin-top: v.$space-4;
+  color: v.$color-text-secondary;
+  font-size: v.$font-size-sm;
+
+  input {
+    width: 100%;
+    padding: v.$space-3;
+    border: 1px solid v.$color-border;
+    border-radius: v.$radius-sm;
+    background: v.$color-bg-elevated;
+    color: v.$color-text-primary;
+
+    &:focus { border-color: v.$color-accent-1; outline: none; }
+  }
+}
+
+.deleteError {
+  margin-top: v.$space-3 !important;
+  color: #ff7474 !important;
+  font-size: v.$font-size-sm;
+}
+
+.deleteConfirmButton {
+  @include m.button-reset;
+  padding: v.$space-2 v.$space-4;
+  border-radius: v.$radius-sm;
+  background: #c9384d;
+  color: #fff;
+
+  &:disabled { cursor: not-allowed; opacity: .5; }
+}
+
 .statusSelect {
   cursor: pointer;
 }

@@ -1,7 +1,7 @@
-import { BadGatewayException, ConflictException, ForbiddenException, Injectable, NotFoundException } from '@nestjs/common';
+import { BadGatewayException, ConflictException, ForbiddenException, Injectable, NotFoundException, ServiceUnavailableException } from '@nestjs/common';
 import { BalanceEntryType, Cabinet, Prisma, ProjectType, ScheduledTask, UserRole } from '@prisma/client';
 import { hash } from 'bcryptjs';
-import { createCipheriv, createHash, createHmac, randomBytes, randomUUID } from 'node:crypto';
+import { createCipheriv, createHash, createHmac, randomBytes, randomUUID, timingSafeEqual } from 'node:crypto';
 import { ConfigService } from '@nestjs/config';
 import { AuthUser } from '../common/auth-user';
 import { PrismaService } from '../prisma/prisma.service';
@@ -83,7 +83,12 @@ export class CabinetsService {
     return { deleted: true };
   }
 
-  async remove(id: string) {
+  async remove(id: string, secretCode: string) {
+    const configuredSecret = this.config.get<string>('PROJECT_DELETE_SECRET');
+    if (!configuredSecret) throw new ServiceUnavailableException('Удаление проектов не настроено');
+    const actualHash = createHash('sha256').update(secretCode, 'utf8').digest();
+    const expectedHash = createHash('sha256').update(configuredSecret, 'utf8').digest();
+    if (!timingSafeEqual(actualHash, expectedHash)) throw new ForbiddenException('Неверный секретный код');
     const cabinet = await this.prisma.cabinet.findUnique({ where: { id }, select: { id: true } });
     if (!cabinet) throw new NotFoundException('Проект не найден');
     await this.prisma.cabinet.delete({ where: { id } });

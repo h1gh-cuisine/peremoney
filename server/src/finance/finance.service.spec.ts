@@ -33,7 +33,10 @@ describe('FinanceService', () => {
     );
     expect(bankPayload.Data.Content.Invoice.Positions[0]).toEqual(expect.objectContaining({
       positionName: 'Неисключительная лицензия на использование ПО',
-      unitCode: 'лицензия',
+      // 'лицензия' не входит в закрытый список unitCode Точки — банк отклоняет
+      // счёт 400-й с Validation Error, если отправить что-то за пределами
+      // фиксированного набора ('шт.'/'усл.ед.'/'услуга.' и т.п.).
+      unitCode: 'услуга.',
     }));
   });
 

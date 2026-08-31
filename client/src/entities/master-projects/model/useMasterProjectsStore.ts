@@ -27,7 +27,7 @@ interface MasterProjectsState {
   /** "Связанные проекты" — project_id из Leads Factory, чьи лиды/контакты
    * дублируются в этот кабинет наравне с его собственным. */
   updateLinkedProjects: (id: string, linkedProviderProjectIds: number[]) => Promise<void>;
-  removeProject: (id: string) => Promise<void>;
+  removeProject: (id: string, secretCode: string) => Promise<void>;
 }
 
 export const useMasterProjectsStore = create<MasterProjectsState>((set, get) => ({
@@ -90,9 +90,9 @@ export const useMasterProjectsStore = create<MasterProjectsState>((set, get) => 
       throw reason;
     }
   },
-  removeProject: async (id) => {
+  removeProject: async (id, secretCode) => {
     try {
-      await deleteMasterProject(id);
+      await deleteMasterProject(id, secretCode);
       set((state) => ({ projects: state.projects.filter((project) => project.id !== id), error: null }));
     } catch (reason) {
       set({ error: reason instanceof Error ? reason.message : 'Не удалось удалить проект' });

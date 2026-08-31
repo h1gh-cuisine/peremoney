@@ -18,6 +18,7 @@ import { ListCabinetsDto } from './dto/list-cabinets.dto';
 import { UpdateDirectIntegrationDto } from './dto/update-direct-integration.dto';
 import { LinkProviderProjectDto } from './dto/link-provider-project.dto';
 import { UpdateMasterBalanceDto } from './dto/update-master-balance.dto';
+import { DeleteCabinetDto } from './dto/delete-cabinet.dto';
 
 @ApiTags('cabinets')
 @ApiBearerAuth()
@@ -100,7 +101,9 @@ export class CabinetsController {
   }
 
   @Delete(':id') @Roles(UserRole.MASTER)
-  remove(@Param('id') id: string) { return this.cabinets.remove(id); }
+  remove(@Param('id') id: string, @Body() dto: DeleteCabinetDto) {
+    return this.cabinets.remove(id, dto.secretCode);
+  }
 
   @Post(':id/clone') @Roles(UserRole.MASTER)
   clone(@Param('id') id: string, @Body() dto: CloneCabinetDto) { return this.cabinets.clone(id, dto); }

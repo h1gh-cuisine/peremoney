@@ -1,8 +1,8 @@
-import { TochkaPayer } from './tochka-invoice';
+import { TochkaPayer, TochkaUnitCode } from './tochka-invoice';
 
 interface ClosingDocumentPosition {
   positionName: string;
-  unitCode: string;
+  unitCode: TochkaUnitCode;
   ndsKind: 'without_nds';
   price: number;
   quantity: number;

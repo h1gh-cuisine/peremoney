@@ -29,8 +29,6 @@ export function Topbar({ title }: TopbarProps) {
   const masterSession = useSessionStore((state) => state.masterSession);
   const clientSession = useSessionStore((state) => state.clientSession);
   const cabinetName = useAccessStore((state) => state.cabinetName);
-  const percentUsed = unitBalance.totalUnits > 0 ? Math.min(100, unitBalance.usedUnits / unitBalance.totalUnits * 100) : 0;
-  const remainingUnits = Math.max(0, unitBalance.totalUnits - unitBalance.usedUnits);
   useEffect(() => {
     if (isMaster) resetFinance();
   }, [isMaster, resetFinance]);
@@ -53,9 +51,11 @@ export function Topbar({ title }: TopbarProps) {
           </nav>
         )}
         {!isMaster && (
-          <div className={styles.balance} aria-label={`Баланс ${remainingUnits} штук, ${formatCurrency(moneyBalance)}`}>
-            <span>Баланс</span><i><b style={{ width: `${percentUsed}%` }} /></i>
-            <strong>{formatNumber(remainingUnits)} шт. / {formatCurrency(moneyBalance)}</strong>
+          <div className={styles.balance} aria-label={`Баланс ${formatCurrency(moneyBalance)}, использовано ${unitBalance.usedUnits} из ${unitBalance.totalUnits}`}>
+            <span>Баланс</span>
+            <strong>{formatCurrency(moneyBalance)}</strong>
+            <em aria-hidden="true">/</em>
+            <strong>{formatNumber(unitBalance.usedUnits)}/{formatNumber(unitBalance.totalUnits)} шт.</strong>
           </div>
         )}
         {!isMaster && cabinetName && (

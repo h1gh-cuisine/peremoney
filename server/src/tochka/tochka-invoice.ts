@@ -8,6 +8,14 @@ export interface TochkaPayer {
   contractDate?: string;
 }
 
+// Точка отклоняет счёт 400-й (Validation Error), если Positions[].unitCode не
+// входит в этот закрытый список — подтверждено реальным ответом банка.
+// Точка в конце каждого значения — их формат сокращения, не опечатка.
+export type TochkaUnitCode =
+  | 'шт.' | 'тыс.шт.' | 'компл.' | 'пар.' | 'усл.ед.' | 'упак.' | 'услуга.' | 'пач.'
+  | 'мин.' | 'ч.' | 'сут.' | 'г.' | 'кг.' | 'л.' | 'м.' | 'м2.' | 'м3.' | 'км.' | 'га.'
+  | 'кВт.' | 'кВт.ч.';
+
 interface InvoiceInput {
   customerCode: string;
   accountId: string;
@@ -16,7 +24,7 @@ interface InvoiceInput {
   unitPrice: number;
   payer: TochkaPayer;
   positionName: string;
-  unitCode: string;
+  unitCode: TochkaUnitCode;
   basedOn: string;
 }
 

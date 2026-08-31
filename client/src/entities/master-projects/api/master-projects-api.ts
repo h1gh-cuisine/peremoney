@@ -47,8 +47,8 @@ export async function patchMasterProject(id: string, patch: { price?: number; re
 export async function patchMasterBalance(id: string, moneyBalance: number) {
   return apiClient().patch<{ moneyBalance: string | number }>(`/cabinets/${id}/master-balance`, { moneyBalance });
 }
-export async function deleteMasterProject(id: string) {
-  return apiClient().delete<{ deleted: boolean }>(`/cabinets/${id}`);
+export async function deleteMasterProject(id: string, secretCode: string) {
+  return apiClient().delete<{ deleted: boolean }>(`/cabinets/${id}`, { secretCode });
 }
 export async function linkProviderProject(input: { providerProjectId: number; price: number; managerId: string }) {
   const result = await apiClient().post<{ cabinet: Record<string, unknown>; credentials: { client: { login: string; password: string }; employee: { login: string; password: string } } }>('/cabinets/link-provider',

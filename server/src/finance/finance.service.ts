@@ -117,7 +117,10 @@ export class FinanceService {
         customerCode: this.tochka.customerCode(), accountId: this.tochka.accountId(), invoiceNo,
         quantity, unitPrice: Number(unitPrice), payer,
         positionName: 'Неисключительная лицензия на использование ПО',
-        unitCode: 'лицензия',
+        // 'лицензия' не входит в закрытый список Точки для Positions[].unitCode
+        // (подтверждено реальным 400 от банка) — только фиксированный набор вида
+        // 'шт.'/'усл.ед.'/'услуга.' и т.п., точка в конце — их формат, не опечатка.
+        unitCode: 'услуга.',
         basedOn: 'Публичная оферта о заключении лицензионного договора на использование программного обеспечения peremoney.ru',
       }));
       const completed = await this.prisma.payment.update({ where: { id: payment.id }, data: {
@@ -308,7 +311,7 @@ export class FinanceService {
     const contractDate = payer.contractDate?.trim();
     const basedOn = contractNumber
       ? `Договор № ${contractNumber}${contractDate ? ` от ${contractDate}` : ''}`
-      : 'Публичная оферта о заключении лицензионного договора на использование программного обеспечения kupit-klientov.ru';
+      : 'Публичная оферта о заключении лицензионного договора на использование программного обеспечения peremoney.ru';
     const suffix = createHash('sha256').update(uniqueIds.sort().join(':')).digest().readUInt32BE(0) % 100_000;
     const documentNo = `${Math.floor(Date.now() / 1000)}${suffix.toString().padStart(5, '0')}`;
     const documentId = await this.tochka.createClosingDocument(buildTochkaClosingAct({

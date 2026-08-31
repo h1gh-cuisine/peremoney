@@ -22,7 +22,7 @@ interface MasterProjectsTableProps {
   onUpdateLinkedProjects: (id: string, linkedProviderProjectIds: number[]) => Promise<void>;
   onToggleActive: (id: string) => void;
   onToggleHidden: (id: string) => void;
-  onDelete: (id: string) => Promise<void>;
+  onDelete: (id: string, secretCode: string) => Promise<void>;
 }
 
 interface PasswordResetCellProps {
@@ -151,6 +151,10 @@ export function MasterProjectsTable({
   const [openingId, setOpeningId] = useState<string | null>(null);
   const [openError, setOpenError] = useState("");
   const [linkedProjectsTarget, setLinkedProjectsTarget] = useState<MasterProject | null>(null);
+  const [deleteTarget, setDeleteTarget] = useState<MasterProject | null>(null);
+  const [deleteCode, setDeleteCode] = useState("");
+  const [deleteError, setDeleteError] = useState("");
+  const [deleting, setDeleting] = useState(false);
   const router = useRouter();
   const setSession = useSessionStore((state) => state.setSession);
 
@@ -314,10 +318,10 @@ export function MasterProjectsTable({
                       onToggleActive={() => onToggleActive(p.id)}
                       onHide={() => onToggleHidden(p.id)}
                       onLinkedProjects={() => setLinkedProjectsTarget(p)}
-                      onDelete={async () => {
-                        const name = projectDisplayName(p.name);
-                        if (!window.confirm(`Удалить проект «${name}» из Peremoney? Все локальные данные проекта будут удалены без возможности восстановления.`)) return;
-                        await onDelete(p.id);
+                      onDelete={() => {
+                        setDeleteCode("");
+                        setDeleteError("");
+                        setDeleteTarget(p);
                       }}
                     />
                   </div>
@@ -346,6 +350,33 @@ export function MasterProjectsTable({
           onSave={onUpdateLinkedProjects}
           onClose={() => setLinkedProjectsTarget(null)}
         />
+      )}
+      {deleteTarget && (
+        <div className={styles.confirmOverlay} role="presentation" onMouseDown={() => !deleting && setDeleteTarget(null)}>
+          <section className={styles.confirmModal} role="dialog" aria-modal="true" aria-labelledby="delete-project-title"
+            onMouseDown={(event) => event.stopPropagation()}>
+            <h2 id="delete-project-title">Удалить проект «{projectDisplayName(deleteTarget.name)}»?</h2>
+            <p>Все локальные данные проекта будут удалены без возможности восстановления.</p>
+            <label className={styles.secretCodeField}>
+              <span>Секретный код</span>
+              <input type="password" value={deleteCode} autoComplete="off" autoFocus disabled={deleting}
+                onChange={(event) => { setDeleteCode(event.target.value); setDeleteError(""); }} />
+            </label>
+            {deleteError && <p className={styles.deleteError} role="alert">{deleteError}</p>}
+            <div className={styles.confirmActions}>
+              <button type="button" className={styles.cancelButton} disabled={deleting} onClick={() => setDeleteTarget(null)}>Закрыть</button>
+              <button type="button" className={styles.deleteConfirmButton} disabled={!deleteCode || deleting} onClick={async () => {
+                setDeleting(true); setDeleteError("");
+                try {
+                  await onDelete(deleteTarget.id, deleteCode);
+                  setDeleteTarget(null); setDeleteCode("");
+                } catch (reason) {
+                  setDeleteError(reason instanceof Error ? reason.message : 'Не удалось удалить проект');
+                } finally { setDeleting(false); }
+              }}>{deleting ? 'Удаление…' : 'Удалить проект'}</button>
+            </div>
+          </section>
+        </div>
       )}
     </div>
   );
