@@ -250,16 +250,35 @@ describe('CabinetsService', () => {
     expect(cabinetUpdate.mock.calls[0][0].data.linkedProviderProjectIds).toEqual([26416, 22931]);
   });
 
+  it('allows changing the project type and assigning an existing manager', async () => {
+    const cabinetUpdate = jest.fn().mockResolvedValue({ ...cabinet, type: 'PACKAGE', managerName: 'Анна' });
+    const transaction = jest.fn().mockImplementation(async (operations) => Promise.all(operations));
+    const prisma = {
+      cabinet: { update: cabinetUpdate }, masterManager: { findUnique: jest.fn().mockResolvedValue({ name: 'Анна' }) },
+      $transaction: transaction,
+    };
+    const service = new CabinetsService(prisma as never, {} as never, config as never);
+    await service.updateMasterProject(cabinet.id, { type: 'PACKAGE' as never, managerName: 'Анна' });
+    expect(cabinetUpdate.mock.calls[0][0].data).toEqual(expect.objectContaining({ type: 'PACKAGE', managerName: 'Анна' }));
+  });
+
   it('clones internally with fresh users and no copied business metrics', async () => {
     const create = jest.fn().mockResolvedValue({ ...cabinet, id: 'clone', name: 'Clone' });
     const createMany = jest.fn().mockResolvedValue({ count: 2 });
+    const providerProjectCreationCreate = jest.fn().mockResolvedValue({ id: 'ppc' });
     const prisma = { cabinet: { findUnique: jest.fn().mockResolvedValue({ ...cabinet, sphere: 'Медицина' }) },
-      $transaction: (callback: (tx: unknown) => unknown) => callback({ cabinet: { create }, user: { createMany } }) };
+      $transaction: (callback: (tx: unknown) => unknown) => callback({ cabinet: { create }, user: { createMany },
+        providerProjectCreation: { create: providerProjectCreationCreate } }) };
     const result = await new CabinetsService(prisma as never, {} as never, config as never).clone(cabinet.id, { name: 'Clone', type: 'VDL' as never, price: 100, managerName: 'Анна' });
     expect(create.mock.calls[0][0].data).toEqual(expect.objectContaining({ name: 'Clone', providerProjectId: 1 }));
     expect(create.mock.calls[0][0].data).not.toHaveProperty('moneyBalance');
     expect(createMany.mock.calls[0][0].data).toHaveLength(2);
     expect(result.credentials.client.password).toBeTruthy();
+    // Без этой записи AnswerSyncService не отличит клон от привязки существующего
+    // проекта Leads Factory и импортирует в новый кабинет лиды старше даты клонирования.
+    expect(providerProjectCreationCreate).toHaveBeenCalledWith(expect.objectContaining({
+      data: expect.objectContaining({ cabinetId: 'clone', status: 'SUCCEEDED', providerProjectId: 1 }),
+    }));
   });
 
   it('links a local cabinet to an existing Leads Factory project by provider ID', async () => {

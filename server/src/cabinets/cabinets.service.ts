@@ -535,12 +535,16 @@ export class CabinetsService {
   }
 
   async updateMasterProject(id: string, dto: import('./dto/update-master-project.dto').UpdateMasterProjectDto) {
+    if (dto.managerName !== undefined) {
+      const manager = await this.prisma.masterManager.findUnique({ where: { name: dto.managerName } });
+      if (!manager) throw new NotFoundException('Сотрудник не найден');
+    }
     const passwordHash = dto.clientPassword ? await hash(dto.clientPassword, 12) : undefined;
     const linkedProviderProjectIds = dto.linkedProviderProjectIds === undefined
       ? undefined : [...new Set(dto.linkedProviderProjectIds)];
     const operations: Prisma.PrismaPromise<unknown>[] = [this.prisma.cabinet.update({ where: { id }, data: {
       price: dto.price === undefined ? undefined : new Prisma.Decimal(dto.price), renewalStatus: dto.renewalStatus,
-      isActive: dto.isActive, hidden: dto.hidden, linkedProviderProjectIds,
+      isActive: dto.isActive, hidden: dto.hidden, type: dto.type, managerName: dto.managerName, linkedProviderProjectIds,
     }, select: cabinetSelect })];
     if (passwordHash) operations.push(this.prisma.user.updateMany({
       where: { cabinetId: id, role: UserRole.LIMITED },
@@ -600,7 +604,17 @@ export class CabinetsService {
       await tx.user.createMany({ data: [
         { login: `staff-${suffix}`, passwordHash: await hash(employeePassword, 12), role: UserRole.FULL, cabinetId: created.id },
         { login: `client-${suffix}`, passwordHash: await hash(clientPassword, 12), role: UserRole.LIMITED, cabinetId: created.id },
-      ] }); return created;
+      ] });
+      // Marks the clone as "provider project has no pre-cabinet history worth
+      // importing" for AnswerSyncService — same signal a genuinely new provider
+      // project gets from create(). Without it the clone's first sync would treat
+      // the shared (already populated) project like an untracked one adopted via
+      // linkProviderProject() and backfill every lead that predates the clone.
+      await tx.providerProjectCreation.create({ data: {
+        idempotencyKey: `clone:${created.id}`, requestHash: `clone:${source.id}:${created.id}`,
+        status: 'SUCCEEDED', providerProjectId: source.providerProjectId, cabinetId: created.id,
+      } });
+      return created;
     });
     return { cabinet, credentials: { employee: { login: `staff-${suffix}`, password: employeePassword }, client: { login: `client-${suffix}`, password: clientPassword } } };
   }

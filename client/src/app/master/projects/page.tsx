@@ -6,6 +6,7 @@ import { PageBody } from "@/shared/ui/PageBody";
 import { EmployeesButton } from "@/features/master-employees";
 import { CreateProjectButton } from "@/features/master-create-project";
 import { LinkProjectButton } from "@/features/master-link-project";
+import { CopyProjectButton } from "@/features/master-copy-project";
 import { MasterProjectsTable } from "@/widgets/master-projects-table";
 import { useMasterManagersStore } from "@/entities/master-managers";
 import { useMasterProjectsStore } from "@/entities/master-projects";
@@ -44,6 +45,7 @@ export default function MasterProjectsPage() {
           <div className={styles.projectActions}>
             <EmployeesButton />
             <LinkProjectButton />
+            <CopyProjectButton />
             <CreateProjectButton />
           </div>
         </div>

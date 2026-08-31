@@ -66,9 +66,12 @@ export class AnswerSyncService {
         const result = await this.provider.getAnswers(projectId, {
           page,
           limit: 200,
-          // Первый запуск импортирует историю. Все последующие забирают только
-          // созданные или изменённые заявки по Answer.date_updated.
-          dateFrom: previousRun ? undefined : (hasImportedContacts ? cabinet.createdAt : undefined),
+          // Первый запуск импортирует историю — но только когда historicalImport
+          // разрешает её (см. выше): для клона/только что созданного в Leads Factory
+          // проекта у cabinet.providerCreation стоит запись, поэтому dateFrom режется
+          // по cabinet.createdAt так же, как и на последующих запусках, и лиды,
+          // случившиеся до клонирования, в новый кабинет не попадают.
+          dateFrom: previousRun ? undefined : (historicalImport ? undefined : cabinet.createdAt),
           dateTo: previousRun ? undefined : syncBoundary,
           dateUpdatedFrom,
           dateUpdatedTo: previousRun ? syncBoundary : undefined,

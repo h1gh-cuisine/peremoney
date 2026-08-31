@@ -64,6 +64,29 @@ describe('AnswerSyncService', () => {
     });
   });
 
+  it('scopes a freshly cloned cabinet to leads from its own creation date, not the shared project\'s full history', async () => {
+    // Регрессия: клон делит providerProjectId с проектом-источником, у которого
+    // уже есть годы истории в Leads Factory. cabinet.providerCreation стоит (её
+    // создаёт CabinetsService.clone()) именно чтобы отличить этот случай от
+    // linkProviderProject(), где полная история — то, что нужно.
+    const createdAt = new Date('2026-08-31T00:00:00.000Z');
+    const prisma = {
+      cabinet: { findUnique: jest.fn().mockResolvedValue({ id: 'clone-cab', providerProjectId: 10, linkedProviderProjectIds: [], createdAt, providerCreation: { id: 'creation' } }) },
+      answerSyncRun: {
+        findFirst: jest.fn().mockResolvedValue(null),
+        create: jest.fn().mockResolvedValue({ id: 'run' }),
+        update: jest.fn().mockImplementation(({ data }) => data),
+      },
+      contact: { count: jest.fn().mockResolvedValue(0) },
+    };
+    const provider = { getAnswers: jest.fn().mockResolvedValue({ items: [], total: 0 }) };
+    const service = new AnswerSyncService(prisma as never, provider as never, {} as never);
+
+    await service.sync('clone-cab');
+
+    expect(provider.getAnswers).toHaveBeenCalledWith(10, expect.objectContaining({ dateFrom: createdAt }));
+  });
+
   it('polls only answers changed since the previous successful window', async () => {
     const previousStartedAt = new Date('2026-08-30T10:00:00.000Z');
     const prisma = {

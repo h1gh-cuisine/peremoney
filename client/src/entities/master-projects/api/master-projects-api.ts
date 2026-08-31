@@ -40,8 +40,10 @@ export async function createMasterProject(input: { clientName: string; type: Pro
     paymentsCount: 0, avgCheck: 0, clientLogin: input.clientLogin, employeeLogin: input.employeeLogin });
   return { ...project, clientPassword: result.credentials?.client.password ?? '', employeePassword: result.credentials?.employee.password ?? '' };
 }
-export async function patchMasterProject(id: string, patch: { price?: number; renewalStatus?: RenewalStatus; isActive?: boolean; hidden?: boolean; clientPassword?: string; linkedProviderProjectIds?: number[] }) {
+export async function patchMasterProject(id: string, patch: { price?: number; renewalStatus?: RenewalStatus; isActive?: boolean; hidden?: boolean; clientPassword?: string; linkedProviderProjectIds?: number[]; type?: ProjectType; managerName?: string }) {
+  const providerTypes: Record<ProjectType, ApiProject['type']> = { quals: 'VDL', package: 'PACKAGE', numbers: 'NUMBERS' };
   await apiClient().patch(`/cabinets/${id}/master-project`, { ...patch,
+    type: patch.type === undefined ? undefined : providerTypes[patch.type],
     renewalStatus: patch.renewalStatus === undefined ? undefined : patch.renewalStatus === 'renewed' ? 'RENEWED' : 'NOT_RENEWED' });
 }
 export async function patchMasterBalance(id: string, moneyBalance: number) {
@@ -49,6 +51,16 @@ export async function patchMasterBalance(id: string, moneyBalance: number) {
 }
 export async function deleteMasterProject(id: string, secretCode: string) {
   return apiClient().delete<{ deleted: boolean }>(`/cabinets/${id}`, { secretCode });
+}
+export async function cloneMasterProject(sourceId: string, input: { name: string; type: ProjectType; price: number; managerId: string }) {
+  const types: Record<ProjectType, ApiProject['type']> = { quals: 'VDL', package: 'PACKAGE', numbers: 'NUMBERS' };
+  const result = await apiClient().post<{ cabinet: Omit<ApiProject, 'contactsExported'|'leadsExported'|'sales'|'expenses'|'leadCost'|'targetLeadCost'|'ltv'|'paymentsCount'|'avgCheck'|'clientLogin'|'employeeLogin'>; credentials: { client: { login: string; password: string }; employee: { login: string; password: string } } }>(
+    `/cabinets/${sourceId}/clone`, { name: input.name, type: types[input.type], price: input.price, managerName: input.managerId },
+  );
+  return { ...mapMasterProject({ ...result.cabinet, contactsExported: 0, leadsExported: 0, sales: 0,
+    expenses: null, leadCost: null, targetLeadCost: null, ltv: 0, paymentsCount: 0, avgCheck: 0,
+    clientLogin: result.credentials.client.login, employeeLogin: result.credentials.employee.login }),
+    clientPassword: result.credentials.client.password, employeePassword: result.credentials.employee.password };
 }
 export async function linkProviderProject(input: { providerProjectId: number; price: number; managerId: string }) {
   const result = await apiClient().post<{ cabinet: Record<string, unknown>; credentials: { client: { login: string; password: string }; employee: { login: string; password: string } } }>('/cabinets/link-provider',

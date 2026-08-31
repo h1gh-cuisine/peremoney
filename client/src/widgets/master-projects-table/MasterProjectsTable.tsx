@@ -6,6 +6,7 @@ import { type LoginResponse, sessionFromLogin, useSessionStore } from "@/entitie
 import { apiClient } from "@/shared/api/client";
 import { formatCurrency, formatNumber } from "@/shared/lib/format";
 import { getProjectTypeLabel } from "@/shared/lib/projectType";
+import { projectDisplayName } from "@/shared/lib/projectDisplayName";
 import type { Manager } from "@/entities/master-managers";
 import type { MasterProject, RenewalStatus } from "@/entities/master-projects";
 import { ProjectRowMenu } from "./ProjectRowMenu";
@@ -37,9 +38,7 @@ type SortDirection = "asc" | "desc";
 
 const collator = new Intl.Collator("ru", { numeric: true, sensitivity: "base" });
 
-export function projectDisplayName(name: string) {
-  return name.split("/").map((part) => part.trim()).filter(Boolean).at(-1) ?? name;
-}
+export { projectDisplayName };
 
 function PasswordResetCell({ projectId, projectName, onConfirm }: PasswordResetCellProps) {
   const [password, setPassword] = useState("");

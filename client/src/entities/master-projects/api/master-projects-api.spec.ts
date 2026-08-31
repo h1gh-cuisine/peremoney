@@ -1,5 +1,5 @@
 import { apiClient } from '@/shared/api';
-import { createMasterProject, fetchMasterProjects, fetchProviderRegions, mapMasterProject } from './master-projects-api';
+import { cloneMasterProject, createMasterProject, fetchMasterProjects, fetchProviderRegions, mapMasterProject } from './master-projects-api';
 
 jest.mock('@/shared/api', () => ({ apiClient: jest.fn() }));
 
@@ -58,5 +58,19 @@ describe('master projects API contract', () => {
       idempotencyKey: 'stable-key' });
 
     expect(post.mock.calls[0][1]).toEqual(expect.objectContaining({ region: 'Вся Россия', regionId: 1, regionIds: [1, 2, 3] }));
+  });
+
+  it('clones a project onto its own provider ID for the endpoint, mapped from the same source cabinet', async () => {
+    const post = jest.fn().mockResolvedValue({
+      cabinet: { id: 'clone-id', name: 'Абакан/Клиент — копия', managerName: 'Анна', providerProjectId: 42, type: 'VDL', sphere: 'Медицина',
+        price: 250, renewalStatus: 'NOT_RENEWED', isActive: true, hidden: false, createdAt: '2026-08-31T00:00:00Z' },
+      credentials: { employee: { login: 'staff-2', password: 'employee-pass' }, client: { login: 'client-2', password: 'client-pass' } },
+    });
+    (apiClient as jest.Mock).mockReturnValue({ post });
+
+    const result = await cloneMasterProject('source-id', { name: 'Клиент — копия', type: 'quals', price: 250, managerId: 'MGR-1' });
+
+    expect(post).toHaveBeenCalledWith('/cabinets/source-id/clone', { name: 'Клиент — копия', type: 'VDL', price: 250, managerName: 'MGR-1' });
+    expect(result).toEqual(expect.objectContaining({ id: 'clone-id', providerProjectId: 42, clientPassword: 'client-pass', employeePassword: 'employee-pass' }));
   });
 });
