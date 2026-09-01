@@ -65,6 +65,26 @@ export class AuditLogService {
     }
   }
 
+  async recordLeadsFactoryError(event: {
+    method: string; path: string; statusCode: number;
+    query?: Record<string, unknown>; body?: unknown; providerBody?: unknown; reason: string;
+  }) {
+    try {
+      await this.prisma.auditLog.create({ data: {
+        action: `LEADS_FACTORY_ERROR ${event.method} ${event.path}`,
+        method: event.method,
+        path: event.path,
+        statusCode: event.statusCode,
+        outcome: 'error',
+        payload: redact({ query: event.query, body: event.body }) as object,
+        result: event.providerBody === undefined ? undefined : redact(event.providerBody) as object,
+        reason: event.reason,
+      } });
+    } catch (error) {
+      this.logger.error(`Failed to write Leads Factory error: ${error instanceof Error ? error.message : String(error)}`);
+    }
+  }
+
   private extractAttemptedLogin(body: unknown): string | null {
     if (body && typeof body === 'object' && 'login' in body && typeof (body as { login: unknown }).login === 'string') {
       return (body as { login: string }).login;
@@ -92,6 +112,14 @@ export class AuditLogService {
   }
 
   async list(query: ListAuditLogDto) {
+    return this.listWhere(query);
+  }
+
+  async listLeadsFactoryErrors(query: ListAuditLogDto) {
+    return this.listWhere(query, { action: { startsWith: 'LEADS_FACTORY_ERROR ' } });
+  }
+
+  private async listWhere(query: ListAuditLogDto, requiredWhere: Record<string, unknown> = {}) {
     const page = query.page ?? 1;
     const pageSize = query.pageSize ?? 50;
     const where = {
@@ -103,6 +131,7 @@ export class AuditLogService {
         gte: query.dateFrom ? new Date(`${query.dateFrom}T00:00:00.000Z`) : undefined,
         lte: query.dateTo ? new Date(`${query.dateTo}T23:59:59.999Z`) : undefined,
       } : undefined,
+      ...requiredWhere,
     };
     const [items, total] = await Promise.all([
       this.prisma.auditLog.findMany({

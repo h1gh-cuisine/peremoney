@@ -23,6 +23,18 @@ describe('LeadsFactoryService contract', () => {
     expect(fetchMock).toHaveBeenCalledTimes(1);
   });
 
+  it('writes final provider 4xx/5xx responses to the dedicated error journal', async () => {
+    jest.spyOn(global, 'fetch').mockResolvedValue(new Response(JSON.stringify({ detail: 'bad request' }), { status: 400 }));
+    const recordLeadsFactoryError = jest.fn().mockResolvedValue(undefined);
+    const service = new LeadsFactoryService(config as never, { recordLeadsFactoryError } as never);
+    await expect(service.createProject({ name: 'X', type: 1, regions: [1], status: 'pause', default_limit: 5 }))
+      .rejects.toBeInstanceOf(ProviderException);
+    expect(recordLeadsFactoryError).toHaveBeenCalledWith(expect.objectContaining({
+      method: 'POST', path: '/crm/open-api/projects', statusCode: 400,
+      providerBody: { detail: 'bad request' },
+    }));
+  });
+
   it('applies the documented default source-cabinet settings', async () => {
     const fetchMock = jest.spyOn(global, 'fetch').mockResolvedValue(new Response(JSON.stringify('ok'), { status: 200 }));
     const service = new LeadsFactoryService(config as never);

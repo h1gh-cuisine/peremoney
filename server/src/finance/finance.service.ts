@@ -209,7 +209,7 @@ export class FinanceService {
   private enqueueBalanceReconciliation(tx: Prisma.TransactionClient, cabinetId: string) {
     const now = new Date();
     return tx.scheduledRun.create({ data: {
-      cabinetId, task: ScheduledTask.APPLY_SCHEDULE, scheduledFor: now, nextAttemptAt: now,
+      cabinetId, task: ScheduledTask.APPLY_SETTINGS, scheduledFor: now, nextAttemptAt: now,
     } });
   }
 

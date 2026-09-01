@@ -14,6 +14,13 @@ import { ListAuditLogDto } from './dto/list-audit-log.dto';
 export class AuditLogController {
   constructor(private readonly auditLog: AuditLogService) {}
 
+  @Get('leads-factory-errors')
+  @Roles(UserRole.MASTER)
+  listLeadsFactoryErrors(@Query() query: ListAuditLogDto, @Headers('x-audit-secret') secret?: string) {
+    this.auditLog.verifySecret(secret);
+    return this.auditLog.listLeadsFactoryErrors(query);
+  }
+
   @Get()
   @Roles(UserRole.MASTER)
   list(@Query() query: ListAuditLogDto, @Headers('x-audit-secret') secret?: string) {

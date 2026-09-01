@@ -67,5 +67,6 @@ Base path: `/api`. Интерактивная схема — `/api/docs`, OpenAP
 - `GET|POST /master/fanout/sources` — список/создание источников, MASTER.
 - `PATCH /master/fanout/sources/:id/destinations` — назначения, MASTER.
 - `GET /master/fanout/sources/:id/deliveries` — журнал доставок, MASTER.
+- `GET /audit-log/leads-factory-errors` — отдельный журнал финальных HTTP- и сетевых ошибок Leads Factory; MASTER + `X-Audit-Secret`, фильтры и пагинация как у `GET /audit-log`.
 
 DTO валидируются глобальным `ValidationPipe` с `whitelist` и преобразованием типов. Точные request/response schemas следует брать из OpenAPI текущей сборки.

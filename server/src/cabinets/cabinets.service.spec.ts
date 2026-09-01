@@ -389,7 +389,7 @@ describe('CabinetsService', () => {
     });
 
     expect(scheduledRunCreate).toHaveBeenCalledWith(expect.objectContaining({
-      data: expect.objectContaining({ cabinetId: 'created-cabinet', task: 'APPLY_SCHEDULE' }),
+      data: expect.objectContaining({ cabinetId: 'created-cabinet', task: 'APPLY_SETTINGS' }),
     }));
   });
 

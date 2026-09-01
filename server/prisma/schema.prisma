@@ -52,6 +52,11 @@ enum ScheduledTask {
   TAG_AUTOMATION
   APPLY_SCHEDULE
   SCRIPT_SYNC
+  // Immediate re-apply of the cabinet's current status/uploads/calls/timezone after a
+  // failed live sync (settings save, balance top-up, master activation). Distinct from
+  // APPLY_SCHEDULE, which is the nightly rollover and deliberately evaluates *tomorrow's*
+  // schedule — reusing it for a same-day retry made the retry apply the wrong day.
+  APPLY_SETTINGS
 }
 
 enum ScheduledRunStatus {

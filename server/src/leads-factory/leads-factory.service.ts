@@ -1,6 +1,7 @@
-import { Injectable } from '@nestjs/common';
+import { Injectable, Optional } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { ProviderException } from './provider.exception';
+import { AuditLogService } from '../audit-log/audit-log.service';
 import {
   ProviderAnswersPage, ProviderCall, ProviderIntegrationName, ProviderProjectCreated,
   ProviderProjectDetail, ProviderProjectType, ProviderRegion, ProviderScript, ProviderSource, ProviderTag,
@@ -12,7 +13,7 @@ export class LeadsFactoryService {
   private readonly baseUrl: string;
   private readonly token: string;
 
-  constructor(config: ConfigService) {
+  constructor(config: ConfigService, @Optional() private readonly auditLog?: AuditLogService) {
     this.baseUrl = config.get('LEADS_FACTORY_BASE_URL', 'https://openapi.leads-factory.ru/v1').replace(/\/$/, '');
     this.token = config.get<string>('LEADS_FACTORY_TOKEN') ?? '';
   }
@@ -189,7 +190,11 @@ export class LeadsFactoryService {
     query: Record<string, string | number | undefined> = {},
     options: { method?: string; body?: unknown } = {},
   ): Promise<T> {
-    if (!this.token) throw new ProviderException(503, 'LEADS_FACTORY_TOKEN не настроен');
+    if (!this.token) {
+      const error = new ProviderException(503, 'LEADS_FACTORY_TOKEN не настроен');
+      await this.logError(path, options.method ?? 'GET', query, options.body, error);
+      throw error;
+    }
     const url = new URL(`${this.baseUrl}${path}`);
     for (const [key, value] of Object.entries(query)) {
       if (value !== undefined) url.searchParams.set(key, String(value));
@@ -217,7 +222,9 @@ export class LeadsFactoryService {
       await new Promise((resolve) => setTimeout(resolve, 100 * 2 ** attempt));
     }
     if (!response) {
-      throw new ProviderException(502, `Leads Factory недоступен: ${lastNetworkError instanceof Error ? lastNetworkError.message : 'network error'}`);
+      const error = new ProviderException(502, `Leads Factory недоступен: ${lastNetworkError instanceof Error ? lastNetworkError.message : 'network error'}`);
+      await this.logError(path, method, query, options.body, error);
+      throw error;
     }
     const body = await response.json().catch(() => undefined) as unknown;
     if (!response.ok) {
@@ -227,9 +234,21 @@ export class LeadsFactoryService {
         422: 'Leads Factory отклонил параметры запроса', 502: 'Ошибка CRM Leads Factory',
         504: 'CRM Leads Factory временно недоступна',
       };
-      throw new ProviderException(response.status, messages[response.status] ?? 'Ошибка Leads Factory', this.safeErrorBody(body));
+      const error = new ProviderException(response.status, messages[response.status] ?? 'Ошибка Leads Factory', this.safeErrorBody(body));
+      await this.logError(path, method, query, options.body, error);
+      throw error;
     }
     return body as T;
+  }
+
+  private async logError(
+    path: string, method: string, query: Record<string, string | number | undefined>, body: unknown,
+    error: ProviderException,
+  ) {
+    await this.auditLog?.recordLeadsFactoryError({
+      method, path, statusCode: error.providerStatus, query, body,
+      providerBody: error.providerBody, reason: error.message,
+    });
   }
 
   private providerDate(value: Date) {

@@ -56,6 +56,19 @@ describe('AuditLogService', () => {
     await expect(service.record({ method: 'POST', originalUrl: '/api/x' }, 200)).resolves.toBeUndefined();
   });
 
+  it('records a redacted Leads Factory error as a dedicated audit event', async () => {
+    const create = jest.fn().mockResolvedValue({});
+    const service = new AuditLogService({ auditLog: { create } } as never, config() as never);
+    await service.recordLeadsFactoryError({
+      method: 'POST', path: '/crm/open-api/projects', statusCode: 500,
+      body: { name: 'Project', token: 'secret' }, providerBody: { detail: 'failed' }, reason: 'Provider failed',
+    });
+    expect(create.mock.calls[0][0].data).toMatchObject({
+      action: 'LEADS_FACTORY_ERROR POST /crm/open-api/projects', statusCode: 500, outcome: 'error',
+      payload: { body: { name: 'Project', token: '[REDACTED]' } }, result: { detail: 'failed' },
+    });
+  });
+
   describe('verifySecret', () => {
     it('fails closed when AUDIT_LOG_SECRET is not configured', () => {
       const service = new AuditLogService({} as never, config() as never);
@@ -83,6 +96,14 @@ describe('AuditLogService', () => {
       expect(findMany.mock.calls[0][0].where).toMatchObject({ actorId: 'u1', outcome: 'denied' });
       expect(findMany.mock.calls[0][0]).toMatchObject({ skip: 10, take: 10 });
       expect(result).toEqual({ items: [{ id: 'a' }], total: 1, page: 2, pageSize: 10, hasMore: false });
+    });
+
+    it('has a dedicated Leads Factory error listing', async () => {
+      const findMany = jest.fn().mockResolvedValue([]);
+      const count = jest.fn().mockResolvedValue(0);
+      const service = new AuditLogService({ auditLog: { findMany, count } } as never, config() as never);
+      await service.listLeadsFactoryErrors({ page: 1, pageSize: 50 });
+      expect(findMany.mock.calls[0][0].where.action).toEqual({ startsWith: 'LEADS_FACTORY_ERROR ' });
     });
   });
 });

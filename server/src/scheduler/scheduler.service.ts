@@ -10,6 +10,7 @@ import { SourcesService } from '../sources/sources.service';
 import { hasAvailableBalance } from '../finance/balance-availability';
 import { providerScriptToText } from '../leads-factory/script-text';
 import { ProviderException } from '../leads-factory/provider.exception';
+import { isActiveNextDay, isActiveToday } from './schedule-day';
 
 const MOSCOW_OFFSET_MS = 3 * 60 * 60 * 1000;
 // docs-agent.md 2.3 говорит "18:00" для TAG_AUTOMATION — продуктовое решение
@@ -172,11 +173,20 @@ export class SchedulerService implements OnApplicationBootstrap, OnApplicationSh
     if (!cabinet.providerProjectId) throw new Error('У кабинета не указан providerProjectId');
     if (run.task === ScheduledTask.APPLY_SCHEDULE) {
       const active = cabinet.isActive && hasAvailableBalance(cabinet)
-        && this.isActiveNextDay(cabinet.scheduleDays, run.scheduledFor);
+        && isActiveNextDay(cabinet.scheduleDays, run.scheduledFor);
       await this.provider.updateProjectSchedule(cabinet.providerProjectId, active, {
         uploadsEnabled: cabinet.uploadsEnabled, callsEnabled: cabinet.callsEnabled,
       });
       return { active, scheduleDays: cabinet.scheduleDays };
+    }
+    if (run.task === ScheduledTask.APPLY_SETTINGS) {
+      const effectiveIsActive = cabinet.isActive && hasAvailableBalance(cabinet);
+      await this.provider.updateProjectSettings(cabinet.providerProjectId, {
+        isActive: effectiveIsActive, timezoneOffset: cabinet.timezoneOffset,
+        uploadsEnabled: cabinet.uploadsEnabled, callsEnabled: cabinet.callsEnabled,
+        activeToday: isActiveToday(cabinet.scheduleDays, run.scheduledFor),
+      });
+      return { effectiveIsActive };
     }
     if (run.task === ScheduledTask.SCRIPT_SYNC) {
       const script = await this.provider.getProjectScript(cabinet.providerProjectId);
@@ -188,11 +198,5 @@ export class SchedulerService implements OnApplicationBootstrap, OnApplicationSh
       return { scriptLevel: script.script_lvl };
     }
     throw new Error(`Unsupported scheduled task: ${run.task}`);
-  }
-
-  private isActiveNextDay(days: number[], scheduledFor: Date) {
-    const jsDay = new Date(scheduledFor.getTime() + MOSCOW_OFFSET_MS + 24 * 60 * 60 * 1000).getUTCDay();
-    const isoDay = jsDay === 0 ? 7 : jsDay;
-    return days.includes(isoDay);
   }
 }

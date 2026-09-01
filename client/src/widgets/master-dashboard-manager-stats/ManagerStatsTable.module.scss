@@ -26,7 +26,8 @@
 }
 
 .tableWrap {
-  overflow-x: auto;
+  max-height: calc(100vh - 180px);
+  overflow: auto;
   @include m.scrollbar;
 }
 
@@ -43,6 +44,10 @@
   }
 
   th {
+    position: sticky;
+    top: 0;
+    z-index: 2;
+    background: v.$color-bg-card;
     color: v.$color-text-muted;
     font-weight: 500;
     font-size: v.$font-size-xs;

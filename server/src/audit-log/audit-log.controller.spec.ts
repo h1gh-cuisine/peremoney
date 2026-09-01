@@ -22,4 +22,14 @@ describe('AuditLogController', () => {
     expect(list).toHaveBeenCalledWith({ outcome: 'denied' });
     expect(result).toEqual({ items: [], total: 0, page: 1, pageSize: 50, hasMore: false });
   });
+
+  it('exposes Leads Factory failures through a separate protected endpoint', () => {
+    const verifySecret = jest.fn();
+    const listLeadsFactoryErrors = jest.fn().mockReturnValue({ items: [], total: 0 });
+    const controller = new AuditLogController({ verifySecret, listLeadsFactoryErrors } as never);
+
+    expect(controller.listLeadsFactoryErrors({ page: 1 }, 'right')).toEqual({ items: [], total: 0 });
+    expect(verifySecret).toHaveBeenCalledWith('right');
+    expect(listLeadsFactoryErrors).toHaveBeenCalledWith({ page: 1 });
+  });
 });

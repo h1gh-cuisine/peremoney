@@ -56,6 +56,25 @@ describe('SchedulerService', () => {
     expect(updateProjectSchedule).toHaveBeenCalledWith(42, true, { uploadsEnabled: true, callsEnabled: true });
   });
 
+  it('APPLY_SETTINGS re-applies today\'s schedule, not tomorrow\'s (unlike the nightly APPLY_SCHEDULE rollover)', async () => {
+    const updateProjectSettings = jest.fn();
+    // 21 августа 2026 — пятница (ISO 5); суббота (ISO 6) недоступна в scheduleDays.
+    // Ретрай сохранения настроек должен применить статус на СЕГОДНЯ, а не на завтра.
+    const prisma = { cabinet: { findUniqueOrThrow: jest.fn().mockResolvedValue({
+      id: 'cabinet-id', providerProjectId: 42, scheduleDays: [5], isActive: true,
+      moneyBalance: 1000, price: 250, totalUnits: 10, usedUnits: 0,
+      timezoneOffset: 3, uploadsEnabled: false, callsEnabled: true,
+    }) } };
+    const scheduler = service(prisma, { updateProjectSettings });
+    const dispatch = (scheduler as unknown as { dispatch(run: unknown): Promise<unknown> }).dispatch.bind(scheduler);
+
+    await dispatch({ task: ScheduledTask.APPLY_SETTINGS, cabinetId: 'cabinet-id', scheduledFor: new Date('2026-08-21T17:00:00Z') });
+
+    expect(updateProjectSettings).toHaveBeenCalledWith(42, expect.objectContaining({
+      isActive: true, timezoneOffset: 3, uploadsEnabled: false, callsEnabled: true, activeToday: true,
+    }));
+  });
+
   it('never reactivates a project that is locally paused', async () => {
     const updateProjectSchedule = jest.fn();
     const prisma = { cabinet: { findUniqueOrThrow: jest.fn().mockResolvedValue({

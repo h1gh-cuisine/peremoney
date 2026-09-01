@@ -15,6 +15,7 @@ import { DirectMessengerService } from '../integrations/direct-messenger.service
 import { AnswerSyncService } from '../crm/answer-sync.service';
 import { SourcesService } from '../sources/sources.service';
 import { hasAvailableBalance } from '../finance/balance-availability';
+import { isActiveToday } from '../scheduler/schedule-day';
 
 const cabinetSelect = {
   id: true, name: true, providerProjectId: true, linkedProviderProjectIds: true, type: true, price: true,
@@ -368,11 +369,11 @@ export class CabinetsService {
       await this.provider.updateProjectSettings(providerProjectId, {
         isActive: cabinet.isActive && hasAvailableBalance(cabinet), timezoneOffset: cabinet.timezoneOffset,
         uploadsEnabled: cabinet.uploadsEnabled, callsEnabled: cabinet.callsEnabled,
-        activeToday: this.isActiveToday(cabinet.scheduleDays),
+        activeToday: isActiveToday(cabinet.scheduleDays),
       });
     } catch (error) {
       const now = new Date();
-      await this.prisma.scheduledRun.create({ data: { cabinetId: cabinet.id, task: 'APPLY_SCHEDULE', scheduledFor: now,
+      await this.prisma.scheduledRun.create({ data: { cabinetId: cabinet.id, task: 'APPLY_SETTINGS', scheduledFor: now,
         nextAttemptAt: now, lastError: error instanceof Error ? error.message.slice(0, 2000) : 'Provider sync failed' } });
     }
   }
@@ -505,13 +506,13 @@ export class CabinetsService {
       || cabinet.timezoneOffset !== dto.timezoneOffset || scheduleChanged;
     const uploadsChanged = cabinet.uploadsEnabled !== dto.uploadsEnabled;
     const callsChanged = cabinet.callsEnabled !== dto.callsEnabled;
-    const operationalNow = effectiveIsActive && this.isActiveToday(dto.scheduleDays);
+    const operationalNow = effectiveIsActive && isActiveToday(dto.scheduleDays);
     try {
       if (!operationalNow || generalChanged) {
         await this.provider.updateProjectSettings(cabinet.providerProjectId, {
           isActive: effectiveIsActive, timezoneOffset: dto.timezoneOffset,
           uploadsEnabled: dto.uploadsEnabled, callsEnabled: dto.callsEnabled,
-          activeToday: this.isActiveToday(dto.scheduleDays),
+          activeToday: isActiveToday(dto.scheduleDays),
         });
       } else if (uploadsChanged || callsChanged) {
         await this.provider.updateProjectProcesses(cabinet.providerProjectId, {
@@ -522,16 +523,10 @@ export class CabinetsService {
       return { ...updated, providerSync: { status: 'SYNCED' }, ...(balanceWarning ? { balanceWarning } : {}) };
     } catch (error) {
       const now = new Date();
-      await this.prisma.scheduledRun.create({ data: { cabinetId: id, task: 'APPLY_SCHEDULE', scheduledFor: now,
+      await this.prisma.scheduledRun.create({ data: { cabinetId: id, task: 'APPLY_SETTINGS', scheduledFor: now,
         nextAttemptAt: now, lastError: error instanceof Error ? error.message.slice(0, 2000) : 'Provider sync failed' } });
       return { ...updated, providerSync: { status: 'PENDING', message: 'Статус будет повторно передан провайдеру' }, ...(balanceWarning ? { balanceWarning } : {}) };
     }
-  }
-
-  private isActiveToday(days: number[], now = new Date()) {
-    const moscow = new Date(now.getTime() + 3 * 60 * 60 * 1000);
-    const day = moscow.getUTCDay();
-    return days.includes(day === 0 ? 7 : day);
   }
 
   async updateMasterProject(id: string, dto: import('./dto/update-master-project.dto').UpdateMasterProjectDto) {
@@ -583,7 +578,7 @@ export class CabinetsService {
       if (cabinet.providerProjectId) {
         const now = new Date();
         await tx.scheduledRun.create({ data: {
-          cabinetId: id, task: ScheduledTask.APPLY_SCHEDULE, scheduledFor: now, nextAttemptAt: now,
+          cabinetId: id, task: ScheduledTask.APPLY_SETTINGS, scheduledFor: now, nextAttemptAt: now,
         } });
       }
       return updated;

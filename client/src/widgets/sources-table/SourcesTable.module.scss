@@ -7,7 +7,8 @@
 }
 
 .tableWrap {
-  overflow-x: auto;
+  max-height: calc(100vh - 180px);
+  overflow: auto;
   @include m.scrollbar;
 }
 
@@ -24,6 +25,10 @@
   }
 
   th {
+    position: sticky;
+    top: 0;
+    z-index: 2;
+    background: v.$color-bg-card;
     border-bottom: 1px solid v.$color-border-subtle;
   }
 
