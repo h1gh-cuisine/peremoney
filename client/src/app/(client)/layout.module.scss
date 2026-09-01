@@ -1,8 +1,8 @@
 @use "../../styles/variables" as v;
 
 .content {
-  margin-left: v.$sidebar-width;
-  height: 100vh;
+  position: fixed;
+  inset: 0 0 0 v.$sidebar-width;
   display: flex;
   flex-direction: column;
   overflow: hidden;

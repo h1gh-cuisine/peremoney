@@ -128,7 +128,7 @@
 
 .tableWrap {
   flex: 1 1 0;
-  min-height: 0;
+  min-height: 60vh;
   overflow: auto;
   @include m.scrollbar;
 }
