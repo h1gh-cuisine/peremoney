@@ -27,7 +27,10 @@ describe('FinanceService', () => {
     const bankPayload = tochka.createInvoice.mock.calls[0]![0];
     expect(bankPayload.Data.Content.Invoice.number).toBe('640');
     expect(typeof bankPayload.Data.Content.Invoice.number).toBe('string');
-    expect(bankPayload.Data.Content.Invoice).not.toHaveProperty('paymentExpiryDate');
+    // Без paymentExpiryDate Точка создаёт и оплачивает счёт, но не печатает
+    // на нём QR-код (обнаружено после того, как поле однажды убрали) —
+    // регрессия сюда не должна вернуться незамеченной.
+    expect(bankPayload.Data.Content.Invoice.paymentExpiryDate).toMatch(/^\d{4}-\d{2}-\d{2}$/);
     expect(bankPayload.Data.Content.Invoice.basedOn).toBe(
       'Публичная оферта о заключении лицензионного договора на использование программного обеспечения peremoney.ru',
     );

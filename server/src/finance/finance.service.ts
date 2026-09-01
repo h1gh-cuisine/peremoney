@@ -113,6 +113,7 @@ export class FinanceService {
         : 'Создание счёта с этим ключом уже выполняется');
     }
     try {
+      const expiry = new Date(); expiry.setUTCDate(expiry.getUTCDate() + 5);
       const documentId = await this.tochka.createInvoice(buildTochkaInvoice({
         customerCode: this.tochka.customerCode(), accountId: this.tochka.accountId(), invoiceNo,
         quantity, unitPrice: Number(unitPrice), payer,
@@ -122,6 +123,7 @@ export class FinanceService {
         // 'шт.'/'усл.ед.'/'услуга.' и т.п., точка в конце — их формат, не опечатка.
         unitCode: 'услуга.',
         basedOn: 'Публичная оферта о заключении лицензионного договора на использование программного обеспечения peremoney.ru',
+        expiryDate: expiry.toISOString().slice(0, 10),
       }));
       const completed = await this.prisma.payment.update({ where: { id: payment.id }, data: {
         tochkaDocumentId: documentId, invoiceCreationStatus: 'SUCCEEDED',

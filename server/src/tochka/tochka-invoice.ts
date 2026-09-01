@@ -26,6 +26,11 @@ interface InvoiceInput {
   positionName: string;
   unitCode: TochkaUnitCode;
   basedOn: string;
+  // Было убрано в b8c5765 вместе с фиксом unitCode; после этого клиенты
+  // перестали видеть QR-код на присланных счетах — совпадает по времени.
+  // Возвращаем срок действия счёта, раз он документирован Точкой как штатное
+  // поле Invoice (влияет как минимум на статус payment_expired).
+  expiryDate: string;
 }
 
 export function buildTochkaInvoice(input: InvoiceInput) {
@@ -44,6 +49,7 @@ export function buildTochkaInvoice(input: InvoiceInput) {
     Content: { Invoice: {
       number: input.invoiceNo,
       basedOn: input.basedOn,
+      paymentExpiryDate: input.expiryDate,
       totalAmount,
       totalNds: 0,
       Positions: [{
