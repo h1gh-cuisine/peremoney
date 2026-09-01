@@ -32,7 +32,7 @@ export function ScriptViewer({ data }: ScriptViewerProps) {
       ) : (
         <div className={styles.emptyState}>
           <strong>Скрипт для проекта не настроен</strong>
-          <span>После добавления скрипта в Leads Factory он появится здесь автоматически.</span>
+          <span>Скрипт пока недоступен. Попробуйте обновить страницу позже.</span>
         </div>
       )}
     </div>

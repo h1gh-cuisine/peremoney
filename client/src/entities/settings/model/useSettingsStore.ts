@@ -59,7 +59,7 @@ export const useSettingsStore = create<SettingsState>((set, get) => ({
       // the UI instead of trusting the submitted draft blindly.
       const persisted = { ...draft, status: (result.isActive ? 'active' : 'paused') as ProjectSettings['status'] };
       const message = result.balanceWarning ?? (sync?.status === 'PENDING'
-        ? (sync.message ?? 'Настройки сохранены, но Leads Factory пока не подтвердил изменения') : null);
+        ? (sync.message ?? 'Настройки сохранены, но изменения пока не подтверждены') : null);
       set({ saved: persisted, draft: persisted, error: message });
       return true;
     }

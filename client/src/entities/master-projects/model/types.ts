@@ -11,7 +11,7 @@ export interface MasterProject {
   managerId: string;
   providerProjectId: number | null;
   /** "Связанные проекты" ("Связать с другим", docs-agent.md 2.2/2.8.4): project_id
-   * из Leads Factory, чьи лиды/контакты дублируются в этот кабинет. */
+   * внешних проектов, чьи лиды/контакты дублируются в этот кабинет. */
   linkedProviderProjectIds: number[];
   type: ProjectType;
   region: string;

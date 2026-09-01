@@ -13,7 +13,7 @@ interface LinkedProjectsModalProps {
 }
 
 /**
- * "Связанные проекты" — project_id из Leads Factory, чьи лиды/контакты
+ * "Связанные проекты" — внешние project_id, чьи лиды/контакты
  * дублируются в этот кабинет наравне с его собственным (docs-agent.md 2.2/2.8.4).
  */
 export function LinkedProjectsModal({ project, onSave, onClose }: LinkedProjectsModalProps) {
@@ -25,7 +25,7 @@ export function LinkedProjectsModal({ project, onSave, onClose }: LinkedProjects
   function addId() {
     const value = Number(draft);
     if (!Number.isInteger(value) || value < 1) {
-      setError("Укажите числовой ID проекта Leads Factory");
+      setError("Укажите числовой ID проекта");
       return;
     }
     if (value === project.providerProjectId) {
@@ -56,7 +56,7 @@ export function LinkedProjectsModal({ project, onSave, onClose }: LinkedProjects
         <h2 className={styles.title}>Связанные проекты</h2>
         <p className={styles.hint}>
           Проект «{projectDisplayName(project.name)}» дополнительно получит лиды и контакты из
-          перечисленных проектов Leads Factory — они будут приходить сюда же, наравне с собственными.
+          перечисленных проектов — они будут приходить сюда же, наравне с собственными.
         </p>
 
         <div className={styles.chipList}>
@@ -77,7 +77,7 @@ export function LinkedProjectsModal({ project, onSave, onClose }: LinkedProjects
             min={1}
             className={styles.input}
             value={draft}
-            placeholder="ID проекта Leads Factory"
+            placeholder="ID проекта"
             onChange={(e) => { setDraft(e.target.value); setError(""); }}
             onKeyDown={(e) => { if (e.key === "Enter") { e.preventDefault(); addId(); } }}
           />

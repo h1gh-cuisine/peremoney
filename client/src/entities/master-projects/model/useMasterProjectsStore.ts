@@ -16,7 +16,7 @@ interface MasterProjectsState {
   load: (range?: DateRange) => Promise<void>;
   /** "Создать проект" — 2.8.3: имя по шаблону + автогенерация логинов/паролей кабинета */
   createProject: (input: CreateProjectInput) => Promise<MasterProject>;
-  /** Создаёт кабинет для уже существующего проекта Leads Factory. */
+  /** Создаёт кабинет для уже существующего внешнего проекта. */
   linkProject: (input: CloneProjectInput) => Promise<MasterProject | null>;
   /** "Копировать проект" — новый кабинет с тем же providerProjectId, что у
    * source: лиды с текущего момента приходят синхронно в оба, история до
@@ -31,7 +31,7 @@ interface MasterProjectsState {
   updateRenewalStatus: (id: string, status: RenewalStatus) => void;
   /** Пароль клиента изменяемый, в отличие от логина (docs-agent.md 1.12.2) */
   updateClientPassword: (id: string, password: string) => Promise<void>;
-  /** "Связанные проекты" — project_id из Leads Factory, чьи лиды/контакты
+  /** "Связанные проекты" — внешние project_id, чьи лиды/контакты
    * дублируются в этот кабинет наравне с его собственным. */
   updateLinkedProjects: (id: string, linkedProviderProjectIds: number[]) => Promise<void>;
   removeProject: (id: string, secretCode: string) => Promise<void>;
@@ -56,7 +56,7 @@ export const useMasterProjectsStore = create<MasterProjectsState>((set, get) => 
 
   linkProject: async (input) => {
     try { const project = await linkProviderProject(input); set((state) => ({ projects: [project, ...state.projects], error: null })); return project; }
-    catch (reason) { set({ error: reason instanceof Error ? reason.message : 'Не удалось подключить проект Leads Factory' }); return null; }
+    catch (reason) { set({ error: reason instanceof Error ? reason.message : 'Не удалось подключить проект' }); return null; }
   },
 
   copyProject: async (sourceId, name) => {

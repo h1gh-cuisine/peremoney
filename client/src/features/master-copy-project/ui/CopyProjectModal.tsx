@@ -53,7 +53,7 @@ export function CopyProjectModal({ onClose }: CopyProjectModalProps) {
       <div className={styles.modal} onMouseDown={(e) => e.stopPropagation()}>
         <h2 className={styles.title}>Копировать проект</h2>
         <p className={styles.hint}>
-          Новый кабинет получит тот же проект Leads Factory: с этого момента лиды будут приходить
+          Новый кабинет получит тот же внешний проект: с этого момента лиды будут приходить
           в оба кабинета синхронно. История до копирования в новый кабинет не переносится.
         </p>
 

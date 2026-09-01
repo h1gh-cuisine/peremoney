@@ -29,7 +29,6 @@ export function SettingsForm() {
   const updateDraft = useSettingsStore((s) => s.updateDraft);
   const saveSettings = useSettingsStore((s) => s.save);
   const loadSettings = useSettingsStore((s) => s.load);
-  const projectType = useSettingsStore((s) => s.projectType);
   const error = useSettingsStore((s) => s.error);
 
   const draftVisibility = useAccessStore((s) => s.draftSectionVisibility);
@@ -38,9 +37,6 @@ export function SettingsForm() {
 
   const [justSaved, setJustSaved] = useState(false);
   const { submitting, run } = useSubmissionLock();
-
-  // "Обзвон" зафиксирован и недоступен для проектов типа "номера" (docs-agent.md 1.11)
-  const callsLocked = projectType === "numbers";
 
   useEffect(() => { void loadSettings(); }, [loadSettings]);
 
@@ -132,7 +128,7 @@ export function SettingsForm() {
 
       <section className={styles.card}>
         <h3 className={styles.cardTitle}>Расписание</h3>
-        <p className={styles.cardHint}>Выберите дни работы и процессы, которые должны запускаться автоматически. Если снять все дни, проект будет ежедневно оставаться на паузе.</p>
+        <p className={styles.cardHint}>Выберите дни работы. Если снять все дни, проект будет ежедневно оставаться на паузе.</p>
 
         <div className={styles.field}>
           <span className={styles.fieldLabel}>Дни работы</span>
@@ -147,37 +143,6 @@ export function SettingsForm() {
             })}
           </div>
         </div>
-
-        <label className={styles.switchRow}>
-          <div className={styles.switchText}>
-            <span className={styles.switchLabel}>Выгрузки</span>
-            <span className={styles.switchHint}>Автоматическая выгрузка контактов из источников</span>
-          </div>
-          <input
-            type="checkbox"
-            className={styles.switchInput}
-            checked={draft.uploadsEnabled}
-            onChange={(e) => updateDraft({ uploadsEnabled: e.target.checked })}
-          />
-        </label>
-
-        <label className={`${styles.switchRow} ${callsLocked ? styles.switchRowDisabled : ""}`}>
-          <div className={styles.switchText}>
-            <span className={styles.switchLabel}>Обзвон</span>
-            <span className={styles.switchHint}>
-              {callsLocked
-                ? 'Проект типа "номера" — статус зафиксирован, переключатель недоступен'
-                : "Автоматический обзвон квалифицированных лидов"}
-            </span>
-          </div>
-          <input
-            type="checkbox"
-            className={styles.switchInput}
-            checked={draft.callsEnabled}
-            disabled={callsLocked}
-            onChange={(e) => updateDraft({ callsEnabled: e.target.checked })}
-          />
-        </label>
       </section>
 
       <section className={styles.card}>

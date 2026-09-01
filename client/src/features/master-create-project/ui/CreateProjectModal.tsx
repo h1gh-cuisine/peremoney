@@ -54,7 +54,7 @@ export function CreateProjectModal({ onClose }: CreateProjectModalProps) {
       if (!active) return;
       setRegions(values);
       setRegionIds((current) => current.length ? current : values[0] ? [values[0].id] : []);
-      setRegionsError(values.length ? "" : "Leads Factory не вернул доступные регионы");
+      setRegionsError(values.length ? "" : "Не удалось загрузить доступные регионы");
     }).catch((error: unknown) => {
       if (active) setRegionsError(error instanceof Error ? error.message : "Не удалось загрузить регионы");
     }).finally(() => { if (active) setRegionsLoading(false); });

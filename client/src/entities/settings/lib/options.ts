@@ -24,7 +24,7 @@ export const SCHEDULE_PRESET_OPTIONS: { value: SchedulePreset; label: string }[]
 /** CRM-интеграции с известной схемой в провайдере (docs-agent.md 3.1) */
 export const CRM_OPTIONS = [{ value: "", label: "Без интеграции" }];
 
-/** Обе интеграции подключаются напрямую через Peremoney, без Leads Factory. */
+/** Обе интеграции подключаются напрямую через Peremoney. */
 export const MESSENGER_OPTIONS = [
   { value: "telegram", label: "Telegram" },
   { value: "max", label: "MAX" },

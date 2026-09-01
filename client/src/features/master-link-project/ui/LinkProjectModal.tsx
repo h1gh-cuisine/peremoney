@@ -10,7 +10,7 @@ interface LinkProjectModalProps {
   onClose: () => void;
 }
 
-/** Подключает к Peremoney уже существующий проект Leads Factory по его внутреннему ID. */
+/** Подключает к Peremoney уже существующий внешний проект по его внутреннему ID. */
 export function LinkProjectModal({ onClose }: LinkProjectModalProps) {
   const managers = useMasterManagersStore((s) => s.managers);
   const linkProject = useMasterProjectsStore((s) => s.linkProject);
@@ -24,7 +24,7 @@ export function LinkProjectModal({ onClose }: LinkProjectModalProps) {
   async function handleSubmit() {
     const projectId = Number(providerProjectId);
     if (!Number.isInteger(projectId) || projectId < 1) {
-      setError("Укажите числовой ID проекта Leads Factory");
+      setError("Укажите числовой ID проекта");
       return;
     }
     const result = await run(() => linkProject({ providerProjectId: projectId, price, managerId }));
@@ -34,13 +34,13 @@ export function LinkProjectModal({ onClose }: LinkProjectModalProps) {
   return (
     <div className={styles.overlay} onMouseDown={onClose}>
       <div className={styles.modal} onMouseDown={(e) => e.stopPropagation()}>
-        <h2 className={styles.title}>Подключить проект Leads Factory</h2>
+        <h2 className={styles.title}>Подключить существующий проект</h2>
         <p className={styles.hint}>
-          Укажите внутренний ID уже существующего проекта. Название, тип и сфера будут получены из Leads Factory.
+          Укажите внутренний ID уже существующего проекта. Название, тип и сфера будут загружены автоматически.
         </p>
 
         <label className={styles.field}>
-          <span className={styles.fieldLabel}>ID проекта Leads Factory</span>
+          <span className={styles.fieldLabel}>ID проекта</span>
           <input
             type="number"
             min={1}

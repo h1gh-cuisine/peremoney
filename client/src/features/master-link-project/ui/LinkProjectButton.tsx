@@ -10,7 +10,7 @@ export function LinkProjectButton() {
   return (
     <>
       <button type="button" className={styles.button} onClick={() => setOpen(true)}>
-        Подключить из Leads Factory
+        Подключить существующий проект
       </button>
       {open && <LinkProjectModal onClose={() => setOpen(false)} />}
     </>
