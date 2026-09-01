@@ -3,11 +3,16 @@
 
 .card {
   @include m.card;
+  display: flex;
+  flex: 1 1 0;
+  min-height: 0;
+  flex-direction: column;
   overflow: hidden;
 }
 
 .tableWrap {
-  max-height: calc(100vh - 180px);
+  flex: 1 1 0;
+  min-height: 0;
   overflow: auto;
   @include m.scrollbar;
 }

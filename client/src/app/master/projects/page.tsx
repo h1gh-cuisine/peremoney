@@ -37,7 +37,7 @@ export default function MasterProjectsPage() {
   return (
     <>
       <Topbar title="Проекты" />
-      <PageBody>
+      <PageBody contained>
         {error && <p role="alert">{error}</p>}
         <div className={styles.actions}>
           <div className={styles.periodFilter}>

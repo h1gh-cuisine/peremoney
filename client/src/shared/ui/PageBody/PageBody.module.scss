@@ -3,7 +3,13 @@
 .body {
   padding: v.$space-8;
   flex: 1;
+  min-height: 0;
   display: flex;
   flex-direction: column;
   gap: v.$space-6;
+}
+
+.contained {
+  height: calc(100vh - #{v.$topbar-height});
+  overflow: hidden;
 }

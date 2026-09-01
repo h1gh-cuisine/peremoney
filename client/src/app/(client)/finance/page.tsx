@@ -31,7 +31,7 @@ export default function FinancePage() {
   return (
     <>
       <Topbar title="Финансы" />
-      <PageBody>
+      <PageBody contained>
         {loading && <p>Загрузка финансов…</p>}
         {error && <p role="alert">{error}</p>}
         <FinanceSummary metrics={metrics} />

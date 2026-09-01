@@ -8,7 +8,7 @@ export default function MasterAuditLogPage() {
   return (
     <>
       <Topbar title="Журнал действий" />
-      <PageBody>
+      <PageBody contained>
         <AuditLogView />
       </PageBody>
     </>

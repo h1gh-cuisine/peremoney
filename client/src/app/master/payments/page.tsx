@@ -29,7 +29,7 @@ export default function MasterPaymentsPage() {
   return (
     <>
       <Topbar title="Платежи" />
-      <PageBody>
+      <PageBody contained>
         {error && <p role="alert">{error}</p>}
         <MasterPaymentsTable
           payments={sorted}

@@ -35,7 +35,7 @@ export default function LeadsPage() {
   return (
     <>
       <Topbar title="Лиды" />
-      <PageBody>
+      <PageBody contained>
         <LeadsFilters />
         {loading && <p>Загрузка лидов…</p>}
         {error && <p role="alert">{error}</p>}

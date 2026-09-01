@@ -20,7 +20,7 @@ export default function ContactsPage() {
   return (
     <>
       <Topbar title="Контакты" />
-      <PageBody>
+      <PageBody contained>
         <ContactsFilters />
         {loading && <p>Загрузка контактов…</p>}
         {error && <p role="alert">{error}</p>}

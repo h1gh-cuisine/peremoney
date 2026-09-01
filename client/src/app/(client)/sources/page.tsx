@@ -35,7 +35,7 @@ export default function SourcesPage() {
   return (
     <>
       <Topbar title="Источники" />
-      <PageBody>
+      <PageBody contained>
         <SourceAutomationPanel />
         <SourcesFilters />
         {loading && <p>Загрузка источников…</p>}
