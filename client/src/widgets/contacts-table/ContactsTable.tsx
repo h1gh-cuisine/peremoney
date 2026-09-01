@@ -1,4 +1,5 @@
 import { formatPhone, formatShortDate } from "@/shared/lib/format";
+import { sourceDisplayName } from "@/shared/lib/sourceDisplayName";
 import { getContactStatusLabel, type Contact } from "@/entities/contacts";
 import styles from "./ContactsTable.module.scss";
 
@@ -29,7 +30,7 @@ export function ContactsTable({ contacts }: ContactsTableProps) {
                   <span className={styles.statusBadge}>{getContactStatusLabel(c.status)}</span>
                 </td>
                 <td>{formatPhone(c.mobileTel)}</td>
-                <td>{c.site}</td>
+                <td title={c.site}>{sourceDisplayName(c.site)}</td>
                 <td>{c.mobileOperator}</td>
               </tr>
             ))}

@@ -1,4 +1,5 @@
 import { formatPhone, formatShortDate } from "@/shared/lib/format";
+import { sourceDisplayName } from "@/shared/lib/sourceDisplayName";
 import { LEAD_STATUS_OPTIONS, type Lead, type LeadStatus } from "@/entities/leads";
 import { RecordingsButton } from "./RecordingsButton";
 import styles from "./LeadsTable.module.scss";
@@ -43,7 +44,7 @@ export function LeadsTable({
                 <td>{formatShortDate(lead.successDate)}</td>
                 <td>{formatPhone(lead.mobileTel)}</td>
                 <td className={styles.comment}>{lead.name}</td>
-                <td>{lead.site}</td>
+                <td title={lead.site}>{sourceDisplayName(lead.site)}</td>
                 <td>
                   <RecordingsButton recordings={lead.recordings} onLoad={() => onRecordingsLoad?.(lead.id)} />
                 </td>

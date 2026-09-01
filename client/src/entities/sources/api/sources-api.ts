@@ -1,5 +1,6 @@
 import { apiClient } from '@/shared/api';
 import type { DateRange } from '@/shared/lib/date';
+import { sourceDisplayName } from '@/shared/lib/sourceDisplayName';
 import type { Source, SourceAutomationSettings, SourceType } from '../model/types';
 
 export interface ApiSource {
@@ -8,12 +9,7 @@ export interface ApiSource {
   normWork: boolean; sourceType: string | null;
 }
 
-export function sourceDisplayName(rawName: string) {
-  const normalized = rawName.trim().replace(/\\+_/g, '_');
-  const first = normalized.indexOf('_');
-  const last = normalized.lastIndexOf('_');
-  return first >= 0 && last > first ? normalized.slice(first + 1, last) : normalized;
-}
+export { sourceDisplayName };
 
 export function mapSourceFromApi(value: ApiSource): Source {
   return { id: value.id, name: sourceDisplayName(value.name), operator: value.operator ?? '', contacts: value.newAnswer,
