@@ -5,7 +5,7 @@ import { useRouter } from "next/navigation";
 import { type LoginResponse, sessionFromLogin, useSessionStore } from "@/entities/session";
 import { apiClient } from "@/shared/api/client";
 import { formatCurrency, formatNumber } from "@/shared/lib/format";
-import { getProjectTypeLabel } from "@/shared/lib/projectType";
+import { getProjectTypeLabel, PROJECT_TYPE_OPTIONS, type ProjectType } from "@/shared/lib/projectType";
 import { projectDisplayName } from "@/shared/lib/projectDisplayName";
 import type { Manager } from "@/entities/master-managers";
 import type { MasterProject, RenewalStatus } from "@/entities/master-projects";
@@ -18,6 +18,8 @@ interface MasterProjectsTableProps {
   managers: Manager[];
   onUpdatePrice: (id: string, price: number) => void;
   onUpdateBalance: (id: string, moneyBalance: number) => Promise<void>;
+  onUpdateType: (id: string, type: ProjectType) => Promise<void>;
+  onUpdateManager: (id: string, managerId: string) => Promise<void>;
   onUpdateRenewalStatus: (id: string, status: RenewalStatus) => void;
   onUpdateClientPassword: (id: string, password: string) => Promise<void> | void;
   onUpdateLinkedProjects: (id: string, linkedProviderProjectIds: number[]) => Promise<void>;
@@ -138,6 +140,8 @@ export function MasterProjectsTable({
   managers,
   onUpdatePrice,
   onUpdateBalance,
+  onUpdateType,
+  onUpdateManager,
   onUpdateRenewalStatus,
   onUpdateClientPassword,
   onUpdateLinkedProjects,
@@ -146,6 +150,7 @@ export function MasterProjectsTable({
   onDelete,
 }: MasterProjectsTableProps) {
   const [showHidden, setShowHidden] = useState(false);
+  const [search, setSearch] = useState("");
   const [sort, setSort] = useState<{ key: SortKey; direction: SortDirection }>({ key: "name", direction: "asc" });
   const [openingId, setOpeningId] = useState<string | null>(null);
   const [openError, setOpenError] = useState("");
@@ -164,10 +169,12 @@ export function MasterProjectsTable({
 
   const managerName = (id: string) => managerNames.get(id) ?? "—";
 
-  const visible = useMemo(
-    () => (showHidden ? projects : projects.filter((p) => !p.hidden)),
-    [projects, showHidden],
-  );
+  const visible = useMemo(() => {
+    const query = search.trim().toLocaleLowerCase("ru");
+    return (showHidden ? projects : projects.filter((p) => !p.hidden)).filter((project) =>
+      !query || project.name.toLocaleLowerCase("ru").includes(query)
+        || projectDisplayName(project.name).toLocaleLowerCase("ru").includes(query));
+  }, [projects, search, showHidden]);
 
   const sortedProjects = useMemo(() => {
     const value = (project: MasterProject): string | number | boolean | null => {
@@ -230,6 +237,9 @@ export function MasterProjectsTable({
       <div className={styles.toolbar}>
         <span className={styles.tableCount}>Показано: {visible.length}</span>
         {openError && <span className={styles.openError} role="alert">{openError}</span>}
+        <input className={styles.projectSearch} type="search" value={search}
+          placeholder="Поиск по проектам" aria-label="Поиск по проектам"
+          onChange={(event) => setSearch(event.target.value)} />
         <button type="button" className={styles.toggleHiddenBtn} onClick={() => setShowHidden((v) => !v)}>
           {showHidden ? "Скрыть спрятанные" : "Показать скрытые"}
         </button>
@@ -267,8 +277,21 @@ export function MasterProjectsTable({
                 <td className={styles.nameCell}>
                   <span className={styles.projectName} title={p.name}>{projectDisplayName(p.name)}</span>
                 </td>
-                <td>{managerName(p.managerId)}</td>
-                <td>{getProjectTypeLabel(p.type)}</td>
+                <td>
+                  <select className={styles.inlineSelect} value={p.managerId}
+                    aria-label={`Менеджер проекта ${projectDisplayName(p.name)}`}
+                    onChange={(event) => void onUpdateManager(p.id, event.target.value)}>
+                    {!managers.some((manager) => manager.id === p.managerId) && <option value={p.managerId}>{managerName(p.managerId)}</option>}
+                    {managers.map((manager) => <option key={manager.id} value={manager.id}>{manager.name}</option>)}
+                  </select>
+                </td>
+                <td>
+                  <select className={styles.inlineSelect} value={p.type}
+                    aria-label={`Тип проекта ${projectDisplayName(p.name)}`}
+                    onChange={(event) => void onUpdateType(p.id, event.target.value as ProjectType)}>
+                    {PROJECT_TYPE_OPTIONS.map((option) => <option key={option.value} value={option.value}>{option.label}</option>)}
+                  </select>
+                </td>
                 <td>{formatNumber(p.contactsExported)}</td>
                 <td>{formatNumber(p.leadsExported)}</td>
                 <td>{formatNumber(p.sales)}</td>

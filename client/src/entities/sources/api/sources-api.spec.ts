@@ -1,5 +1,5 @@
 import { apiClient } from '@/shared/api';
-import { automationToApi, buildSourcesQuery, fetchAutomation, mapSourceFromApi, normalizeTagTypes } from './sources-api';
+import { automationToApi, buildSourcesQuery, fetchAutomation, mapSourceFromApi, normalizeTagTypes, sourceDisplayName } from './sources-api';
 
 jest.mock('@/shared/api', () => ({ apiClient: jest.fn() }));
 
@@ -19,6 +19,12 @@ describe('sources API contract', () => {
       conversion: '25.0000', sebes: '140.50', notTargetShare: 75, sales: 2, normWork: true, sourceType: null }))
       .toEqual({ id: 's1', name: 'site.ru', operator: '', contacts: 12, leads: 3, conversion: 25,
         cost: 140.5, notRelevantShare: 75, sales: 2, active: true, sourceType: 'phone' });
+  });
+
+  it('always removes Leads Factory technical prefix and suffix from source names', () => {
+    expect(sourceDisplayName('B222_79661569662_26013')).toBe('79661569662');
+    expect(sourceDisplayName('B222\\_79661569662\\_26013')).toBe('79661569662');
+    expect(sourceDisplayName('B320_example.com_093209')).toBe('example.com');
   });
 
   it('sends the applied period with inclusive calendar dates', () => {

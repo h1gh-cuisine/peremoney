@@ -71,8 +71,23 @@
   }
 }
 
+.projectSearch {
+  width: min(280px, 32vw);
+  min-width: 180px;
+  padding: v.$space-2 v.$space-3;
+  border: 1px solid v.$color-border;
+  border-radius: v.$radius-sm;
+  background: v.$color-bg-card;
+  color: v.$color-text-primary;
+  font: inherit;
+
+  &::placeholder { color: v.$color-text-muted; }
+  &:focus-visible { @include m.focus-ring; }
+}
+
 .tableWrap {
-  overflow-x: auto;
+  max-height: calc(100vh - 180px);
+  overflow: auto;
   @include m.scrollbar;
 }
 
@@ -89,6 +104,10 @@
   }
 
   th {
+    position: sticky;
+    top: 0;
+    z-index: 3;
+    background: v.$color-bg-card;
     color: v.$color-text-muted;
     font-weight: 500;
     font-size: v.$font-size-xs;
@@ -121,7 +140,7 @@
   }
 
   th:first-child {
-    z-index: 3;
+    z-index: 4;
     color: v.$color-text-secondary;
     font-weight: 700;
   }
@@ -162,7 +181,8 @@
 
 .priceInput,
 .passwordInput,
-.statusSelect {
+.statusSelect,
+.inlineSelect {
   background: v.$color-bg-card;
   border: 1px solid v.$color-border;
   border-radius: v.$radius-sm;
@@ -173,6 +193,11 @@
   &:focus-visible {
     @include m.focus-ring;
   }
+}
+
+.inlineSelect {
+  min-width: 140px;
+  cursor: pointer;
 }
 
 .priceInput {

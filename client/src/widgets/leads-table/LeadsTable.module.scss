@@ -13,6 +13,7 @@
 
 .table {
   width: 100%;
+  min-width: 1800px;
   table-layout: fixed;
   border-collapse: collapse;
   font-size: v.$font-size-sm;
@@ -27,13 +28,13 @@
   }
 
   // ID лида
-  th:nth-child(1), td:nth-child(1) { width: 90px; }
+  th:nth-child(1), td:nth-child(1) { width: 160px; }
   // Дата
   th:nth-child(2), td:nth-child(2) { width: 90px; }
   // Телефон
-  th:nth-child(3), td:nth-child(3) { width: 120px; }
+  th:nth-child(3), td:nth-child(3) { width: 210px; }
   // Комментарий
-  th:nth-child(4), td:nth-child(4) { width: 200px; }
+  th:nth-child(4), td:nth-child(4) { width: 420px; }
   // Источник
   th:nth-child(5), td:nth-child(5) { width: 170px; }
   // Запись
@@ -76,7 +77,7 @@
 }
 
 .comment {
-  max-width: 220px;
+  max-width: 420px;
   white-space: normal;
   color: v.$color-text-secondary;
 }

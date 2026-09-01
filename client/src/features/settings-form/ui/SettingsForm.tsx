@@ -4,10 +4,6 @@ import { useEffect, useState } from "react";
 import {
   useSettingsStore,
   TIMEZONE_OPTIONS,
-  MESSENGER_OPTIONS,
-  fetchDirectIntegration,
-  saveDirectIntegration,
-  type DirectIntegrationConfig,
 } from "@/entities/settings";
 import { useAccessStore, type HideableSection } from "@/entities/access";
 import styles from "./SettingsForm.module.scss";
@@ -27,9 +23,6 @@ const WEEK_DAYS = [
   { value: 7, short: "Вс", label: "Воскресенье" },
 ];
 
-type DirectChannel = "telegram" | "max";
-type IntegrationOption = { value: DirectChannel; label: string };
-
 export function SettingsForm() {
   const accessLevel = useAccessStore((s) => s.accessLevel);
   const draft = useSettingsStore((s) => s.draft);
@@ -37,7 +30,6 @@ export function SettingsForm() {
   const saveSettings = useSettingsStore((s) => s.save);
   const loadSettings = useSettingsStore((s) => s.load);
   const projectType = useSettingsStore((s) => s.projectType);
-  const cabinetId = useSettingsStore((s) => s.cabinetId);
   const error = useSettingsStore((s) => s.error);
 
   const draftVisibility = useAccessStore((s) => s.draftSectionVisibility);
@@ -45,32 +37,12 @@ export function SettingsForm() {
   const commitVisibilityDraft = useAccessStore((s) => s.commitVisibilityDraft);
 
   const [justSaved, setJustSaved] = useState(false);
-  const [integration, setIntegration] = useState<IntegrationOption | null>(null);
-  const [integrationConfigs, setIntegrationConfigs] = useState<Partial<Record<DirectChannel, DirectIntegrationConfig>>>({});
-  const [integrationLoading, setIntegrationLoading] = useState(false);
-  const [integrationSaving, setIntegrationSaving] = useState(false);
-  const [integrationError, setIntegrationError] = useState("");
-  const [botToken, setBotToken] = useState("");
-  const [chatId, setChatId] = useState("");
-  const [integrationEnabled, setIntegrationEnabled] = useState(true);
   const { submitting, run } = useSubmissionLock();
 
   // "Обзвон" зафиксирован и недоступен для проектов типа "номера" (docs-agent.md 1.11)
   const callsLocked = projectType === "numbers";
 
   useEffect(() => { void loadSettings(); }, [loadSettings]);
-
-  useEffect(() => {
-    if (!cabinetId) return;
-    let active = true;
-    for (const option of MESSENGER_OPTIONS) {
-      const channel = option.value as DirectChannel;
-      void fetchDirectIntegration(cabinetId, channel).then((result) => {
-        if (active) setIntegrationConfigs((current) => ({ ...current, [channel]: result }));
-      }).catch(() => undefined);
-    }
-    return () => { active = false; };
-  }, [cabinetId]);
 
   if (accessLevel === "limited") {
     return (
@@ -96,44 +68,6 @@ export function SettingsForm() {
     const schedulePreset = next.length === 7 ? "everyday"
       : next.join(",") === "5,6" ? "weekends" : "weekdays";
     updateDraft({ scheduleDays: next, schedulePreset });
-  }
-
-  async function openIntegration(option: IntegrationOption) {
-    setIntegration(option);
-    setBotToken(""); setChatId(""); setIntegrationEnabled(true); setIntegrationError("");
-    if (!cabinetId) return;
-    setIntegrationLoading(true);
-    try {
-      const result = await fetchDirectIntegration(cabinetId, option.value);
-      setIntegrationConfigs((current) => ({ ...current, [option.value]: result }));
-      setChatId(result.chatId); setIntegrationEnabled(result.enabled);
-    } catch (reason) { setIntegrationError(reason instanceof Error ? reason.message : "Не удалось загрузить интеграцию"); }
-    finally { setIntegrationLoading(false); }
-  }
-
-  function integrationStatus(value: DirectChannel) {
-    const config = integrationConfigs[value];
-    if (!config) return "Проверяем…";
-    if (!config.configured) return "Не подключено";
-    return config.enabled ? "Подключено" : "Отключено";
-  }
-
-  async function saveIntegration() {
-    if (!cabinetId || !integration || !chatId.trim()) return;
-    const existing = integrationConfigs[integration.value];
-    if (!existing?.hasToken && botToken.trim().length < 10) {
-      setIntegrationError("Укажите bot token"); return;
-    }
-    setIntegrationSaving(true); setIntegrationError("");
-    try {
-      const result = await saveDirectIntegration(cabinetId, integration.value, {
-        ...(botToken.trim() ? { botToken: botToken.trim() } : {}), chatId: chatId.trim(), enabled: integrationEnabled,
-      });
-      setIntegrationConfigs((current) => ({ ...current, [integration.value]: result }));
-      updateDraft({ messengerIntegrations: Array.from(new Set([...draft.messengerIntegrations, integration.value])) });
-      setIntegration(null);
-    } catch (reason) { setIntegrationError(reason instanceof Error ? reason.message : "Не удалось сохранить интеграцию"); }
-    finally { setIntegrationSaving(false); }
   }
 
   async function handleSave() {
@@ -245,62 +179,6 @@ export function SettingsForm() {
           />
         </label>
       </section>
-
-      <section className={styles.card}>
-        <h3 className={styles.cardTitle}>Интеграции</h3>
-        <div className={styles.field}>
-          <span className={styles.fieldLabel}>Мессенджеры</span>
-          <div className={styles.integrationGrid}>
-            {MESSENGER_OPTIONS.map((opt) => (
-              <button key={opt.value} type="button" className={styles.integrationButton}
-                onClick={() => void openIntegration(opt as IntegrationOption)}>
-                <span className={styles.integrationMark}>{opt.label.slice(0, 1)}</span>
-                <span><strong>{opt.label}</strong><small>{integrationStatus(opt.value as DirectChannel)}</small></span>
-                <span className={styles.configure}>Настроить</span>
-              </button>
-            ))}
-          </div>
-        </div>
-      </section>
-
-      {integration && <div className={styles.overlay} role="presentation" onMouseDown={() => setIntegration(null)}>
-        <section className={styles.modal} role="dialog" aria-modal="true" aria-labelledby="integration-title"
-          onMouseDown={(event) => event.stopPropagation()}>
-          <div className={styles.modalHeader}>
-            <div><span className={styles.modalEyebrow}>Интеграция</span><h3 id="integration-title">{integration.label}</h3></div>
-            <button type="button" className={styles.closeButton} aria-label="Закрыть" onClick={() => setIntegration(null)}>×</button>
-          </div>
-          <div className={styles.connectionState}>
-            <span className={`${styles.statusDot} ${integrationConfigs[integration.value]?.enabled ? styles.statusDotActive : ""}`} />
-            <span>{integrationStatus(integration.value)}</span>
-          </div>
-          {integrationLoading ? <p className={styles.modalHint}>Загружаем настройки…</p> : <>
-            <label className={styles.field}>
-              <span className={styles.fieldLabel}>Bot token</span>
-              <input type="password" className={styles.input} autoComplete="new-password"
-                placeholder={integrationConfigs[integration.value]?.hasToken ? "Токен сохранён — оставьте пустым, чтобы не менять" : "Вставьте токен бота"}
-                value={botToken} onChange={(event) => setBotToken(event.target.value)} />
-            </label>
-            <label className={styles.field}>
-              <span className={styles.fieldLabel}>ID чата</span>
-              <input type="text" className={styles.input} placeholder="Например, -1001234567890"
-                value={chatId} onChange={(event) => setChatId(event.target.value)} />
-            </label>
-            <label className={styles.checkboxItem}>
-              <input type="checkbox" checked={integrationEnabled}
-                onChange={(event) => setIntegrationEnabled(event.target.checked)} />
-              Интеграция активна
-            </label>
-            <p className={styles.modalHint}>Подключение выполняется напрямую через Peremoney. Сохранённый токен обратно в браузер не возвращается.</p>
-          </>}
-          {integrationError && <p role="alert" className={styles.integrationNotice}>{integrationError}</p>}
-          <div className={styles.modalActions}>
-            <button type="button" className={styles.secondaryButton} onClick={() => setIntegration(null)}>Закрыть</button>
-            <button type="button" className={styles.primaryButton} disabled={integrationLoading || integrationSaving || !chatId.trim()}
-              onClick={() => void saveIntegration()}>{integrationSaving ? "Сохраняем…" : "Сохранить"}</button>
-          </div>
-        </section>
-      </div>}
 
       <section className={styles.card}>
         <h3 className={styles.cardTitle}>Управление доступом</h3>

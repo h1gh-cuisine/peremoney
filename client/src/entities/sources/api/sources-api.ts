@@ -7,8 +7,16 @@ export interface ApiSource {
   conversion: string | number; sebes: string | number; notTargetShare: number; sales: number;
   normWork: boolean; sourceType: string | null;
 }
+
+export function sourceDisplayName(rawName: string) {
+  const normalized = rawName.trim().replace(/\\+_/g, '_');
+  const first = normalized.indexOf('_');
+  const last = normalized.lastIndexOf('_');
+  return first >= 0 && last > first ? normalized.slice(first + 1, last) : normalized;
+}
+
 export function mapSourceFromApi(value: ApiSource): Source {
-  return { id: value.id, name: value.name, operator: value.operator ?? '', contacts: value.newAnswer,
+  return { id: value.id, name: sourceDisplayName(value.name), operator: value.operator ?? '', contacts: value.newAnswer,
     leads: value.success, conversion: Number(value.conversion), cost: Number(value.sebes),
     notRelevantShare: value.notTargetShare, sales: value.sales, active: value.normWork,
     sourceType: value.sourceType === 'domain' ? 'domain' : 'phone' };

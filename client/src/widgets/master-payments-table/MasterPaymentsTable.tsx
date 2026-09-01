@@ -11,6 +11,10 @@ interface MasterPaymentsTableProps {
   onDelete: (id: string) => void;
 }
 
+function projectDisplayName(name: string) {
+  return name.split('/').map((part) => part.trim()).filter(Boolean).at(-1) ?? name;
+}
+
 /** Статус переключает менеджер вручную; любой платёж можно удалить (docs-agent.md 1.12.3) */
 export function MasterPaymentsTable({ payments, managers, onStatusChange, onDelete }: MasterPaymentsTableProps) {
   const [pendingChange, setPendingChange] = useState<{ payment: MasterPayment; status: MasterPaymentStatus } | null>(null);
@@ -54,7 +58,7 @@ export function MasterPaymentsTable({ payments, managers, onStatusChange, onDele
             {payments.map((p) => (
               <tr key={p.id}>
                 <td>{formatShortDate(p.createdAt)}</td>
-                <td>{p.projectName}</td>
+                <td title={p.projectName}>{projectDisplayName(p.projectName)}</td>
                 <td>{p.legalEntity}</td>
                 <td>{managerName(p.managerId)}</td>
                 <td>{formatCurrency(p.amount)}</td>
@@ -66,7 +70,7 @@ export function MasterPaymentsTable({ payments, managers, onStatusChange, onDele
                     <select
                       className={styles.statusSelect}
                       value={p.status}
-                      aria-label={`Статус платежа ${p.projectName}`}
+                      aria-label={`Статус платежа ${projectDisplayName(p.projectName)}`}
                       onChange={(event) => {
                         const status = event.target.value as MasterPaymentStatus;
                         if (status !== p.status) setPendingChange({ payment: p, status });
@@ -102,7 +106,7 @@ export function MasterPaymentsTable({ payments, managers, onStatusChange, onDele
           >
             <h2 id="payment-status-confirm-title">Изменить статус платежа?</h2>
             <p>
-              Платёж проекта <strong>{pendingChange.payment.projectName}</strong> на сумму{" "}
+              Платёж проекта <strong>{projectDisplayName(pendingChange.payment.projectName)}</strong> на сумму{" "}
               <strong>{formatCurrency(pendingChange.payment.amount)}</strong> будет отмечен как{" "}
               <strong>{pendingChange.status === "paid" ? "«Оплачено»" : "«Ожидает»"}</strong>.
             </p>

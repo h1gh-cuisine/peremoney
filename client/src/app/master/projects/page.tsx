@@ -21,6 +21,8 @@ export default function MasterProjectsPage() {
   const projects = useMasterProjectsStore((s) => s.projects);
   const updatePrice = useMasterProjectsStore((s) => s.updatePrice);
   const updateBalance = useMasterProjectsStore((s) => s.updateBalance);
+  const updateType = useMasterProjectsStore((s) => s.updateType);
+  const updateManager = useMasterProjectsStore((s) => s.updateManager);
   const updateRenewalStatus = useMasterProjectsStore((s) => s.updateRenewalStatus);
   const updateClientPassword = useMasterProjectsStore((s) => s.updateClientPassword);
   const updateLinkedProjects = useMasterProjectsStore((s) => s.updateLinkedProjects);
@@ -55,6 +57,8 @@ export default function MasterProjectsPage() {
           managers={managers}
           onUpdatePrice={updatePrice}
           onUpdateBalance={updateBalance}
+          onUpdateType={updateType}
+          onUpdateManager={updateManager}
           onUpdateRenewalStatus={updateRenewalStatus}
           onUpdateClientPassword={updateClientPassword}
           onUpdateLinkedProjects={updateLinkedProjects}

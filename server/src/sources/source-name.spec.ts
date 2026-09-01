@@ -7,6 +7,7 @@ describe('parseSourceName', () => {
     expect(parseSourceName('B1291_example.com_32092309')).toEqual({ name: 'example.com', operator: null });
     expect(parseSourceName('B320_79658824885_093209')).toEqual({ name: '79658824885', operator: null });
     expect(parseSourceName('B320_example.com_093209')).toEqual({ name: 'example.com', operator: null });
+    expect(parseSourceName('B222\\_79661569662\\_26013')).toEqual({ name: '79661569662', operator: 'Билайн' });
   });
 
   it('keeps unknown formats without losing data', () => {

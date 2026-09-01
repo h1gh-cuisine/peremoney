@@ -38,8 +38,7 @@ describe('Settings UI RBAC', () => {
 
     expect(html).toContain('Сохранить настройки');
     expect(html).toContain('Управление доступом');
-    expect(html).toContain('Telegram');
-    expect(html).toContain('MAX');
+    expect(html).not.toContain('Интеграции');
     expect(html).not.toContain('Bitrix24');
     expect(html).not.toContain('AmoCRM');
     expect(html).not.toContain('Email');
