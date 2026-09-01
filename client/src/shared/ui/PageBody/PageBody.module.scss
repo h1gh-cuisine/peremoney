@@ -1,4 +1,5 @@
 @use "variables" as v;
+@use "mixins" as m;
 
 .body {
   padding: v.$space-8;
@@ -7,6 +8,8 @@
   display: flex;
   flex-direction: column;
   gap: v.$space-6;
+  overflow: auto;
+  @include m.scrollbar;
 }
 
 .contained {
