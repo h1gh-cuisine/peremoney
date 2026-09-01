@@ -11,10 +11,12 @@ export class RateLimitMiddleware implements NestMiddleware {
     const kind = path.endsWith('/auth/login') ? 'login'
       : /\/fanout\/[^/]+\/leads(?:\?|$)/.test(path) ? 'fanout'
       : req.method === 'DELETE' && /\/cabinets\/[^/?]+(?:\?|$)/.test(path) ? 'project-delete'
+      : req.method === 'GET' && /\/audit-log(?:\?|$)/.test(path) ? 'audit-log'
         : null;
     if (!kind) return next();
-    const limitKey = kind === 'login' ? 'LOGIN_RATE_LIMIT' : kind === 'fanout' ? 'FANOUT_RATE_LIMIT' : 'PROJECT_DELETE_RATE_LIMIT';
-    const defaultLimit = kind === 'login' ? 10 : kind === 'fanout' ? 120 : 5;
+    const limitKey = kind === 'login' ? 'LOGIN_RATE_LIMIT' : kind === 'fanout' ? 'FANOUT_RATE_LIMIT'
+      : kind === 'audit-log' ? 'AUDIT_LOG_RATE_LIMIT' : 'PROJECT_DELETE_RATE_LIMIT';
+    const defaultLimit = kind === 'login' ? 10 : kind === 'fanout' ? 120 : kind === 'audit-log' ? 30 : 5;
     const limit = Number(this.config.get(limitKey, defaultLimit));
     const windowMs = Number(this.config.get(kind === 'project-delete' ? 'PROJECT_DELETE_RATE_LIMIT_WINDOW_MS' : 'RATE_LIMIT_WINDOW_MS', 60_000));
     const ip = req.ip ?? req.socket?.remoteAddress ?? 'unknown';

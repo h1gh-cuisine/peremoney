@@ -25,6 +25,14 @@ export function formatDateRuLong(iso: string): string {
   }).format(d);
 }
 
+export function formatDateTimeRu(iso: string): string {
+  const d = new Date(iso);
+  if (Number.isNaN(d.getTime())) return "—";
+  return new Intl.DateTimeFormat("ru-RU", {
+    day: "2-digit", month: "2-digit", year: "numeric", hour: "2-digit", minute: "2-digit", second: "2-digit",
+  }).format(d);
+}
+
 /** Форматирует сырые цифры номера ("79123456789") в "+7 912 345-67-89". */
 export function formatPhone(raw: string): string {
   const digits = raw.replace(/\D/g, "");

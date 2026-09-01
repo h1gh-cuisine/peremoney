@@ -1,0 +1,274 @@
+@use "variables" as v;
+@use "mixins" as m;
+
+.gate {
+  display: grid;
+  place-items: center;
+  padding: v.$space-8 v.$space-4;
+}
+
+.gateCard {
+  @include m.card;
+  width: min(420px, 100%);
+  padding: v.$space-6;
+
+  h2 {
+    margin: 0 0 v.$space-2;
+    color: v.$color-text-primary;
+    font-size: v.$font-size-lg;
+  }
+}
+
+.gateHint {
+  margin: 0 0 v.$space-4;
+  color: v.$color-text-muted;
+  font-size: v.$font-size-sm;
+  line-height: 1.5;
+}
+
+.gateError {
+  margin: v.$space-3 0 0;
+  color: v.$color-danger;
+  font-size: v.$font-size-sm;
+}
+
+.field {
+  display: flex;
+  flex-direction: column;
+  gap: v.$space-1;
+  font-size: v.$font-size-sm;
+  color: v.$color-text-secondary;
+}
+
+.input {
+  padding: v.$space-2 v.$space-3;
+  border: 1px solid v.$color-border;
+  border-radius: v.$radius-sm;
+  background: v.$color-bg-card;
+  color: v.$color-text-primary;
+  font: inherit;
+
+  &:focus {
+    outline: none;
+    border-color: v.$color-accent-1;
+  }
+}
+
+.unlockBtn {
+  @include m.button-reset;
+  width: 100%;
+  margin-top: v.$space-4;
+  padding: v.$space-2 v.$space-4;
+  border-radius: v.$radius-sm;
+  background: v.$color-accent-1;
+  color: v.$color-text-on-accent;
+  font-size: v.$font-size-sm;
+  text-align: center;
+
+  &:disabled {
+    opacity: 0.55;
+    cursor: not-allowed;
+  }
+}
+
+.card {
+  @include m.card;
+  overflow: hidden;
+}
+
+.toolbar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: v.$space-3;
+  padding: v.$space-3 v.$space-4;
+  border-bottom: 1px solid v.$color-border-subtle;
+}
+
+.count {
+  color: v.$color-text-muted;
+  font-size: v.$font-size-xs;
+}
+
+.select,
+.search {
+  padding: v.$space-2 v.$space-3;
+  border: 1px solid v.$color-border;
+  border-radius: v.$radius-sm;
+  background: v.$color-bg-card;
+  color: v.$color-text-primary;
+  font: inherit;
+  font-size: v.$font-size-sm;
+}
+
+.search {
+  min-width: 240px;
+}
+
+.lockBtn {
+  @include m.button-reset;
+  margin-left: auto;
+  padding: v.$space-2 v.$space-3;
+  border: 1px solid v.$color-border;
+  border-radius: v.$radius-sm;
+  color: v.$color-text-secondary;
+  font-size: v.$font-size-xs;
+}
+
+.error {
+  margin: 0;
+  padding: v.$space-2 v.$space-4;
+  color: v.$color-danger;
+  font-size: v.$font-size-sm;
+}
+
+.tableWrap {
+  overflow-x: auto;
+  @include m.scrollbar;
+}
+
+.table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: v.$font-size-sm;
+
+  th,
+  td {
+    padding: v.$space-3 v.$space-4;
+    text-align: left;
+    white-space: nowrap;
+  }
+
+  th {
+    color: v.$color-text-muted;
+    font-weight: 500;
+    font-size: v.$font-size-xs;
+    text-transform: uppercase;
+    letter-spacing: 0.03em;
+    border-bottom: 1px solid v.$color-border-subtle;
+  }
+
+  td {
+    max-width: 320px;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+}
+
+.row {
+  cursor: pointer;
+  border-bottom: 1px solid v.$color-border-subtle;
+
+  &:hover {
+    background: v.$color-bg-hover;
+  }
+}
+
+.mono {
+  color: v.$color-text-secondary;
+  font-variant-numeric: tabular-nums;
+  font-size: v.$font-size-xs;
+}
+
+.badge {
+  display: inline-flex;
+  padding: 2px v.$space-3;
+  border-radius: v.$radius-full;
+  font-size: v.$font-size-xs;
+  white-space: nowrap;
+}
+
+.success {
+  background: rgba(v.$color-accent-alt, 0.14);
+  color: v.$color-accent-alt;
+}
+
+.denied {
+  background: rgba(v.$color-danger, 0.14);
+  color: v.$color-danger;
+}
+
+.error {
+  background: rgba(v.$color-warning, 0.14);
+  color: v.$color-warning;
+}
+
+.detailsRow td {
+  white-space: normal;
+  background: v.$color-bg-hover;
+}
+
+.reason {
+  margin: 0 0 v.$space-2;
+  color: v.$color-danger;
+  font-size: v.$font-size-sm;
+}
+
+.detailBlock {
+  margin-bottom: v.$space-3;
+
+  &:last-child {
+    margin-bottom: 0;
+  }
+}
+
+.detailLabel {
+  display: block;
+  margin-bottom: v.$space-1;
+  color: v.$color-text-muted;
+  font-size: v.$font-size-xs;
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+}
+
+.detailPre {
+  margin: 0;
+  padding: v.$space-3;
+  border-radius: v.$radius-sm;
+  background: v.$color-bg-card;
+  color: v.$color-text-secondary;
+  font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  font-size: v.$font-size-xs;
+  white-space: pre-wrap;
+  word-break: break-word;
+  max-height: 320px;
+  overflow-y: auto;
+  @include m.scrollbar;
+}
+
+.userAgent {
+  margin: v.$space-2 0 0;
+  color: v.$color-text-muted;
+  font-size: v.$font-size-xs;
+}
+
+.empty {
+  padding: v.$space-8;
+  text-align: center;
+  color: v.$color-text-muted;
+  font-size: v.$font-size-sm;
+}
+
+.pagination {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: v.$space-4;
+  padding: v.$space-3 v.$space-4;
+  border-top: 1px solid v.$color-border-subtle;
+  color: v.$color-text-muted;
+  font-size: v.$font-size-sm;
+
+  button {
+    @include m.button-reset;
+    padding: v.$space-1 v.$space-3;
+    border: 1px solid v.$color-border;
+    border-radius: v.$radius-sm;
+    color: v.$color-text-secondary;
+
+    &:disabled {
+      opacity: 0.4;
+      cursor: not-allowed;
+    }
+  }
+}

@@ -18,4 +18,13 @@ describe('RateLimitMiddleware', () => {
     expect(limited.status).toHaveBeenCalledWith(429);
     expect(limited.json).toHaveBeenCalledWith({ statusCode: 429, message: 'Слишком много запросов' });
   });
+
+  it('limits audit log listing attempts independently', () => {
+    const middleware = new RateLimitMiddleware({ get: (key:string, fallback:number) => key === 'AUDIT_LOG_RATE_LIMIT' ? 1 : fallback } as never);
+    const response = () => ({ status: jest.fn(), json: jest.fn() }); const next = jest.fn();
+    middleware.use({ method: 'GET', path:'/api/audit-log', ip:'3' }, response(), next);
+    const limited = response();
+    middleware.use({ method: 'GET', path:'/api/audit-log', ip:'3' }, limited, next);
+    expect(limited.status).toHaveBeenCalledWith(429);
+  });
 });

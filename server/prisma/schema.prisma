@@ -154,6 +154,7 @@ model Cabinet {
   fanoutDestinations FanoutDestination[]
   fanoutDeliveries FanoutDelivery[]
   providerCreation ProviderProjectCreation?
+  auditLogs       AuditLog[]
 
   @@index([providerProjectId])
 }
@@ -471,6 +472,38 @@ model User {
   createdAt    DateTime  @default(now())
   updatedAt    DateTime  @updatedAt
   paymentAuditEvents PaymentAudit[]
+  auditLogs    AuditLog[]
 
   @@index([cabinetId])
+}
+
+// Системный журнал: каждая мутация (POST/PUT/PATCH/DELETE) и каждая попытка
+// доступа с 401/403 (в т.ч. GET) фиксируются глобальным interceptor'ом и
+// exception filter'ом (см. server/src/audit-log). Обычные успешные GET не
+// пишутся — они уже видны в текстовом HTTP-логе (request-logging.middleware).
+model AuditLog {
+  id         String    @id @default(uuid()) @db.Uuid
+  actorId    String?   @db.Uuid
+  actor      User?     @relation(fields: [actorId], references: [id], onDelete: SetNull)
+  actorLogin String?
+  actorRole  String?
+  cabinetId  String?   @db.Uuid
+  cabinet    Cabinet?  @relation(fields: [cabinetId], references: [id], onDelete: SetNull)
+  action     String
+  method     String
+  path       String
+  statusCode Int
+  outcome    String
+  payload    Json?
+  result     Json?
+  reason     String?
+  ip         String?
+  userAgent  String?
+  requestId  String?
+  createdAt  DateTime  @default(now())
+
+  @@index([actorId, createdAt])
+  @@index([cabinetId, createdAt])
+  @@index([outcome, createdAt])
+  @@index([createdAt])
 }

@@ -11,6 +11,7 @@ import { SourcesModule } from './sources/sources.module';
 import { SchedulerModule } from './scheduler/scheduler.module';
 import { FinanceModule } from './finance/finance.module';
 import { FanoutModule } from './fanout/fanout.module';
+import { AuditLogModule } from './audit-log/audit-log.module';
 
 @Module({
   imports: [
@@ -24,6 +25,7 @@ import { FanoutModule } from './fanout/fanout.module';
     SchedulerModule,
     FinanceModule,
     FanoutModule,
+    AuditLogModule,
   ],
   controllers: [HealthController],
 })

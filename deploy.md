@@ -73,6 +73,7 @@ INTEGRATION_ENCRYPTION_KEY=<отдельный стабильный секрет
 MASTER_LOGIN=<production login>
 MASTER_PASSWORD=<первичный production password>
 PROJECT_DELETE_SECRET=<отдельный случайный код удаления проектов>
+AUDIT_LOG_SECRET=<отдельный код доступа к журналу действий>
 CORS_ORIGINS=https://peremony.ru,https://www.peremony.ru
 SWAGGER_ENABLED=false
 ```
@@ -86,6 +87,7 @@ SWAGGER_ENABLED=false
 - В production Swagger должен быть выключен.
 - `MASTER_LOGIN` и `MASTER_PASSWORD` создают MASTER только при первом запуске. Смена env не меняет пароль существующего MASTER: bootstrap выполняет upsert с пустым update.
 - `PROJECT_DELETE_SECRET` обязателен: без него endpoint удаления fail-closed отвечает 503. Не использовать пароль MASTER и не передавать его в `NEXT_PUBLIC_*`.
+- `AUDIT_LOG_SECRET` обязателен для просмотра `GET /api/audit-log` (MASTER + заголовок `X-Audit-Secret`); без него endpoint fail-closed отвечает 503. Отдельный секрет от `PROJECT_DELETE_SECRET` и пароля MASTER, не передавать в `NEXT_PUBLIC_*`.
 
 ### 4.2. Leads Factory
 
@@ -162,6 +164,7 @@ LOGIN_RATE_LIMIT=10
 FANOUT_RATE_LIMIT=120
 PROJECT_DELETE_RATE_LIMIT=5
 PROJECT_DELETE_RATE_LIMIT_WINDOW_MS=60000
+AUDIT_LOG_RATE_LIMIT=30
 RATE_LIMIT_WINDOW_MS=60000
 ```
 
