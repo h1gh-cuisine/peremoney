@@ -247,7 +247,8 @@ export class FinanceService {
 
   async clientDashboard(cabinetId: string, query: AnalyticsQueryDto) {
     const range = this.range(query);
-    const [contacts, leads, charges] = await Promise.all([
+    const [cabinet, contacts, leads, charges] = await Promise.all([
+      this.prisma.cabinet.findUniqueOrThrow({ where: { id: cabinetId }, select: { type: true, price: true } }),
       this.prisma.contact.findMany({ where: { cabinetId, date: range }, select: { date: true } }),
       this.prisma.lead.findMany({ where: { cabinetId, successDate: range }, select: {
         successDate: true, saleStatus: true, amount: true,
@@ -261,14 +262,18 @@ export class FinanceService {
     const spent = -charges.reduce((sum, entry) => sum + Number(entry.moneyDelta), 0);
     const qualified = leads.length;
     const conversion = qualified ? sold.length / qualified * 100 : 0;
-    const cpl = qualified ? spent / qualified : 0;
+    const contactToLeadConversion = contacts.length ? qualified / contacts.length : 0;
+    const unitPrice = Number(cabinet.price);
+    const cpl = cabinet.type === ProjectType.VDL
+      ? unitPrice
+      : contactToLeadConversion > 0 ? unitPrice / contactToLeadConversion : 0;
     return {
       metrics: {
         contacts: contacts.length, qualified, sold: sold.length, conversion, revenue, cpl,
         averageCheck: sold.length ? revenue / sold.length : 0,
         saleCost: conversion ? cpl / (conversion / 100) : 0,
       },
-      daily: this.daily(contacts, leads, charges),
+      daily: this.daily(contacts, leads, charges, cabinet.type, unitPrice),
     };
   }
 
@@ -338,14 +343,18 @@ export class FinanceService {
     return { gte, lte };
   }
 
-  private daily(contacts: Array<{ date: Date }>, leads: Array<{ successDate: Date; saleStatus: LeadSaleStatus }>, charges: Array<{ createdAt: Date; moneyDelta: Prisma.Decimal }>) {
+  private daily(contacts: Array<{ date: Date }>, leads: Array<{ successDate: Date; saleStatus: LeadSaleStatus }>, charges: Array<{ createdAt: Date; moneyDelta: Prisma.Decimal }>, projectType: ProjectType, unitPrice: number) {
     const map = new Map<string, { date: string; contacts: number; leads: number; sold: number; spent: number }>();
     const row = (date: Date) => { const key = date.toISOString().slice(0, 10); if (!map.has(key)) map.set(key, { date: key, contacts: 0, leads: 0, sold: 0, spent: 0 }); return map.get(key)!; };
     contacts.forEach((item) => { row(item.date).contacts += 1; });
     leads.forEach((item) => { row(item.successDate).leads += 1; if (item.saleStatus === LeadSaleStatus.BOUGHT) row(item.successDate).sold += 1; });
     charges.forEach((item) => { row(item.createdAt).spent -= Number(item.moneyDelta); });
-    return [...map.values()].sort((a, b) => a.date.localeCompare(b.date)).map((item) => ({
-      ...item, cpl: item.leads ? item.spent / item.leads : 0, saleCost: item.sold ? item.spent / item.sold : 0,
-    }));
+    return [...map.values()].sort((a, b) => a.date.localeCompare(b.date)).map((item) => {
+      const contactToLeadConversion = item.contacts ? item.leads / item.contacts : 0;
+      const cpl = projectType === ProjectType.VDL
+        ? unitPrice
+        : contactToLeadConversion > 0 ? unitPrice / contactToLeadConversion : 0;
+      return { ...item, cpl, saleCost: item.sold ? cpl * item.leads / item.sold : 0 };
+    });
   }
 }

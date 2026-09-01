@@ -204,6 +204,7 @@ describe('FinanceService', () => {
 
   it('calculates client dashboard metrics without division by zero', async () => {
     const prisma = {
+      cabinet: { findUniqueOrThrow: jest.fn().mockResolvedValue({ type: ProjectType.PACKAGE, price: new Prisma.Decimal(740) }) },
       contact: { findMany: jest.fn().mockResolvedValue([{ date: new Date('2026-08-20') }]) },
       lead: { findMany: jest.fn().mockResolvedValue([]) },
       balanceEntry: { findMany: jest.fn().mockResolvedValue([]) },
@@ -214,14 +215,32 @@ describe('FinanceService', () => {
     expect(result.metrics).toMatchObject({ contacts: 1, qualified: 0, conversion: 0, cpl: 0, saleCost: 0 });
   });
 
-  it('calculates daily CPL and sale cost from charges and bought leads', async () => {
+  it('uses the project price as CPL for VDL projects', async () => {
     const prisma = {
+      cabinet: { findUniqueOrThrow: jest.fn().mockResolvedValue({ type: ProjectType.VDL, price: new Prisma.Decimal(4200) }) },
       contact: { findMany: jest.fn().mockResolvedValue([]) },
       lead: { findMany: jest.fn().mockResolvedValue([{ successDate: new Date('2026-08-20'), saleStatus: LeadSaleStatus.BOUGHT, amount: 1000 }]) },
       balanceEntry: { findMany: jest.fn().mockResolvedValue([{ createdAt: new Date('2026-08-20'), moneyDelta: -200 }]) },
     };
     const result = await new FinanceService(prisma as never).clientDashboard('cab', {});
-    expect(result.daily).toEqual([{ date: '2026-08-20', contacts: 0, leads: 1, sold: 1, spent: 200, cpl: 200, saleCost: 200 }]);
+    expect(result.metrics.cpl).toBe(4200);
+    expect(result.daily).toEqual([{ date: '2026-08-20', contacts: 0, leads: 1, sold: 1, spent: 200, cpl: 4200, saleCost: 4200 }]);
+  });
+
+  it('divides the contact price by contact-to-lead conversion for package projects', async () => {
+    const prisma = {
+      cabinet: { findUniqueOrThrow: jest.fn().mockResolvedValue({ type: ProjectType.PACKAGE, price: new Prisma.Decimal(740) }) },
+      contact: { findMany: jest.fn().mockResolvedValue([
+        { date: new Date('2026-08-20') }, { date: new Date('2026-08-20') },
+      ]) },
+      lead: { findMany: jest.fn().mockResolvedValue([
+        { successDate: new Date('2026-08-20'), saleStatus: LeadSaleStatus.NOT_TARGET, amount: 0 },
+      ]) },
+      balanceEntry: { findMany: jest.fn().mockResolvedValue([]) },
+    };
+    const result = await new FinanceService(prisma as never).clientDashboard('cab', {});
+    expect(result.metrics.cpl).toBe(1480);
+    expect(result.daily[0]?.cpl).toBe(1480);
   });
 
   it('excludes failed and uncertain invoice attempts from expected payments', async () => {

@@ -22,7 +22,8 @@
   width: 100%;
   min-width: 1800px;
   table-layout: fixed;
-  border-collapse: collapse;
+  border-collapse: separate;
+  border-spacing: 0;
   font-size: v.$font-size-sm;
 
   th,
