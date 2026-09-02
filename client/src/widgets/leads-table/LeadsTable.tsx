@@ -25,7 +25,7 @@ export function LeadsTable({
     <div className={styles.card}>
       <div className={styles.tableCount}>Показано: {leads.length}</div>
       <div className={styles.tableWrap}>
-        <table className={styles.table}>
+        <table className={`${styles.table} ${styles.headerTable}`}>
           <thead>
             <tr>
               <th>ID лида</th>
@@ -39,21 +39,26 @@ export function LeadsTable({
               <th>Сумма сделки</th>
             </tr>
           </thead>
-          <tbody>
-            {leads.map((lead) => (
-              <LeadRow
-                key={lead.id}
-                lead={lead}
-                onFeedbackChange={onFeedbackChange}
-                onStatusChange={onStatusChange}
-                onAmountChange={onAmountChange}
-                onRecordingsLoad={onRecordingsLoad}
-              />
-            ))}
-          </tbody>
         </table>
 
-        {leads.length === 0 && <div className={styles.empty}>Лидов не найдено</div>}
+        <div className={styles.tableBody}>
+          <table className={`${styles.table} ${styles.bodyTable}`}>
+            <tbody>
+              {leads.map((lead) => (
+                <LeadRow
+                  key={lead.id}
+                  lead={lead}
+                  onFeedbackChange={onFeedbackChange}
+                  onStatusChange={onStatusChange}
+                  onAmountChange={onAmountChange}
+                  onRecordingsLoad={onRecordingsLoad}
+                />
+              ))}
+            </tbody>
+          </table>
+
+          {leads.length === 0 && <div className={styles.empty}>Лидов не найдено</div>}
+        </div>
       </div>
 
     </div>

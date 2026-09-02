@@ -15,7 +15,7 @@ export function ManagerStatsTable({ stats }: ManagerStatsTableProps) {
         <span className={styles.tableCount}>Показано: {stats.length}</span>
       </div>
       <div className={styles.tableWrap}>
-        <table className={styles.table}>
+        <table className={`${styles.table} ${styles.headerTable}`}>
           <thead>
             <tr>
               <th>Менеджер</th>
@@ -26,7 +26,10 @@ export function ManagerStatsTable({ stats }: ManagerStatsTableProps) {
               <th>Бонус</th>
             </tr>
           </thead>
-          <tbody>
+        </table>
+        <div className={styles.tableBody}>
+          <table className={styles.table}>
+            <tbody>
             {stats.map((s) => (
               <tr key={s.managerId}>
                 <td>{s.managerName}</td>
@@ -37,8 +40,9 @@ export function ManagerStatsTable({ stats }: ManagerStatsTableProps) {
                 <td>{formatCurrency(s.bonus)}</td>
               </tr>
             ))}
-          </tbody>
-        </table>
+            </tbody>
+          </table>
+        </div>
       </div>
     </div>
   );

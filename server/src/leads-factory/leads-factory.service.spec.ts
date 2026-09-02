@@ -35,22 +35,18 @@ describe('LeadsFactoryService contract', () => {
     }));
   });
 
-  it('applies the documented default source-cabinet settings', async () => {
+  it('sends only the given subset of project-info fields — full body used to get silently rejected by the provider', async () => {
+    // Раньше сюда всегда слали полный объект (все parse_*-флаги + limit_autochange +
+    // ishod_phones_count) — на реальном проекте провайдер этот PATCH целиком
+    // игнорировал, и default_limit/max_limit после создания оставались дефолтными.
+    // Подтверждённый вручную (curl) рабочий вариант — только нужные поля.
     const fetchMock = jest.spyOn(global, 'fetch').mockResolvedValue(new Response(JSON.stringify('ok'), { status: 200 }));
     const service = new LeadsFactoryService(config as never);
-    await service.updateProjectInfo(42, {
-      check_domains_in_v_kazakh: false, parse_domains: false, parse_phones: false, parse_ishod: true,
-      parse_ceo: false, parse_google: false, parse_manual: false, parse_maps: false,
-      limit_autochange: false, max_limit: 100, default_limit: 5, ishod_phones_count: 1,
-      vdl_autonorms: true,
-    });
+    await service.updateProjectInfo(42, { max_limit: 50, default_limit: 10, vdl_autonorms: true });
     expect(fetchMock.mock.calls.at(0)![0].toString()).toContain('/vdl/api/projects/info/42');
     expect(fetchMock.mock.calls.at(0)![1]?.method).toBe('PATCH');
     expect(JSON.parse(String(fetchMock.mock.calls.at(0)![1]?.body))).toEqual({
-      check_domains_in_v_kazakh: false, parse_domains: false, parse_phones: false, parse_ishod: true,
-      parse_ceo: false, parse_google: false, parse_manual: false, parse_maps: false,
-      limit_autochange: false, max_limit: 100, default_limit: 5, ishod_phones_count: 1,
-      vdl_autonorms: true,
+      max_limit: 50, default_limit: 10, vdl_autonorms: true,
     });
   });
 

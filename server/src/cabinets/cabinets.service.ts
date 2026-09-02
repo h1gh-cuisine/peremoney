@@ -30,19 +30,13 @@ const cabinetSelect = {
 } satisfies Prisma.CabinetSelect;
 type CabinetView = Prisma.CabinetGetPayload<{ select: typeof cabinetSelect }>;
 
+// Раньше слали сюда полный набор parse_*/check_domains_in_v_kazakh/ishod_phones_count
+// флагов — провайдер, судя по всему, отклонял этот PATCH целиком (проект после
+// создания оставался с настройками по умолчанию, никакое поле не долетало).
+// Подтверждённый вручную (curl) рабочий минимальный набор — только эти три поля.
 const DEFAULT_PROVIDER_PROJECT_INFO = {
-  check_domains_in_v_kazakh: false,
-  parse_domains: false,
-  parse_phones: false,
-  parse_ishod: true,
-  parse_ceo: false,
-  parse_google: false,
-  parse_manual: false,
-  parse_maps: false,
-  limit_autochange: false,
-  max_limit: 100,
-  default_limit: 5,
-  ishod_phones_count: 1,
+  max_limit: 50,
+  default_limit: 10,
   vdl_autonorms: true,
 } as const;
 
@@ -209,7 +203,9 @@ export class CabinetsService {
       // POST only creates the provider project. Apply the required VDL defaults with
       // an independently retryable PATCH before exposing the local cabinet as ready.
       await this.provider.updateProjectInfo(providerProjectId, DEFAULT_PROVIDER_PROJECT_INFO);
-      const result = await this.createLocal({ ...dto, name: providerName }, providerProjectId, operation.id, dto.idempotencyKey);
+      const result = await this.createLocal({ ...dto, name: providerName }, providerProjectId, operation.id, dto.idempotencyKey, {
+        defaultLimit: DEFAULT_PROVIDER_PROJECT_INFO.default_limit, maxLimit: DEFAULT_PROVIDER_PROJECT_INFO.max_limit,
+      });
       return result;
     } catch (error) {
       await this.prisma.providerProjectCreation.update({
@@ -326,7 +322,13 @@ export class CabinetsService {
     return this.safeIntegrationSummary(raw);
   }
 
-  private async createLocal(dto: CreateCabinetDto, providerProjectId: number, operationId?: string, credentialSeed?: string) {
+  private async createLocal(
+    dto: CreateCabinetDto, providerProjectId: number, operationId?: string, credentialSeed?: string,
+    // Только для свежесозданного у провайдера проекта — там default_limit/max_limit
+    // уже выставлены нашим PATCH (DEFAULT_PROVIDER_PROJECT_INFO). Для привязки
+    // существующего providerProjectId ничего не трогаем — остаются схемные дефолты.
+    providerDefaults?: { defaultLimit: number; maxLimit: number },
+  ) {
     const credentials = this.credentials(dto, credentialSeed);
     const employeePassword = credentials.employee.password;
     const clientPassword = credentials.client.password;
@@ -340,6 +342,7 @@ export class CabinetsService {
           managerName: dto.managerName,
           sphere: dto.sphere,
           isActive: false,
+          ...(providerDefaults ? { defaultLimit: providerDefaults.defaultLimit, maxLimit: providerDefaults.maxLimit } : {}),
         },
         select: cabinetSelect,
       });

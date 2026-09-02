@@ -20,7 +20,7 @@ export function ScriptViewer({ data }: ScriptViewerProps) {
   return (
     <div className={styles.card}>
       <div className={styles.header}>
-        <h2 className={styles.title}>{data.name || "Скрипт оператора"}</h2>
+        <h2 className={styles.title} aria-hidden="true">&nbsp;</h2>
         <div className={styles.meta}>
           <span className={styles.readonlyBadge}>Только чтение</span>
           {data.updatedAt && <span className={styles.updatedAt}>Обновлено: {formatDateRuLong(data.updatedAt)}</span>}

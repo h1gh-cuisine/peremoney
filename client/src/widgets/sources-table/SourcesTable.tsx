@@ -74,7 +74,7 @@ export function SourcesTable({ sources, onToggleActive }: SourcesTableProps) {
     <div className={styles.card}>
       <div className={styles.tableCount}>Показано: {sorted.length}</div>
       <div className={styles.tableWrap}>
-        <table className={styles.table}>
+        <table className={`${styles.table} ${styles.headerTable}`}>
           <thead>
             <tr>
               {COLUMNS.map((col) => (
@@ -90,7 +90,10 @@ export function SourcesTable({ sources, onToggleActive }: SourcesTableProps) {
               <th />
             </tr>
           </thead>
-          <tbody>
+        </table>
+        <div className={styles.tableBody}>
+          <table className={styles.table}>
+            <tbody>
             {sorted.map((s) => (
               <tr key={s.id}>
                 <td className={styles.mono}>{s.id}</td>
@@ -112,10 +115,10 @@ export function SourcesTable({ sources, onToggleActive }: SourcesTableProps) {
                 </td>
               </tr>
             ))}
-          </tbody>
-        </table>
-
-        {sorted.length === 0 && <div className={styles.empty}>Источников не найдено</div>}
+            </tbody>
+          </table>
+          {sorted.length === 0 && <div className={styles.empty}>Источников не найдено</div>}
+        </div>
       </div>
 
     </div>

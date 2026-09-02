@@ -12,7 +12,7 @@ export function ContactsTable({ contacts }: ContactsTableProps) {
     <div className={styles.card}>
       <div className={styles.tableCount}>Показано: {contacts.length}</div>
       <div className={styles.tableWrap}>
-        <table className={styles.table}>
+        <table className={`${styles.table} ${styles.headerTable}`}>
           <thead>
             <tr>
               <th>Дата</th>
@@ -22,24 +22,23 @@ export function ContactsTable({ contacts }: ContactsTableProps) {
               <th>Оператор связи</th>
             </tr>
           </thead>
-          <tbody>
-            {contacts.map((c) => (
-              <tr key={c.id}>
-                <td>{formatShortDate(c.date)}</td>
-                <td>
-                  <span className={styles.statusBadge}>{getContactStatusLabel(c.status)}</span>
-                </td>
-                <td>{formatPhone(c.mobileTel)}</td>
-                <td title={c.site}>{sourceDisplayName(c.site)}</td>
-                <td>{c.mobileOperator}</td>
-              </tr>
-            ))}
-          </tbody>
         </table>
-
-        {contacts.length === 0 && (
-          <div className={styles.empty}>Нет контактов за выбранный период</div>
-        )}
+        <div className={styles.tableBody}>
+          <table className={styles.table}>
+            <tbody>
+              {contacts.map((c) => (
+                <tr key={c.id}>
+                  <td>{formatShortDate(c.date)}</td>
+                  <td><span className={styles.statusBadge}>{getContactStatusLabel(c.status)}</span></td>
+                  <td>{formatPhone(c.mobileTel)}</td>
+                  <td title={c.site}>{sourceDisplayName(c.site)}</td>
+                  <td>{c.mobileOperator}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+          {contacts.length === 0 && <div className={styles.empty}>Нет контактов за выбранный период</div>}
+        </div>
       </div>
 
     </div>

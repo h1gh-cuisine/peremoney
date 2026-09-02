@@ -40,6 +40,7 @@ describe('UI-контракты из требований 1.5, 1.8, 1.9', () => 
     const html = renderToStaticMarkup(<ScriptViewer data={{ projectId: '42', name: 'Скрипт', script: 'Привет\nШаг 2', updatedAt: '2026-08-20' }} />);
     expect(html).toContain('<article');
     expect(html).toContain('Привет\nШаг 2');
+    expect(html).not.toContain('>Скрипт</h2>');
     expect(html).not.toContain('<iframe');
     expect(html).toContain('Только чтение');
     for (const forbidden of ['Редактировать', 'Сгенерировать AI', 'История']) expect(html).not.toContain(forbidden);

@@ -110,7 +110,7 @@ export function AuditLogView() {
       {error && <p role="alert" className={styles.error}>{error}</p>}
 
       <div className={styles.tableWrap}>
-        <table className={styles.table}>
+        <table className={`${styles.table} ${styles.headerTable}`}>
           <thead>
             <tr>
               <th>Когда</th>
@@ -122,7 +122,10 @@ export function AuditLogView() {
               <th>IP</th>
             </tr>
           </thead>
-          <tbody>
+        </table>
+        <div className={styles.tableBody}>
+          <table className={styles.table}>
+            <tbody>
             {entries.map((entry) => (
               <Fragment key={entry.id}>
                 <tr
@@ -149,10 +152,10 @@ export function AuditLogView() {
                 )}
               </Fragment>
             ))}
-          </tbody>
-        </table>
-
-        {!loading && entries.length === 0 && <div className={styles.empty}>Записей не найдено</div>}
+            </tbody>
+          </table>
+          {!loading && entries.length === 0 && <div className={styles.empty}>Записей не найдено</div>}
+        </div>
       </div>
 
       <div className={styles.pagination}>

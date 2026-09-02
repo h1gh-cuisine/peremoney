@@ -11,10 +11,21 @@
 }
 
 .tableWrap {
+  display: flex;
   flex: 0 0 60vh;
+  flex-direction: column;
   height: 60vh;
   min-height: 60vh;
-  overflow: auto;
+  overflow-x: auto;
+  overflow-y: hidden;
+  @include m.scrollbar;
+}
+
+.tableBody {
+  flex: 1 1 auto;
+  min-height: 0;
+  overflow-x: hidden;
+  overflow-y: auto;
   @include m.scrollbar;
 }
 
@@ -55,9 +66,6 @@
   th:nth-child(9), td:nth-child(9) { width: 120px; }
 
   th {
-    position: sticky;
-    top: 0;
-    z-index: 2;
     background: v.$color-bg-card;
     color: v.$color-text-muted;
     font-weight: 500;
@@ -81,6 +89,15 @@
       background: v.$color-bg-hover;
     }
   }
+}
+
+.headerTable {
+  position: relative;
+  z-index: 1;
+}
+
+.bodyTable {
+  margin-top: 0;
 }
 
 .mono {

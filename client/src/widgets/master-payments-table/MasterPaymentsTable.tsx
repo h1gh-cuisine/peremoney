@@ -42,7 +42,7 @@ export function MasterPaymentsTable({ payments, managers, onStatusChange, onDele
     <div className={styles.card}>
       <div className={styles.tableCount}>Показано: {payments.length}</div>
       <div className={styles.tableWrap}>
-        <table className={styles.table}>
+        <table className={`${styles.table} ${styles.headerTable}`}>
           <thead>
             <tr>
               <th>Дата</th>
@@ -54,7 +54,10 @@ export function MasterPaymentsTable({ payments, managers, onStatusChange, onDele
               <th />
             </tr>
           </thead>
-          <tbody>
+        </table>
+        <div className={styles.tableBody}>
+          <table className={styles.table}>
+            <tbody>
             {payments.map((p) => (
               <tr key={p.id}>
                 <td>{formatShortDate(p.createdAt)}</td>
@@ -90,10 +93,10 @@ export function MasterPaymentsTable({ payments, managers, onStatusChange, onDele
                 </td>
               </tr>
             ))}
-          </tbody>
-        </table>
-
-        {payments.length === 0 && <div className={styles.empty}>Платежей нет</div>}
+            </tbody>
+          </table>
+          {payments.length === 0 && <div className={styles.empty}>Платежей нет</div>}
+        </div>
       </div>
       {pendingChange && (
         <div className={styles.confirmOverlay} role="presentation" onMouseDown={() => setPendingChange(null)}>

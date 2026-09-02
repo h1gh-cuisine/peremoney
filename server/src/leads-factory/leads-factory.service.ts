@@ -186,12 +186,16 @@ export class LeadsFactoryService {
     return this.request<ProviderProjectCreated>('/crm/open-api/projects', {}, { method: 'POST', body });
   }
 
-  updateProjectInfo(projectId: number, body: {
+  // Vdl_ProjectInfoUpdateSchema принимает любое подмножество полей — отсутствующие
+  // не трогаются (leads-docs.json). Раньше сюда всегда слали полный объект со всеми
+  // parse_*-флагами; сузили до того, что реально нужно при создании проекта (см.
+  // DEFAULT_PROVIDER_PROJECT_INFO) — держим сигнатуру частичной под этот контракт.
+  updateProjectInfo(projectId: number, body: Partial<{
     check_domains_in_v_kazakh: boolean; parse_domains: boolean; parse_phones: boolean;
     parse_ishod: boolean; parse_ceo: boolean; parse_google: boolean; parse_manual: boolean;
     parse_maps: boolean; limit_autochange: boolean; max_limit: number; default_limit: number;
     ishod_phones_count: number; vdl_autonorms: boolean;
-  }) {
+  }>) {
     return this.request<string>(`/vdl/api/projects/info/${projectId}`, {}, { method: 'PATCH', body });
   }
 

@@ -19,7 +19,7 @@ export function PaymentsTable({ payments }: PaymentsTableProps) {
     <div className={styles.card}>
       <div className={styles.tableCount}>Показано: {payments.length}</div>
       <div className={styles.tableWrap}>
-        <table className={styles.table}>
+        <table className={`${styles.table} ${styles.headerTable}`}>
           <thead>
             <tr>
               <th>Дата</th>
@@ -29,7 +29,10 @@ export function PaymentsTable({ payments }: PaymentsTableProps) {
               <th>Обоснование</th>
             </tr>
           </thead>
-          <tbody>
+        </table>
+        <div className={styles.tableBody}>
+          <table className={styles.table}>
+            <tbody>
             {payments.map((p) => (
               <tr key={p.id}>
                 <td>{formatShortDate(p.createdAt)}</td>
@@ -43,10 +46,10 @@ export function PaymentsTable({ payments }: PaymentsTableProps) {
                 <td className={styles.purpose}>{p.paymentPurpose ?? "—"}</td>
               </tr>
             ))}
-          </tbody>
-        </table>
-
-        {payments.length === 0 && <div className={styles.empty}>Платежей пока нет</div>}
+            </tbody>
+          </table>
+          {payments.length === 0 && <div className={styles.empty}>Платежей пока нет</div>}
+        </div>
       </div>
     </div>
   );

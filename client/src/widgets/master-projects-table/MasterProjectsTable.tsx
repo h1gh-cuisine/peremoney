@@ -246,7 +246,7 @@ export function MasterProjectsTable({
       </div>
 
       <div className={styles.tableWrap}>
-        <table className={styles.table}>
+        <table className={`${styles.table} ${styles.headerTable}`}>
           <thead>
             <tr>
               {sortHeader("Название", "name")}
@@ -271,7 +271,10 @@ export function MasterProjectsTable({
               <th>Проект</th>
             </tr>
           </thead>
-          <tbody>
+        </table>
+        <div className={styles.tableBody}>
+          <table className={styles.table}>
+            <tbody>
             {sortedProjects.map((p) => (
               <tr key={p.id} className={p.hidden ? styles.hiddenRow : undefined}>
                 <td className={styles.nameCell}>
@@ -360,10 +363,10 @@ export function MasterProjectsTable({
                 </td>
               </tr>
             ))}
-          </tbody>
-        </table>
-
-        {visible.length === 0 && <div className={styles.empty}>Проектов не найдено</div>}
+            </tbody>
+          </table>
+          {visible.length === 0 && <div className={styles.empty}>Проектов не найдено</div>}
+        </div>
       </div>
 
       {linkedProjectsTarget && (

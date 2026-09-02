@@ -354,13 +354,13 @@ describe('CabinetsService', () => {
       name: 'Москва/Peremoney ЛКП VDL/Медицина/Клиент', type: 9, regions: [77], status: 'pause', default_limit: 5,
     });
     expect(provider.updateProjectInfo).toHaveBeenCalledWith(77, {
-      check_domains_in_v_kazakh: false, parse_domains: false, parse_phones: false, parse_ishod: true,
-      parse_ceo: false, parse_google: false, parse_manual: false, parse_maps: false,
-      limit_autochange: false, max_limit: 100, default_limit: 5, ishod_phones_count: 1,
-      vdl_autonorms: true,
+      max_limit: 50, default_limit: 10, vdl_autonorms: true,
     });
     expect(createCabinet.mock.calls[0][0].data).toEqual(expect.objectContaining({
       name: 'Москва/Peremoney ЛКП VDL/Медицина/Клиент', providerProjectId: 77, isActive: false,
+      // Локальные Cabinet.defaultLimit/maxLimit должны сразу совпадать с тем,
+      // что мы только что отправили провайдеру в DEFAULT_PROVIDER_PROJECT_INFO.
+      defaultLimit: 10, maxLimit: 50,
     }));
     expect(operationUpdate).toHaveBeenLastCalledWith(expect.objectContaining({
       data: expect.objectContaining({ status: 'SUCCEEDED', cabinetId: 'created-cabinet' }),
