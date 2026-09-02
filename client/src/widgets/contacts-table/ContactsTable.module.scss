@@ -11,9 +11,9 @@
 }
 
 .tableWrap {
-  display: flex;
+  display: grid;
   flex: 0 0 60vh;
-  flex-direction: column;
+  grid-template-rows: auto minmax(0, 1fr);
   height: 60vh;
   min-height: 60vh;
   overflow-x: auto;
@@ -66,7 +66,7 @@
   }
 }
 
-.headerTable { position: relative; z-index: 1; }
+.headerTable { position: sticky; top: 0; z-index: 1; }
 
 .statusBadge {
   display: inline-block;

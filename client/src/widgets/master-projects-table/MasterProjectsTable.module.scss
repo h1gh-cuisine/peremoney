@@ -90,10 +90,21 @@
 }
 
 .tableWrap {
+  display: grid;
   flex: 0 0 60vh;
+  grid-template-rows: auto minmax(0, 1fr);
   height: 60vh;
   min-height: 60vh;
-  overflow: auto;
+  overflow-x: auto;
+  overflow-y: hidden;
+  @include m.scrollbar;
+}
+
+.tableBody {
+  flex: 1 1 auto;
+  min-height: 0;
+  overflow-x: hidden;
+  overflow-y: auto;
   @include m.scrollbar;
 }
 
@@ -111,9 +122,6 @@
   }
 
   th {
-    position: sticky;
-    top: 0;
-    z-index: 3;
     background: v.$color-bg-card;
     color: v.$color-text-muted;
     font-weight: 500;
@@ -156,6 +164,8 @@
     background: v.$color-bg-hover;
   }
 }
+
+.headerTable { position: sticky; top: 0; z-index: 3; }
 
 .hiddenRow {
   opacity: 0.45;
