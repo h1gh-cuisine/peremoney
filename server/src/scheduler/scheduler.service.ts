@@ -10,6 +10,7 @@ import { SourcesService } from '../sources/sources.service';
 import { hasAvailableBalance } from '../finance/balance-availability';
 import { providerScriptToText } from '../leads-factory/script-text';
 import { ProviderException } from '../leads-factory/provider.exception';
+import { AcquisitionSyncService } from '../leads-factory/acquisition-sync.service';
 import { isActiveNextDay, isActiveToday } from './schedule-day';
 
 const MOSCOW_OFFSET_MS = 3 * 60 * 60 * 1000;
@@ -34,6 +35,7 @@ export class SchedulerService implements OnApplicationBootstrap, OnApplicationSh
     private readonly sources: SourcesService,
     private readonly provider: LeadsFactoryService,
     private readonly config: ConfigService,
+    private readonly acquisitionSync: AcquisitionSyncService,
   ) {}
 
   onApplicationBootstrap() {
@@ -177,7 +179,7 @@ export class SchedulerService implements OnApplicationBootstrap, OnApplicationSh
       const active = cabinet.isActive && hasAvailableBalance(cabinet)
         && isActiveNextDay(cabinet.scheduleDays, run.scheduledFor);
       await this.provider.updateProjectSchedule(cabinet.providerProjectId, active, {
-        uploadsEnabled: cabinet.uploadsEnabled, callsEnabled: cabinet.callsEnabled,
+        callsEnabled: cabinet.callsEnabled,
       });
       return { active, scheduleDays: cabinet.scheduleDays };
     }
@@ -185,8 +187,17 @@ export class SchedulerService implements OnApplicationBootstrap, OnApplicationSh
       const effectiveIsActive = cabinet.isActive && hasAvailableBalance(cabinet);
       await this.provider.updateProjectSettings(cabinet.providerProjectId, {
         isActive: effectiveIsActive, timezoneOffset: cabinet.timezoneOffset,
-        uploadsEnabled: cabinet.uploadsEnabled, callsEnabled: cabinet.callsEnabled,
+        callsEnabled: cabinet.callsEnabled,
         activeToday: isActiveToday(cabinet.scheduleDays, run.scheduledFor),
+      });
+      // Идемпотентно: если "Выгрузки" уже в нужном состоянии у провайдера
+      // (нет висящего снимка на восстановление), reconcile ничего не пошлёт.
+      await this.acquisitionSync.reconcile(cabinet.id, cabinet.providerProjectId, cabinet.uploadsEnabled);
+      // Тот же ретрай переприменяет коридор лимитов источников (default_limit/max_limit) —
+      // sources.service.ts кладёт сюда же ретрай, если сохранение "Настроек автоматизации"
+      // не смогло сразу дойти до Leads Factory.
+      await this.provider.updateProjectAutomationLimits(cabinet.providerProjectId, {
+        defaultLimit: cabinet.defaultLimit, maxLimit: cabinet.maxLimit,
       });
       return { effectiveIsActive };
     }

@@ -10,6 +10,7 @@ import { SourceAutomationPanel } from "@/features/sources-automation";
 import { SourcesTable } from "@/widgets/sources-table";
 import { useSourceAutomationStore, useSourcesStore, filterSources } from "@/entities/sources";
 import { useSessionStore } from '@/entities/session';
+import { useAccessStore } from '@/entities/access';
 import styles from "./page.module.scss";
 
 export default function SourcesPage() {
@@ -20,8 +21,15 @@ export default function SourcesPage() {
   const error = useSourcesStore((s) => s.error);
   const cabinetId = useSessionStore((s) => s.user?.cabinetId);
   const setAutomationCabinetId = useSourceAutomationStore((s) => s.setCabinetId);
+  // "Настройки автоматизации" — GET/PATCH на бэкенде доступны только MASTER/FULL
+  // (см. sources.controller.ts). У клиента (limited) запрос всегда падал с 403
+  // на первом заходе на страницу — панель ему в принципе не нужна и не видна.
+  const accessLevel = useAccessStore((s) => s.accessLevel);
 
-  useEffect(() => { if (cabinetId) { setCabinetId(cabinetId); setAutomationCabinetId(cabinetId); } }, [cabinetId, setCabinetId, setAutomationCabinetId]);
+  useEffect(() => {
+    if (cabinetId) setCabinetId(cabinetId);
+    if (cabinetId && accessLevel === 'full') setAutomationCabinetId(cabinetId);
+  }, [cabinetId, accessLevel, setCabinetId, setAutomationCabinetId]);
 
   const appliedOnlyWithLeads = useSourcesFiltersStore((s) => s.appliedOnlyWithLeads);
   const appliedStatus = useSourcesFiltersStore((s) => s.appliedStatus);
@@ -36,7 +44,7 @@ export default function SourcesPage() {
     <>
       <Topbar title="Источники" />
       <PageBody contained>
-        <SourceAutomationPanel />
+        {accessLevel === 'full' && <SourceAutomationPanel />}
         <SourcesFilters />
         {loading && <p>Загрузка источников…</p>}
         {error && <p role="alert">{error}</p>}

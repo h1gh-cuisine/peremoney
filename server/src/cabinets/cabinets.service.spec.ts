@@ -140,12 +140,14 @@ describe('CabinetsService', () => {
   it('saves the complete settings form in one cabinet update', async () => {
     const update = jest.fn().mockResolvedValue(cabinet);
     const updateProjectSettings = jest.fn();
+    const reconcile = jest.fn();
     const service = new CabinetsService({ cabinet: { update, findUnique: jest.fn().mockResolvedValue({
       providerProjectId: 42, moneyBalance: 1000, price: 100, totalUnits: 20, usedUnits: 1,
       isActive: true, timezoneOffset: 3, uploadsEnabled: true, callsEnabled: true,
       scheduleDays: [1, 2, 3, 4, 5, 6, 7],
     }) } } as never,
-      { updateProjectSettings } as never, config as never);
+      { updateProjectSettings } as never, config as never,
+      undefined, undefined, undefined, { reconcile } as never);
     await service.updateSettings(cabinet.id, {
       isActive: false, timezoneOffset: 4, uploadsEnabled: false, callsEnabled: true,
       schedulePreset: 'WEEKENDS' as never, scheduleDays: [5, 6], crmIntegration: 'bitrix',
@@ -158,18 +160,22 @@ describe('CabinetsService', () => {
       contactsVisible: true, sourcesVisible: false, financeVisible: false,
     }));
     expect(updateProjectSettings).toHaveBeenCalledWith(42, expect.objectContaining({
-      isActive: false, timezoneOffset: 4, uploadsEnabled: false, callsEnabled: true,
+      isActive: false, timezoneOffset: 4, callsEnabled: true,
     }));
+    // "Выгрузки" — отдельный блок закупки/парсинга у провайдера, не work_client_status.
+    expect(reconcile).toHaveBeenCalledWith(cabinet.id, 42, false);
   });
 
   it('changes only calls at Leads Factory when only the calls checkbox changes', async () => {
     const update = jest.fn().mockResolvedValue(cabinet);
     const updateProjectProcesses = jest.fn();
+    const reconcile = jest.fn();
     const service = new CabinetsService({ cabinet: { update, findUnique: jest.fn().mockResolvedValue({
       providerProjectId: 42, moneyBalance: 1000, price: 100, totalUnits: 20, usedUnits: 1,
       isActive: true, timezoneOffset: 3, uploadsEnabled: true, callsEnabled: true,
       scheduleDays: [1, 2, 3, 4, 5, 6, 7],
-    }) } } as never, { updateProjectProcesses } as never, config as never);
+    }) } } as never, { updateProjectProcesses } as never, config as never,
+      undefined, undefined, undefined, { reconcile } as never);
 
     await service.updateSettings(cabinet.id, {
       isActive: true, timezoneOffset: 3, uploadsEnabled: true, callsEnabled: false,
@@ -178,17 +184,21 @@ describe('CabinetsService', () => {
       script: true, finance: true, settings: true,
     });
 
-    expect(updateProjectProcesses).toHaveBeenCalledWith(42, { uploadsEnabled: undefined, callsEnabled: false });
+    expect(updateProjectProcesses).toHaveBeenCalledWith(42, { callsEnabled: false });
+    // uploadsEnabled unchanged (true→true) — no acquisition sync needed.
+    expect(reconcile).not.toHaveBeenCalled();
   });
 
   it('keeps a zero-balance project paused but still saves the rest of the form', async () => {
     const update = jest.fn().mockResolvedValue(cabinet);
     const updateProjectSettings = jest.fn();
+    const reconcile = jest.fn();
     const service = new CabinetsService({ cabinet: { update, findUnique: jest.fn().mockResolvedValue({
       providerProjectId: 42, moneyBalance: 0, price: 100, totalUnits: 10, usedUnits: 10,
       isActive: false, timezoneOffset: 3, uploadsEnabled: true, callsEnabled: true,
       scheduleDays: [1, 2, 3, 4, 5, 6, 7],
-    }) } } as never, { updateProjectSettings } as never, config as never);
+    }) } } as never, { updateProjectSettings } as never, config as never,
+      undefined, undefined, undefined, { reconcile } as never);
 
     const result = await service.updateSettings(cabinet.id, {
       // Draft still asks for "active" (stale/optimistic UI state) while turning uploads off —
@@ -203,7 +213,8 @@ describe('CabinetsService', () => {
       balanceWarning: expect.stringContaining('недостаточно средств'),
     }));
     expect(update.mock.calls[0][0].data).toEqual(expect.objectContaining({ isActive: false, uploadsEnabled: false }));
-    expect(updateProjectSettings).toHaveBeenCalledWith(42, expect.objectContaining({ isActive: false, uploadsEnabled: false }));
+    expect(updateProjectSettings).toHaveBeenCalledWith(42, expect.objectContaining({ isActive: false }));
+    expect(reconcile).toHaveBeenCalledWith(cabinet.id, 42, false);
   });
 
   it('allows an empty work-week and pauses the provider project', async () => {

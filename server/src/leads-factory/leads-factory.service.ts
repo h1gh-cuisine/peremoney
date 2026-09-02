@@ -3,7 +3,7 @@ import { ConfigService } from '@nestjs/config';
 import { ProviderException } from './provider.exception';
 import { AuditLogService } from '../audit-log/audit-log.service';
 import {
-  ProviderAnswersPage, ProviderCall, ProviderIntegrationName, ProviderProjectCreated,
+  ProviderAcquisitionFlags, ProviderAnswersPage, ProviderCall, ProviderIntegrationName, ProviderProjectCreated,
   ProviderProjectDetail, ProviderProjectType, ProviderRegion, ProviderScript, ProviderSource, ProviderTag,
   ProviderProjectFinance,
 } from './leads-factory.types';
@@ -93,33 +93,29 @@ export class LeadsFactoryService {
     return this.request<unknown>('/vdl/api/tags/available_tags_types');
   }
 
-  updateProjectSchedule(projectId: number, active: boolean, options: { uploadsEnabled?: boolean; callsEnabled?: boolean } = {}) {
+  // work_client_status зеркалит общий active/operational статус проекта — независимого
+  // переключателя у него нет. "Выгрузки" в Настройках — это блок закупки/парсинга
+  // (see updateAcquisitionFlags), а не этот флаг.
+  updateProjectSchedule(projectId: number, active: boolean, options: { callsEnabled?: boolean } = {}) {
     return this.request(`/crm/open-api/projects/${projectId}`, {}, {
       method: 'PATCH',
       body: {
         status: active ? 'active' : 'pause',
-        work_client_status: active && options.uploadsEnabled !== false ? 'active' : 'stop',
+        work_client_status: active ? 'active' : 'stop',
         call_center_status: active && options.callsEnabled !== false ? 'active' : 'pause_daily',
       },
     });
   }
 
-  updateProjectProcesses(projectId: number, processes: { uploadsEnabled?: boolean; callsEnabled?: boolean }) {
+  updateProjectProcesses(projectId: number, processes: { callsEnabled: boolean }) {
     return this.request(`/crm/open-api/projects/${projectId}`, {}, {
       method: 'PATCH',
-      body: {
-        ...(processes.uploadsEnabled === undefined ? {} : {
-          work_client_status: processes.uploadsEnabled ? 'active' : 'stop',
-        }),
-        ...(processes.callsEnabled === undefined ? {} : {
-          call_center_status: processes.callsEnabled ? 'active' : 'pause_daily',
-        }),
-      },
+      body: { call_center_status: processes.callsEnabled ? 'active' : 'pause_daily' },
     });
   }
 
   updateProjectSettings(projectId: number, settings: {
-    isActive: boolean; timezoneOffset: number; uploadsEnabled: boolean; callsEnabled: boolean; activeToday: boolean;
+    isActive: boolean; timezoneOffset: number; callsEnabled: boolean; activeToday: boolean;
   }) {
     const operational = settings.isActive && settings.activeToday;
     return this.request(`/crm/open-api/projects/${projectId}`, {}, {
@@ -127,10 +123,32 @@ export class LeadsFactoryService {
       body: {
         status: operational ? 'active' : 'pause',
         timezone: settings.timezoneOffset,
-        work_client_status: operational && settings.uploadsEnabled ? 'active' : 'stop',
+        work_client_status: operational ? 'active' : 'stop',
         call_center_status: operational && settings.callsEnabled ? 'active' : 'pause_daily',
       },
     });
+  }
+
+  // "Выгрузки" в Настройках проекта = блок закупки/парсинга Vdl_ProjectInfoUpdateSchema
+  // (parse_domains/parse_phones/... + check_domains_in_v_kazakh), а НЕ work_client_status —
+  // это выяснилось только по факту: work_client_status в реальности ни на что видимое
+  // в Leads Factory не влиял, хотя так и остался привязан к статусу проекта (см. выше).
+  async getAcquisitionFlags(projectId: number): Promise<ProviderAcquisitionFlags> {
+    const raw = await this.request<Record<string, unknown>>(`/vdl/api/projects/info/${projectId}`);
+    return {
+      check_domains_in_v_kazakh: Boolean(raw.check_domains_in_v_kazakh),
+      parse_domains: Boolean(raw.parse_domains),
+      parse_phones: Boolean(raw.parse_phones),
+      parse_ishod: Boolean(raw.parse_ishod),
+      parse_ceo: Boolean(raw.parse_ceo),
+      parse_google: Boolean(raw.parse_google),
+      parse_manual: Boolean(raw.parse_manual),
+      parse_maps: Boolean(raw.parse_maps),
+    };
+  }
+
+  updateAcquisitionFlags(projectId: number, flags: ProviderAcquisitionFlags) {
+    return this.request(`/vdl/api/projects/info/${projectId}`, {}, { method: 'PATCH', body: flags });
   }
 
   updateProjectAutomationLimits(projectId: number, limits: { defaultLimit: number; maxLimit: number }) {

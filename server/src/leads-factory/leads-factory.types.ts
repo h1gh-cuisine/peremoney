@@ -86,3 +86,17 @@ export interface ProviderRegion {
 }
 
 export type ProviderIntegrationName = 'telegram' | 'bitrix' | 'amocrm' | 'email';
+
+// The "закупка" (new-lead acquisition/parsing) block of Vdl_ProjectInfoUpdateSchema —
+// distinct from work_client_status/call_center_status on the CRM project endpoint.
+// "Выгрузки" в Настройках проекта переключает именно этот блок, не work_client_status.
+export interface ProviderAcquisitionFlags {
+  check_domains_in_v_kazakh: boolean;
+  parse_domains: boolean;
+  parse_phones: boolean;
+  parse_ishod: boolean;
+  parse_ceo: boolean;
+  parse_google: boolean;
+  parse_manual: boolean;
+  parse_maps: boolean;
+}

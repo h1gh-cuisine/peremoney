@@ -86,18 +86,18 @@ describe('LeadsFactoryService contract', () => {
   it('updates every provider-backed project setting with documented fields', async () => {
     const fetchMock = jest.spyOn(global, 'fetch').mockResolvedValue(new Response('{}', { status: 200 }));
     await new LeadsFactoryService(config as never).updateProjectSettings(42, {
-      isActive: true, timezoneOffset: 4, uploadsEnabled: false, callsEnabled: true, activeToday: true,
+      isActive: true, timezoneOffset: 4, callsEnabled: true, activeToday: true,
     });
     expect(fetchMock.mock.calls.at(0)![0].toString()).toContain('/crm/open-api/projects/42');
     expect(JSON.parse(String(fetchMock.mock.calls.at(0)![1]?.body))).toEqual({
-      status: 'active', timezone: 4, work_client_status: 'stop', call_center_status: 'active',
+      status: 'active', timezone: 4, work_client_status: 'active', call_center_status: 'active',
     });
   });
 
-  it('globally pauses both procurement and calls when the project cannot operate', async () => {
+  it('globally pauses calls (and mirrors work_client_status) when the project cannot operate', async () => {
     const fetchMock = jest.spyOn(global, 'fetch').mockResolvedValue(new Response('{}', { status: 200 }));
     await new LeadsFactoryService(config as never).updateProjectSettings(42, {
-      isActive: true, timezoneOffset: 3, uploadsEnabled: true, callsEnabled: true, activeToday: false,
+      isActive: true, timezoneOffset: 3, callsEnabled: true, activeToday: false,
     });
     expect(JSON.parse(String(fetchMock.mock.calls.at(0)![1]?.body))).toEqual({
       status: 'pause', timezone: 3, work_client_status: 'stop', call_center_status: 'pause_daily',
@@ -112,10 +112,34 @@ describe('LeadsFactoryService contract', () => {
 
   it('includes the global provider status in a scheduled shutdown', async () => {
     const fetchMock = jest.spyOn(global, 'fetch').mockResolvedValue(new Response('{}', { status: 200 }));
-    await new LeadsFactoryService(config as never).updateProjectSchedule(42, false, { uploadsEnabled: true, callsEnabled: true });
+    await new LeadsFactoryService(config as never).updateProjectSchedule(42, false, { callsEnabled: true });
     expect(JSON.parse(String(fetchMock.mock.calls.at(0)![1]?.body))).toEqual({
       status: 'pause', work_client_status: 'stop', call_center_status: 'pause_daily',
     });
+  });
+
+  it('reads the acquisition/parsing block from the VDL project info endpoint, defaulting missing fields to false', async () => {
+    const fetchMock = jest.spyOn(global, 'fetch').mockResolvedValue(new Response(JSON.stringify({
+      parse_domains: true, parse_phones: true, extra_field_we_ignore: 'x',
+    }), { status: 200 }));
+    const flags = await new LeadsFactoryService(config as never).getAcquisitionFlags(42);
+    expect(fetchMock.mock.calls.at(0)![0].toString()).toContain('/vdl/api/projects/info/42');
+    expect(flags).toEqual({
+      check_domains_in_v_kazakh: false, parse_domains: true, parse_phones: true, parse_ishod: false,
+      parse_ceo: false, parse_google: false, parse_manual: false, parse_maps: false,
+    });
+  });
+
+  it('PATCHes the acquisition/parsing block to the VDL project info endpoint, not the CRM one', async () => {
+    const fetchMock = jest.spyOn(global, 'fetch').mockResolvedValue(new Response('{}', { status: 200 }));
+    const flags = {
+      check_domains_in_v_kazakh: false, parse_domains: false, parse_phones: false, parse_ishod: false,
+      parse_ceo: false, parse_google: false, parse_manual: false, parse_maps: false,
+    };
+    await new LeadsFactoryService(config as never).updateAcquisitionFlags(42, flags);
+    expect(fetchMock.mock.calls.at(0)![0].toString()).toContain('/vdl/api/projects/info/42');
+    expect(fetchMock.mock.calls.at(0)![1]?.method).toBe('PATCH');
+    expect(JSON.parse(String(fetchMock.mock.calls.at(0)![1]?.body))).toEqual(flags);
   });
 
   it('retries safe GET requests and strips provider input from 422 details', async () => {

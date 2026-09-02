@@ -137,9 +137,20 @@ export class SourcesService {
       select: { providerProjectId: true, defaultLimit: true, maxLimit: true },
     });
     if (cabinet.providerProjectId) {
-      await this.provider.updateProjectAutomationLimits(cabinet.providerProjectId, {
-        defaultLimit: cabinet.defaultLimit, maxLimit: cabinet.maxLimit,
-      });
+      try {
+        await this.provider.updateProjectAutomationLimits(cabinet.providerProjectId, {
+          defaultLimit: cabinet.defaultLimit, maxLimit: cabinet.maxLimit,
+        });
+      } catch (error) {
+        // Раньше падение этого PATCH (нестабильная сеть до Leads Factory, см.
+        // deploy.md) оставляло рассинхрон навсегда: локально лимит уже 10,
+        // у провайдера так и остаётся 5, и никто это не перепроверяет. Ставим
+        // в очередь тот же ретрай, что и у APPLY_SETTINGS — он читает
+        // Cabinet.defaultLimit/maxLimit заново из БД на каждый прогон.
+        const now = new Date();
+        await this.prisma.scheduledRun.create({ data: { cabinetId, task: 'APPLY_SETTINGS', scheduledFor: now,
+          nextAttemptAt: now, lastError: error instanceof Error ? error.message.slice(0, 2000) : 'Provider sync failed' } });
+      }
     }
     return cabinet;
   }

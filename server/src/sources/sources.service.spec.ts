@@ -73,6 +73,21 @@ describe('источники: бизнес-правила 2.6', () => {
     expect(updateProjectAutomationLimits).toHaveBeenCalledWith(42, { defaultLimit: 10, maxLimit: 80 });
   });
 
+  it('ставит ретрай APPLY_SETTINGS, если Leads Factory отклонил или не принял лимиты — не теряет изменение молча', async () => {
+    const update = jest.fn().mockResolvedValue({ providerProjectId: 42, defaultLimit: 10, maxLimit: 80 });
+    const updateProjectAutomationLimits = jest.fn().mockRejectedValue(new Error('Leads Factory недоступен'));
+    const scheduledRunCreate = jest.fn().mockResolvedValue({});
+    const service = new SourcesService(
+      { cabinet: { update }, scheduledRun: { create: scheduledRunCreate } } as never,
+      { updateProjectAutomationLimits } as never, {} as never,
+    );
+    const result = await service.updateAutomation('cab', { defaultLimit: 10, maxLimit: 80 });
+    expect(result).toEqual(expect.objectContaining({ defaultLimit: 10, maxLimit: 80 }));
+    expect(scheduledRunCreate).toHaveBeenCalledWith(expect.objectContaining({
+      data: expect.objectContaining({ cabinetId: 'cab', task: 'APPLY_SETTINGS' }),
+    }));
+  });
+
   it('не дёргает Leads Factory при сохранении автоматизации, если проект ещё не связан', async () => {
     const update = jest.fn().mockResolvedValue({ providerProjectId: null, defaultLimit: 5, maxLimit: 50 });
     const updateProjectAutomationLimits = jest.fn();

@@ -123,6 +123,10 @@ model Cabinet {
   hidden          Boolean  @default(false)
   timezoneOffset  Int      @default(3)
   uploadsEnabled  Boolean  @default(true)
+  // Снимок parse_*/check_domains_in_v_kazakh флагов Leads Factory, снятый прямо перед тем,
+  // как "Выгрузки" выключили — чтобы при обратном включении вернуть именно то, что было
+  // настроено вручную в Leads Factory, а не наши дефолты. Non-null только пока Выгрузки off.
+  uploadsAcquisitionSnapshot Json?
   callsEnabled    Boolean  @default(true)
   crmIntegration  String   @default("")
   messengerIntegrations String[] @default([])

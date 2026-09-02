@@ -16,6 +16,7 @@ import { AnswerSyncService } from '../crm/answer-sync.service';
 import { SourcesService } from '../sources/sources.service';
 import { hasAvailableBalance } from '../finance/balance-availability';
 import { isActiveToday } from '../scheduler/schedule-day';
+import { AcquisitionSyncService } from '../leads-factory/acquisition-sync.service';
 
 const cabinetSelect = {
   id: true, name: true, providerProjectId: true, linkedProviderProjectIds: true, type: true, price: true,
@@ -54,6 +55,7 @@ export class CabinetsService {
     private readonly directMessenger?: DirectMessengerService,
     private readonly answers?: AnswerSyncService,
     private readonly sources?: SourcesService,
+    private readonly acquisitionSync?: AcquisitionSyncService,
   ) {}
 
   async listManagers() {
@@ -368,7 +370,7 @@ export class CabinetsService {
     try {
       await this.provider.updateProjectSettings(providerProjectId, {
         isActive: cabinet.isActive && hasAvailableBalance(cabinet), timezoneOffset: cabinet.timezoneOffset,
-        uploadsEnabled: cabinet.uploadsEnabled, callsEnabled: cabinet.callsEnabled,
+        callsEnabled: cabinet.callsEnabled,
         activeToday: isActiveToday(cabinet.scheduleDays),
       });
     } catch (error) {
@@ -511,14 +513,13 @@ export class CabinetsService {
       if (!operationalNow || generalChanged) {
         await this.provider.updateProjectSettings(cabinet.providerProjectId, {
           isActive: effectiveIsActive, timezoneOffset: dto.timezoneOffset,
-          uploadsEnabled: dto.uploadsEnabled, callsEnabled: dto.callsEnabled,
-          activeToday: isActiveToday(dto.scheduleDays),
+          callsEnabled: dto.callsEnabled, activeToday: isActiveToday(dto.scheduleDays),
         });
-      } else if (uploadsChanged || callsChanged) {
-        await this.provider.updateProjectProcesses(cabinet.providerProjectId, {
-          uploadsEnabled: uploadsChanged ? dto.uploadsEnabled : undefined,
-          callsEnabled: callsChanged ? dto.callsEnabled : undefined,
-        });
+      } else if (callsChanged) {
+        await this.provider.updateProjectProcesses(cabinet.providerProjectId, { callsEnabled: dto.callsEnabled });
+      }
+      if (uploadsChanged) {
+        await this.acquisitionSync?.reconcile(id, cabinet.providerProjectId, dto.uploadsEnabled);
       }
       return { ...updated, providerSync: { status: 'SYNCED' }, ...(balanceWarning ? { balanceWarning } : {}) };
     } catch (error) {
