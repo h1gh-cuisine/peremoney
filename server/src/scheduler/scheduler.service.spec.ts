@@ -3,13 +3,10 @@ import { SchedulerService } from './scheduler.service';
 import { ProviderException } from '../leads-factory/provider.exception';
 
 describe('SchedulerService', () => {
-  function service(
-    prisma: Record<string, unknown>, provider: Record<string, unknown> = {},
-    acquisitionSync: Record<string, unknown> = { reconcile: jest.fn() },
-  ) {
+  function service(prisma: Record<string, unknown>, provider: Record<string, unknown> = {}) {
     return new SchedulerService(
       prisma as never, { sync: jest.fn() } as never, { sync: jest.fn(), automate: jest.fn() } as never,
-      provider as never, { get: jest.fn() } as never, acquisitionSync as never,
+      provider as never, { get: jest.fn() } as never,
     );
   }
 
@@ -55,7 +52,7 @@ describe('SchedulerService', () => {
     const dispatch = (scheduler as unknown as { dispatch(run: unknown): Promise<unknown> }).dispatch.bind(scheduler);
 
     await dispatch({ task: ScheduledTask.APPLY_SCHEDULE, cabinetId: 'cabinet-id', scheduledFor: new Date('2026-08-21T17:00:00Z') });
-    expect(updateProjectSchedule).toHaveBeenCalledWith(42, false, { callsEnabled: undefined });
+    expect(updateProjectSchedule).toHaveBeenCalledWith(42, false, { uploadsEnabled: undefined, callsEnabled: undefined });
   });
 
   it('at 20:00 checks the next Moscow calendar day', async () => {
@@ -70,12 +67,11 @@ describe('SchedulerService', () => {
 
     // 21 августа — пятница. В 20:00 МСК применяется расписание субботы (ISO 6).
     await dispatch({ task: ScheduledTask.APPLY_SCHEDULE, cabinetId: 'cabinet-id', scheduledFor: new Date('2026-08-21T17:00:00Z') });
-    expect(updateProjectSchedule).toHaveBeenCalledWith(42, true, { callsEnabled: true });
+    expect(updateProjectSchedule).toHaveBeenCalledWith(42, true, { uploadsEnabled: true, callsEnabled: true });
   });
 
   it('APPLY_SETTINGS re-applies today\'s schedule, not tomorrow\'s (unlike the nightly APPLY_SCHEDULE rollover)', async () => {
     const updateProjectSettings = jest.fn();
-    const reconcile = jest.fn();
     // 21 августа 2026 — пятница (ISO 5); суббота (ISO 6) недоступна в scheduleDays.
     // Ретрай сохранения настроек должен применить статус на СЕГОДНЯ, а не на завтра.
     const prisma = { cabinet: { findUniqueOrThrow: jest.fn().mockResolvedValue({
@@ -83,17 +79,14 @@ describe('SchedulerService', () => {
       moneyBalance: 1000, price: 250, totalUnits: 10, usedUnits: 0,
       timezoneOffset: 3, uploadsEnabled: false, callsEnabled: true,
     }) } };
-    const scheduler = service(prisma, { updateProjectSettings }, { reconcile });
+    const scheduler = service(prisma, { updateProjectSettings });
     const dispatch = (scheduler as unknown as { dispatch(run: unknown): Promise<unknown> }).dispatch.bind(scheduler);
 
     await dispatch({ task: ScheduledTask.APPLY_SETTINGS, cabinetId: 'cabinet-id', scheduledFor: new Date('2026-08-21T17:00:00Z') });
 
     expect(updateProjectSettings).toHaveBeenCalledWith(42, expect.objectContaining({
-      isActive: true, timezoneOffset: 3, callsEnabled: true, activeToday: true,
+      isActive: true, timezoneOffset: 3, uploadsEnabled: false, callsEnabled: true, activeToday: true,
     }));
-    // "Выгрузки" — отдельный блок закупки/парсинга (parse_*), реконсилится независимо
-    // от work_client_status/call_center_status.
-    expect(reconcile).toHaveBeenCalledWith('cabinet-id', 42, false);
   });
 
   it('never reactivates a project that is locally paused', async () => {
@@ -104,7 +97,7 @@ describe('SchedulerService', () => {
     const scheduler = service(prisma, { updateProjectSchedule });
     const dispatch = (scheduler as unknown as { dispatch(run: unknown): Promise<unknown> }).dispatch.bind(scheduler);
     await dispatch({ task: ScheduledTask.APPLY_SCHEDULE, cabinetId: 'cabinet-id', scheduledFor: new Date('2026-08-20T17:00:00Z') });
-    expect(updateProjectSchedule).toHaveBeenCalledWith(42, false, { callsEnabled: undefined });
+    expect(updateProjectSchedule).toHaveBeenCalledWith(42, false, { uploadsEnabled: undefined, callsEnabled: undefined });
   });
 
   it('pauses an active project when its balance is exhausted', async () => {
@@ -116,7 +109,7 @@ describe('SchedulerService', () => {
     const scheduler = service(prisma, { updateProjectSchedule });
     const dispatch = (scheduler as unknown as { dispatch(run: unknown): Promise<unknown> }).dispatch.bind(scheduler);
     await dispatch({ task: ScheduledTask.APPLY_SCHEDULE, cabinetId: 'cabinet-id', scheduledFor: new Date('2026-08-20T17:00:00Z') });
-    expect(updateProjectSchedule).toHaveBeenCalledWith(42, false, { callsEnabled: undefined });
+    expect(updateProjectSchedule).toHaveBeenCalledWith(42, false, { uploadsEnabled: undefined, callsEnabled: undefined });
   });
 
   it('stores readable provider script text instead of HTML presentation', async () => {
@@ -161,7 +154,7 @@ describe('SchedulerService', () => {
     };
     const scheduler = new SchedulerService(
       prisma as never, { sync: jest.fn().mockRejectedValue(new Error('CRM unavailable')) } as never,
-      {} as never, {} as never, { get: jest.fn() } as never, { reconcile: jest.fn() } as never,
+      {} as never, {} as never, { get: jest.fn() } as never,
     );
 
     await scheduler.runOnce();
