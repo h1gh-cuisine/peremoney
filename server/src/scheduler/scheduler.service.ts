@@ -10,6 +10,7 @@ import { SourcesService } from '../sources/sources.service';
 import { hasAvailableBalance } from '../finance/balance-availability';
 import { providerScriptToText } from '../leads-factory/script-text';
 import { ProviderException } from '../leads-factory/provider.exception';
+import { AcquisitionSyncService } from '../leads-factory/acquisition-sync.service';
 import { isActiveNextDay, isActiveToday } from './schedule-day';
 
 const MOSCOW_OFFSET_MS = 3 * 60 * 60 * 1000;
@@ -34,6 +35,7 @@ export class SchedulerService implements OnApplicationBootstrap, OnApplicationSh
     private readonly sources: SourcesService,
     private readonly provider: LeadsFactoryService,
     private readonly config: ConfigService,
+    private readonly acquisitionSync: AcquisitionSyncService,
   ) {}
 
   onApplicationBootstrap() {
@@ -66,13 +68,15 @@ export class SchedulerService implements OnApplicationBootstrap, OnApplicationSh
 
   async enqueueDueRuns(now: Date) {
     const cabinets = await this.prisma.cabinet.findMany({
-      where: { isActive: true, providerProjectId: { not: null } }, select: { id: true },
+      where: { providerProjectId: { not: null } }, select: { id: true, isActive: true },
     });
     if (!cabinets.length) return 0;
     const slots = this.dueSlots(now);
     if (!slots.length) return 0;
     const result = await this.prisma.scheduledRun.createMany({
-      data: cabinets.flatMap((cabinet) => slots.map((slot) => ({
+      data: cabinets.flatMap((cabinet) => slots
+        .filter((slot) => cabinet.isActive || slot.task === ScheduledTask.SCRIPT_SYNC)
+        .map((slot) => ({
         cabinetId: cabinet.id, task: slot.task, scheduledFor: slot.at, nextAttemptAt: slot.at,
       }))),
       skipDuplicates: true,
@@ -175,7 +179,7 @@ export class SchedulerService implements OnApplicationBootstrap, OnApplicationSh
       const active = cabinet.isActive && hasAvailableBalance(cabinet)
         && isActiveNextDay(cabinet.scheduleDays, run.scheduledFor);
       await this.provider.updateProjectSchedule(cabinet.providerProjectId, active, {
-        uploadsEnabled: cabinet.uploadsEnabled, callsEnabled: cabinet.callsEnabled,
+        callsEnabled: cabinet.callsEnabled,
       });
       return { active, scheduleDays: cabinet.scheduleDays };
     }
@@ -183,9 +187,12 @@ export class SchedulerService implements OnApplicationBootstrap, OnApplicationSh
       const effectiveIsActive = cabinet.isActive && hasAvailableBalance(cabinet);
       await this.provider.updateProjectSettings(cabinet.providerProjectId, {
         isActive: effectiveIsActive, timezoneOffset: cabinet.timezoneOffset,
-        uploadsEnabled: cabinet.uploadsEnabled, callsEnabled: cabinet.callsEnabled,
+        callsEnabled: cabinet.callsEnabled,
         activeToday: isActiveToday(cabinet.scheduleDays, run.scheduledFor),
       });
+      // Идемпотентно: если "Выгрузки" уже в нужном состоянии у провайдера
+      // (нет висящего снимка на восстановление), reconcile ничего не пошлёт.
+      await this.acquisitionSync.reconcile(cabinet.id, cabinet.providerProjectId, cabinet.uploadsEnabled);
       return { effectiveIsActive };
     }
     if (run.task === ScheduledTask.SCRIPT_SYNC) {
